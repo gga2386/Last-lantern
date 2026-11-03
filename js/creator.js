@@ -1,0 +1,91 @@
+// ===== Title, character creator, homebrew class builder =====
+function showScreen(cls,...kids){ G.screen=cls; const s=document.getElementById('screen'); const keep=s.dataset.cls===cls?s.scrollTop:0; s.innerHTML=''; s.className='screen '+cls; s.dataset.cls=cls; kids.flat().forEach(k=>k&&s.appendChild(k)); s.classList.remove('hidden'); document.getElementById('hud').classList.add('hidden'); document.getElementById('cv').classList.add('hidden'); s.scrollTop=keep; return s; }
+function titleScreen(){ const has=!!localStorage.getItem(SAVE_KEY);
+  showScreen('title',el('div',{class:'titlebox'},el('h1',null,'The Last Lantern'),el('div',{class:'sub'},'A gothic dungeon chronicle'),
+    el('div',{class:'col tmenu'},has?btn('▶ Continue',()=>{ if(loadGame()) resumeGame(); },'big',{id:'b-continue'}):null,btn('✦ New Chronicle',()=>newGameFlow(),'big',{id:'b-new'}),btn('📥 Import save',()=>importSave(),''),btn('🛠 Homebrew classes',()=>homebrewList(()=>titleScreen()),''),btn('📜 Credits & License',()=>UI.credits(),'')),
+    el('p',{class:'fine'},'Rules content from the SRD 5.1 (CC-BY-4.0). Original setting.'))); }
+function newGameFlow(){ G=newState(); refreshMarket(); creator({first:true,onDone:h=>{ G.roster.push(h); G.party=[h.id]; G.gold+=BACKGROUNDS[h.bg].gold||0; logJournal(h.name+' arrives at the Last Lantern, seeking shelter from the endless Night.'); saveGame(); showTavern(); UI.story('The Last Lantern','Forty days ago the sun failed to rise. In the endless Night the dead walk and the lanterns are worth more than gold.\n\nYou have found the Last Lantern — a tavern-fortress where the Wardens gather. Recruit companions, outfit them, and descend into the dark.\n\nSpeak with Marta the innkeeper, then open the World Map to begin.'); }}); }
+// ---------- creator ----------
+function creator(opts){ opts=opts||{}; const h=opts.hero||newHeroShell(); if(!opts.hero){ const p=classPrio(h.cls); p.forEach((a,i)=>h.base[a]=STANDARD_ARRAY[i]); }
+  const st={method:'array',rolled:null,chosenSkills:[],cantrips:[],spells:[]}; let custom=opts.hero?true:false;
+  const allClasses=()=>[...Object.keys(CLASSES),...(G.homebrew||[]).map(c=>c.id)];
+  const setMethod=m=>{ st.method=m; if(m==='array'){ const p=classPrio(h.cls); p.forEach((a,i)=>h.base[a]=STANDARD_ARRAY[i]); } else if(m==='point'){ ABIL.forEach(a=>h.base[a]=8); } else { st.rolled=Array.from({length:6},()=>{ const r=[die(6),die(6),die(6),die(6)].sort((a,b)=>a-b); return r[1]+r[2]+r[3]; }).sort((a,b)=>b-a); const p=classPrio(h.cls); p.forEach((a,i)=>h.base[a]=st.rolled[i]); } draw(); };
+  const pointsUsed=()=>ABIL.reduce((s,a)=>s+(POINT_COST[h.base[a]]||0),0);
+  const swapAssign=(a,v)=>{ const other=ABIL.find(b=>b!==a&&h.base[b]===v); if(other) h.base[other]=h.base[a]; h.base[a]=v; draw(); };
+  const sec=(t,...k)=>el('section',{class:'csec'},el('h3',null,t),...k);
+  const chips=(list,cur,fn,lab,idp)=>el('div',{class:'chips'},list.map(k=>el('button',{class:'chip'+(k===cur?' on':''),id:idp?idp+k:null,onclick:()=>fn(k)},lab(k))));
+  function draw(){ const c=getClass(h.cls), r=RACES[h.race], bg=BACKGROUNDS[h.bg]; h.raceAsi=Object.assign({},r.asi); h._fcache=null;
+    const bgSk=bg.skills||[]; const pool=c.skillList.filter(s=>!bgSk.includes(s)&&!(r.skills||[]).includes(s)); st.chosenSkills=st.chosenSkills.filter(s=>pool.includes(s)||(r.extraSkills&&!bgSk.includes(s)));
+    const nPick=c.nSkills+(r.extraSkills||0);
+    const tmp=JSON.parse(JSON.stringify(h)); tmp.skills=st.chosenSkills.slice(); tmp.eq={}; tmp.cantrips=[]; tmp.spells=[]; finalizeHero(tmp);
+    const abilRows=ABIL.map(a=>{ const tot=h.base[a]+(h.raceAsi[a]||0); let ctl;
+      if(st.method==='point') ctl=el('span',{class:'pb'},btn('−',()=>{ if(h.base[a]>8){ h.base[a]--; draw(); } },'mini'),el('b',null,h.base[a]),btn('+',()=>{ if(h.base[a]<15&&pointsUsed()-POINT_COST[h.base[a]]+POINT_COST[h.base[a]+1]<=27){ h.base[a]++; draw(); } },'mini'));
+      else { const vals=st.method==='array'?STANDARD_ARRAY:st.rolled; const s=el('select',{id:'ab-'+a,onchange:e=>swapAssign(a,+e.target.value)},vals.map(v=>el('option',{value:v,selected:h.base[a]===v},String(v)))); ctl=s; }
+      return el('div',{class:'abrow'},el('span',{class:'abn'},ABIL_NAME[a]+(c.primary.includes(a)?' ★':'')),ctl,el('span',{class:'abt'},(h.raceAsi[a]?'+'+h.raceAsi[a]+' → ':'')+tot+' ('+fmtMod(amod(tot))+')')); });
+    const isCaster=!!c.caster; let spellSec=null;
+    if(isCaster){ const ca=cantripsAllowed(tmp), sa=spellsAllowed(tmp); const cl=cantripsForClass(tmp), sl=spellsForClass(tmp).filter(s=>SPELLS[s].l===1);
+      st.cantrips=st.cantrips.filter(s=>cl.includes(s)).slice(0,ca); st.spells=st.spells.filter(s=>sl.includes(s)).slice(0,sa);
+      spellSec=sec('Spells ('+CLASS_SPELL_LIST_NAMES[c.list]+' list) — leave empty to auto-pick',el('div',{class:'small'},'Cantrips '+st.cantrips.length+'/'+ca),el('div',{class:'chips'},cl.map(s=>el('button',{class:'chip'+(st.cantrips.includes(s)?' on':''),title:SPELLS[s].d,onclick:()=>{ const i=st.cantrips.indexOf(s); if(i>=0) st.cantrips.splice(i,1); else if(st.cantrips.length<ca) st.cantrips.push(s); draw(); }},SPELLS[s].n))),
+        sa?el('div',{class:'small'},'1st-level spells '+st.spells.length+'/'+sa):null,sa?el('div',{class:'chips'},sl.map(s=>el('button',{class:'chip'+(st.spells.includes(s)?' on':''),title:SPELLS[s].d,onclick:()=>{ const i=st.spells.indexOf(s); if(i>=0) st.spells.splice(i,1); else if(st.spells.length<sa) st.spells.push(s); draw(); }},SPELLS[s].n))):null); }
+    const appRows=Object.keys(APPEAR).map(k=>{ const list=APPEAR[k]; const v=h.app[k]||0; const isCol=typeof list[0]==='string'&&list[0][0]==='#';
+      return el('div',{class:'aprow'},el('span',null,k.replace(/([A-Z])/g,' $1')),btn('◀',()=>{ h.app[k]=(v-1+list.length)%list.length; draw(); },'mini'),isCol?el('span',{class:'swatch',style:{background:list[v]}}):el('span',{class:'apv'},list[v]),btn('▶',()=>{ h.app[k]=(v+1)%list.length; draw(); },'mini')); });
+    const subSec=c.subLvl<=1&&Object.keys(c.subs).length?sec('Subclass',chips(Object.keys(c.subs),h.sub||Object.keys(c.subs)[0],k=>{ h.sub=k; draw(); },k=>c.subs[k].n)):null;
+    const styleSec=(c.feats[1]||[]).includes('fightingStyle')?sec('Fighting Style',chips(Object.keys(FIGHTING_STYLES),h.style||defaultStyle(tmp),k=>{ h.style=k; draw(); },k=>FIGHTING_STYLES[k].n),el('p',{class:'small'},FIGHTING_STYLES[h.style||defaultStyle(tmp)].d)):null;
+    const feats1=[...(c.feats[1]||[])].map(f=>FEATURES[f]?FEATURES[f].n:f).join(', ');
+    showScreen('creator',el('div',{class:'cwrap'},
+      el('div',{class:'chead'},el('h2',null,opts.title||'Forge a Hero'),btn('🎲 Randomize',()=>{ const a=autoHero(pick(allClasses().filter(x=>CLASSES[x]))); Object.assign(h,{name:a.name,race:a.race,cls:a.cls,bg:a.bg,app:a.app,dragon:a.dragon,sub:null,style:null}); st.chosenSkills=[]; setMethod('array'); }),opts.cancel?btn('Back',opts.cancel):null),
+      el('div',{class:'cgrid'},
+        el('div',{class:'cleft'},portraitEl(h,140,'big'),el('input',{id:'c-name',class:'name',value:h.name,maxlength:24,oninput:e=>{ h.name=e.target.value||'Nameless'; const b=document.getElementById('b-create'); if(b) b.textContent='✔ Create '+h.name.split(' ')[0]; }}),btn('New name',()=>{ h.name=randomName(); draw(); },'mini'),
+          el('div',{class:'statcard'},el('div',null,'HP '+heroMaxHP(tmp)+' · AC '+heroAC(tmp)+' · Speed '+heroSpeed(tmp)),el('div',null,'Hit die d'+c.hd+' · Saves '+c.saves.map(a=>a.toUpperCase()).join('/')),el('div',{class:'small'},'Lv1 features: '+feats1)),
+          sec('Appearance',...appRows)),
+        el('div',{class:'cright'},
+          sec('Ancestry',chips(Object.keys(RACES),h.race,k=>{ h.race=k; draw(); },k=>RACES[k].n,'race-'),el('p',{class:'small'},r.traits.join(' ')),h.race==='dragonborn'?chips(Object.keys(DRAGON_ANCESTRY),h.dragon,k=>{ h.dragon=k; draw(); },k=>k+' ('+DRAGON_ANCESTRY[k]+')'):null),
+          sec('Class',chips(allClasses(),h.cls,k=>{ h.cls=k; h.sub=null; h.style=null; st.chosenSkills=[]; st.cantrips=[]; st.spells=[]; if(st.method==='array') setMethod('array'); else draw(); },k=>getClass(k).n+(getClass(k).homebrew?' ✎':''),'cls-'),el('p',{class:'small'},c.desc||''),btn('🛠 Build homebrew class',()=>homebrewBuilder(null,()=>creator(Object.assign(opts,{hero:h}))),'mini',{id:'b-hb'})),
+          subSec,styleSec,
+          sec('Background',chips(Object.keys(BACKGROUNDS),h.bg,k=>{ h.bg=k; draw(); },k=>BACKGROUNDS[k].n),el('p',{class:'small'},'Skills: '+(bg.skills||[]).map(s=>SKILL_NAME[s]).join(', ')+' · '+bg.feat+' · +'+(bg.gold||0)+' gold')),
+          sec('Ability Scores',chips(['array','point','roll'],st.method,setMethod,k=>({array:'Standard Array',point:'Point Buy (27)',roll:'Roll 4d6'})[k]),st.method==='point'?el('div',{class:'small'},'Points: '+pointsUsed()+'/27'):null,st.method==='roll'?btn('Reroll',()=>setMethod('roll'),'mini'):null,...abilRows),
+          sec('Skills — choose '+nPick+' ('+st.chosenSkills.length+')',el('div',{class:'chips'},Object.keys(SKILLS).filter(s=>pool.includes(s)||(r.extraSkills&&!bgSk.includes(s))).map(s=>el('button',{class:'chip'+(st.chosenSkills.includes(s)?' on':''),onclick:()=>{ const i=st.chosenSkills.indexOf(s); if(i>=0) st.chosenSkills.splice(i,1); else if(st.chosenSkills.length<nPick) st.chosenSkills.push(s); draw(); }},SKILL_NAME[s]+' ('+SKILLS[s]+')')))),
+          spellSec,
+          sec('Biography',el('textarea',{id:'c-bio',rows:2,placeholder:'A line of history (optional)',oninput:e=>h.bio=e.target.value},h.bio||'')))),
+      el('div',{class:'cfoot'},btn('✔ Create '+(h.name.split(' ')[0]),finish,'big',{id:'b-create'})))); }
+  function finish(){ const c=getClass(h.cls); if(st.method==='point'&&pointsUsed()>27){ toast('Too many points spent.'); return; }
+    const r=RACES[h.race]; const bgSk=BACKGROUNDS[h.bg].skills||[]; const pool=shuffle(c.skillList.filter(s=>!bgSk.includes(s)&&!st.chosenSkills.includes(s)));
+    while(st.chosenSkills.length<c.nSkills&&pool.length) st.chosenSkills.push(pool.shift());
+    if(r.extraSkills){ const ex=shuffle(Object.keys(SKILLS).filter(s=>!st.chosenSkills.includes(s)&&!bgSk.includes(s))); while(st.chosenSkills.length<c.nSkills+r.extraSkills) st.chosenSkills.push(ex.shift()); }
+    h.skills=st.chosenSkills.slice(); h.cantrips=st.cantrips.slice(); h.spells=st.spells.slice(); h.eq={}; h.raceAsi={}; h._fcache=null;
+    if(c.subLvl<=1&&!h.sub) h.sub=Object.keys(c.subs)[0]||null;
+    finalizeHero(h); autoSpells(h); const targetXp=opts.keepXp||0; h.xp=targetXp; while(canLevel(h)) applyLevelUp(h,autoLevelChoices(h)); h.hp=heroMaxHP(h); restoreSlots(h); restoreRes(h,true);
+    opts.onDone&&opts.onDone(h); }
+  draw(); }
+// ---------- homebrew ----------
+const HB_POOL=(()=>{ const s=new Set(); for(const c in CLASSES) for(const l in CLASSES[c].feats) CLASSES[c].feats[l].forEach(f=>{ if(!['asi','spellcasting','pact'].includes(f)&&FEATURES[f]) s.add(f); }); ['graveCommand','reaperTouch','lifeSiphon','boneBond'].forEach(f=>{ if(FEATURES[f]) s.add(f); }); return [...s]; })();
+const HB_COST={casterfull:5,casterhalf:3,casterpact:4,hd12:2,hd10:1,heavy:2,medium:1,martial:1};
+const HB_BUDGET=18;
+function hbCost(c){ let p=0; if(c.caster) p+=HB_COST['caster'+c.caster]; if(c.hd===12) p+=2; else if(c.hd===10) p+=1; if(c.armor.includes('heavy')) p+=2; else if(c.armor.includes('medium')) p+=1; if(c.weapons.includes('martial')) p+=1; p+=Math.max(0,c.nSkills-2);
+  for(const l in c.feats) c.feats[l].forEach(f=>{ if(f!=='asi'&&f!=='spellcasting'&&f!=='pact') p+=(+l<=2?1.5:+l>=9?0.5:1); }); return Math.round(p*10)/10; }
+function homebrewList(back){ const list=G.homebrew||[]; showScreen('creator',el('div',{class:'cwrap'},el('div',{class:'chead'},el('h2',null,'Homebrew Classes'),btn('Back',back)),
+  el('div',{class:'col'},list.length?list.map(c=>el('div',{class:'card'},el('b',null,c.n),el('span',{class:'small'},' d'+c.hd+' · '+(c.caster||'martial')+' · cost '+hbCost(c)+'/'+HB_BUDGET),el('p',{class:'small'},c.desc),btn('Edit',()=>homebrewBuilder(c,()=>homebrewList(back)),'mini'),btn('Delete',()=>{ G.homebrew=G.homebrew.filter(x=>x!==c); saveHomebrew(); homebrewList(back); },'mini danger'))):el('p',null,'No homebrew classes yet.'),btn('🛠 New homebrew class',()=>homebrewBuilder(null,()=>homebrewList(back)),'big',{id:'b-hbnew'})))); }
+function homebrewBuilder(existing,back){ const c=existing?JSON.parse(JSON.stringify(existing)):{id:uid('hb'),homebrew:true,n:'Gravewarden',desc:'A custom class of your own design.',hd:10,primary:['str'],saves:['str','con'],armor:['light','medium','shield'],weapons:['simple','martial'],nSkills:2,skillList:['athletics','perception','survival','intimidation','religion','medicine'],caster:null,cast:'wis',list:'C',feats:{1:['fightingStyle','secondWind'],2:['actionSurge'],4:['asi'],5:['extraAttack'],8:['asi'],12:['asi']},subLvl:99,subs:{},start:['longsword','shield','chainmail'],tools:false};
+  const lv=[1,2,3,5,6,7,9,10,11]; let selLvl=1;
+  const tog=(arr,v)=>{ const i=arr.indexOf(v); if(i>=0) arr.splice(i,1); else arr.push(v); };
+  function draw(){ const cost=hbCost(c); const over=cost>HB_BUDGET; const sec=(t,...k)=>el('section',{class:'csec'},el('h3',null,t),...k);
+    const chipsM=(all,arr,lab,max)=>el('div',{class:'chips'},all.map(k=>el('button',{class:'chip'+(arr.includes(k)?' on':''),onclick:()=>{ if(!arr.includes(k)&&max&&arr.length>=max) arr.shift(); tog(arr,k); draw(); }},lab?lab(k):k)));
+    const chips1=(all,cur,fn,lab)=>el('div',{class:'chips'},all.map(k=>el('button',{class:'chip'+(k===cur?' on':''),onclick:()=>{ fn(k); draw(); }},lab?lab(k):String(k))));
+    if(c.caster&&!c.feats[1].includes('spellcasting')) c.feats[1].push('spellcasting'); if(!c.caster) c.feats[1]=c.feats[1].filter(f=>f!=='spellcasting');
+    c.feats[selLvl]=c.feats[selLvl]||[];
+    showScreen('creator',el('div',{class:'cwrap'},el('div',{class:'chead'},el('h2',null,'Homebrew Class Builder'),el('span',{class:'budget'+(over?' over':'')},'Power '+cost+' / '+HB_BUDGET),btn('Back',back)),
+      el('div',{class:'cright full'},
+        sec('Identity',el('input',{id:'hb-name',class:'name',value:c.n,maxlength:22,oninput:e=>c.n=e.target.value||'Homebrew'}),el('textarea',{rows:2,oninput:e=>c.desc=e.target.value},c.desc)),
+        sec('Hit Die',chips1([6,8,10,12],c.hd,v=>c.hd=v,v=>'d'+v)),
+        sec('Primary ability',chipsM(ABIL,c.primary,a=>ABIL_NAME[a],2)),
+        sec('Saving throws (2)',chipsM(ABIL,c.saves,a=>ABIL_NAME[a],2)),
+        sec('Armor',chipsM(['light','medium','heavy','shield'],c.armor)),sec('Weapons',chipsM(['simple','martial'],c.weapons)),
+        sec('Skills: number '+c.nSkills,chips1([2,3,4],c.nSkills,v=>c.nSkills=v),chipsM(Object.keys(SKILLS),c.skillList,s=>SKILL_NAME[s])),
+        sec('Spellcasting',chips1(['none','half','full','pact'],c.caster||'none',v=>c.caster=v==='none'?null:v),c.caster?chips1(['int','wis','cha'],c.cast,v=>c.cast=v,a=>ABIL_NAME[a]):null,c.caster?chips1(Object.keys(CLASS_SPELL_LIST_NAMES),c.list,v=>c.list=v,k=>CLASS_SPELL_LIST_NAMES[k]+' list'):null),
+        sec('Class features by level (ASI fixed at 4, 8, 12)',chips1(lv,selLvl,v=>selLvl=v,v=>'Lv '+v+' ('+(c.feats[v]||[]).filter(f=>f!=='spellcasting').length+')'),
+          el('div',{class:'small'},'Level '+selLvl+': '+((c.feats[selLvl]||[]).filter(f=>f!=='spellcasting').map(f=>FEATURES[f].n).join(', ')||'none')),
+          el('div',{class:'chips'},HB_POOL.map(f=>el('button',{class:'chip'+(c.feats[selLvl].includes(f)?' on':''),title:FEATURES[f].d,id:'hbf-'+f,onclick:()=>{ for(const l in c.feats) if(+l!==selLvl) c.feats[l]=c.feats[l].filter(x=>x!==f); tog(c.feats[selLvl],f); draw(); }},FEATURES[f].n)))),
+        sec('Starting kit',chips1(['martial','skirmisher','caster','holy'],c._kit||'martial',v=>{ c._kit=v; c.start={martial:['longsword','shield','chainmail'],skirmisher:['rapier','shortbow','leather'],caster:['quarterstaff','dagger'],holy:['mace','shield','scalemail']}[v]; }))),
+      el('div',{class:'cfoot'},el('span',{class:'small'},over?'Over budget: remove features or proficiencies.':'Balanced within the budget.'),btn('💾 Save class',()=>{ if(over){ toast('Over the power budget.'); return; } if(c.saves.length!==2){ toast('Pick exactly 2 saves.'); return; } if(!c.primary.length) c.primary=['str']; if(c.skillList.length<c.nSkills){ toast('Add more skills to the list.'); return; }
+        G.homebrew=(G.homebrew||[]).filter(x=>x.id!==c.id); G.homebrew.push(c); saveHomebrew(); toast('Homebrew class "'+c.n+'" saved.'); back(); },'big',{id:'b-hbsave'})))); }
+  draw(); }

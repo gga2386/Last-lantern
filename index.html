@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#0b0806">
+<meta name="mobile-web-app-capable" content="yes">
+<title>The Last Lantern — Gothic Dungeon Crawler</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div id="app">
+  <canvas id="cv" class="hidden"></canvas>
+  <div id="hud" class="hidden">
+    <div id="party"></div>
+    <div id="topbar"><span id="floorinfo"></span></div>
+    <div id="init"></div>
+    <div id="dice" class="dice"></div>
+    <div id="tgthint" class="hidden"></div>
+    <div id="log"><button id="logtoggle">📜 <span id="loglast">Log</span></button><div id="logbody"></div></div>
+    <div id="actions"></div>
+  </div>
+  <div id="screen" class="screen hidden"></div>
+  <div id="modals"></div>
+  <div id="toasts"></div>
+</div>
+<script src="js/data_core.js"></script>
+<script src="js/data_classes.js"></script>
+<script src="js/data_spells.js"></script>
+<script src="js/data_monsters.js"></script>
+<script src="js/data_items.js"></script>
+<script src="js/data_world.js"></script>
+<script src="js/rules.js"></script>
+<script src="js/heroes.js"></script>
+<script src="js/dungeon.js"></script>
+<script src="js/render.js"></script>
+<script src="js/core.js"></script>
+<script src="js/combat.js"></script>
+<script src="js/explore.js"></script>
+<script src="js/ui.js"></script>
+<script src="js/minions.js"></script>
+<script src="js/creator.js"></script>
+<script src="js/tavern.js"></script>
+<script src="js/sheet.js"></script>
+<script src="js/main.js"></script>
+</body>
+</html>
