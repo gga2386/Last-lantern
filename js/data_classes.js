@@ -260,4 +260,4 @@ CANTRIPS_KNOWN.N=[3,3,3,4,4,4,4,4,4,5,5,5];
 SPELLS_KNOWN.N=[3,4,5,6,7,8,9,10,11,12,13,13];
 CLASS_SPELL_LIST_NAMES.N='Necromancer';
 // Minion cap for a necromancer (or anyone with Call of the Grave)
-function minionCap(h){ const F=heroFeatures(h); if(!F.has('graveCall')) return 0; let n=1; if(F.has('graveCohort')||(h.level>=5&&getClass(h.cls).homebrew)) n++; if(F.has('boneLegion')) n++; if(F.has('graveHost')) n++; return Math.min(4,n); }
+function minionCap(h){ const F=heroFeatures(h); const ae=F.has('forgeCompanion')?1:0; if(!F.has('graveCall')) return ae; let n=1; if(F.has('graveCohort')||(h.level>=5&&getClass(h.cls).homebrew)) n++; if(F.has('boneLegion')) n++; if(F.has('graveHost')) n++; return Math.min(4,n)+ae; }

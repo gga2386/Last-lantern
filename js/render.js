@@ -64,8 +64,8 @@ function drawStairs(g,x,y,up,dim){
   else { g.fillStyle='rgba(0,0,0,0.6)'; g.beginPath(); g.ellipse(0,0,TW/6,TH/6,0,0,7); g.fill(); }
   g.restore();
 }
-// ===== procedural hero portrait =====
-function heroPortrait(h,size){
+// ===== procedural hero portrait (fallback while painted art loads) =====
+function heroPortraitProc(h,size){
   const a=h.app||{}; const key=h.id+'|'+JSON.stringify(a)+'|'+h.race+'|'+h.cls+'|'+size+'|'+(h.dragon||'');
   if(R.portraitCache[key]) return R.portraitCache[key];
   const c=document.createElement('canvas'); c.width=size; c.height=size; const g=c.getContext('2d'); const s=size/100;
@@ -141,6 +141,25 @@ function heroPortrait(h,size){
   const vg=g.createRadialGradient(50,50,30,50,50,75); vg.addColorStop(0,'rgba(0,0,0,0)'); vg.addColorStop(1,'rgba(0,0,0,0.55)'); g.fillStyle=vg; g.fillRect(0,0,100,100);
   R.portraitCache[key]=c; return c;
 }
+// ===== painted hero portraits (assets/p_<class>_<a|b>.jpg) =====
+const PORTRAIT_CLASSES=['barbarian','bard','cleric','druid','fighter','monk','paladin','ranger','rogue','sorcerer','warlock','wizard','necromancer','lanternwright','veilseer'];
+const PORTRAIT_IDS=PORTRAIT_CLASSES.flatMap(c=>[c+'_a',c+'_b']);
+const HB_PORTRAIT_BY_ABIL={str:'fighter',dex:'rogue',con:'barbarian',int:'wizard',wis:'cleric',cha:'sorcerer'};
+function strHash(s){ let x=0; s=String(s||''); for(let i=0;i<s.length;i++) x=(x*31+s.charCodeAt(i))|0; return Math.abs(x); }
+function portraitBaseClass(cls){ if(PORTRAIT_CLASSES.includes(cls)) return cls; const c=getClass(cls); return HB_PORTRAIT_BY_ABIL[(c.primary||['str'])[0]]||'fighter'; }
+function heroPortraitId(h){ if(h.portrait&&PORTRAIT_IDS.includes(h.portrait)) return h.portrait; return portraitBaseClass(h.cls)+'_'+(strHash(h.id)%2?'b':'a'); }
+function portraitImg(pid){ const k='P_'+pid; let im=R.imgs[k]; if(!im){ im=new Image(); im.decoding='async'; im.onload=()=>{ for(const kk in R.portraitCache) if(kk.startsWith('P|'+pid+'|')||kk.indexOf('|')>0&&!kk.startsWith('P|')&&!kk.startsWith('m|')) delete R.portraitCache[kk]; R.dirty=true; }; im.src='assets/p_'+pid+'.jpg'; R.imgs[k]=im; } return im; }
+function portraitReady(pid){ const im=portraitImg(pid); return im.complete&&im.naturalWidth>0; }
+function heroPortrait(h,size,frame){ const pid=heroPortraitId(h); const im=portraitImg(pid);
+  if(!(im.complete&&im.naturalWidth)) return heroPortraitProc(h,size);
+  const ring=APPEAR.ring[(h.app||{}).ring||0]||'#c9a227'; const key='P|'+pid+'|'+size+'|'+ring+'|'+(frame?1:0); if(R.portraitCache[key]) return R.portraitCache[key];
+  const c=document.createElement('canvas'); c.width=size; c.height=size; const g=c.getContext('2d'); g.imageSmoothingEnabled=true; g.imageSmoothingQuality='high';
+  const w=im.naturalWidth, hh=im.naturalHeight, s=Math.min(w,hh); g.drawImage(im,(w-s)/2,Math.max(0,(hh-s)*0.25),s,s,0,0,size,size);
+  const vg=g.createRadialGradient(size/2,size*0.45,size*0.28,size/2,size/2,size*0.75); vg.addColorStop(0,'rgba(0,0,0,0)'); vg.addColorStop(1,'rgba(10,4,0,0.6)'); g.fillStyle=vg; g.fillRect(0,0,size,size);
+  if(frame){ const b=Math.max(2,size/40); g.strokeStyle='#1a0f05'; g.lineWidth=b*2.2; g.strokeRect(b,b,size-2*b,size-2*b);
+    const gr=g.createLinearGradient(0,0,size,size); gr.addColorStop(0,'#f3d27a'); gr.addColorStop(0.5,'#8a6a22'); gr.addColorStop(1,'#e8c060'); g.strokeStyle=gr; g.lineWidth=b; g.strokeRect(b*1.2,b*1.2,size-2.4*b,size-2.4*b);
+    g.strokeStyle=ring; g.lineWidth=Math.max(1,b/2); g.strokeRect(b*2.6,b*2.6,size-5.2*b,size-5.2*b); }
+  R.portraitCache[key]=c; return c; }
 function monsterPortrait(m,size){
   const key='m|'+m.id+'|'+size; if(R.portraitCache[key]) return R.portraitCache[key];
   const im=R.imgs[m.art]||R.imgs.humanoid; if(!im.complete||!im.naturalWidth) return null;

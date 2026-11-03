@@ -94,6 +94,7 @@ async function doAttack(att,tgt,p,opts){
   // reactions of defender
   if(hit&&!crit&&tgt.isHero&&tgt.reaction&&!incapacitated(tgt)&&(heroSpells(tgt).includes('shield'))&&hasSlot(tgt,1)&&total<ac+5){ spendSlot(tgt,1); tgt.reaction=false; addFx(tgt,{id:'shieldspell',rounds:1}); log(tgt.name+' casts Shield! (+5 AC)','good'); ac+=5; hit=false; }
   if(hit&&!crit&&tgt.isHero){ const bard=activeParty().find(h=>alive(h)&&!incapacitated(h)&&h.reaction&&heroFeatures(h).has('cuttingWords')&&h.res&&h.res.insp>0&&h.x!=null&&dist(h,tgt)<=12); if(bard){ const red=rollDice(inspDie(bard)).total; if(total-red<ac){ bard.res.insp--; bard.reaction=false; total-=red; hit=false; log(bard.name+' uses Cutting Words (-'+red+')!','good'); } } }
+  if(hit&&!crit&&typeof ARC_defReact==='function'&&ARC_defReact(att,tgt,total,ac)) hit=false;
   if(hit&&!crit&&!tgt.isHero&&tgt.reaction!==false&&(mdef(tgt).traits||[]).includes('parry')&&p.melee&&total<ac+3){ tgt.reaction=false; hit=false; log(cName(tgt)+' parries!','m'); }
   if(!hit&&att.isHero&&att.res&&att.res.luck>0&&ac-total<=8&&r.r!==1){ att.res.luck--; const r2=d20(0,lucky); total=r2.r+bonus; crit=r2.r>=(p.crit||20); hit=crit||(r2.r!==1&&total>=ac); log(att.name+' spends a Lucky Star point: reroll '+r2.r+'.'); }
   if(hit&&tgt.isHero&&equippedItems(tgt).some(i=>itemFx(i).noCrit)) crit=false;
@@ -121,6 +122,7 @@ async function doAttack(att,tgt,p,opts){
     if(ts&&!ts.colossus&&F.has('colossus')&&tgt.hp<cMaxHP(tgt)){ ts.colossus=true; parts.push([rollDice('1d8',{crit}).total,p.dt]); }
     if(ts&&!ts.dstrike&&F.has('divineStrike')&&!opts.spell){ ts.dstrike=true; parts.push([rollDice('1d8',{crit}).total,'radiant']); }
     if(ts&&!ts.astrike&&F.has('arcaneStrike')&&!opts.spell){ ts.astrike=true; parts.push([rollDice('1d6',{crit}).total,'force']); }
+    if(typeof ARC_heroHit==='function') ARC_heroHit(att,tgt,p,opts,parts,crit,ts,F);
     const hm=getFx(tgt,'huntersmark'); if(hm&&hm.src===att.id) parts.push([rollDice('1d6',{crit}).total,p.dt]);
     const dm=getFx(tgt,'deathmark'); if(dm&&dm.src===att.id&&ts&&!ts.dmark){ ts.dmark=true; parts.push([rollDice('1d6',{crit}).total,'necrotic']); }
     if(getFx(tgt,'vigilbrand')) parts.push([rollDice('1d8',{crit}).total,'radiant']);
@@ -155,6 +157,7 @@ async function doAttack(att,tgt,p,opts){
   }
   // retaliation auras
   if(p.melee&&tgt.isHero&&alive(tgt)){ const F=heroFeatures(tgt); if(hasFx(tgt,'raging')&&F.has('smoulder')) dealDamage(att,rageBonus(tgt),'fire',tgt,{}); if(F.has('ashCloak')) dealDamage(att,die(6),'fire',tgt,{}); if(F.has('multiDefense')) addFx(tgt,{id:'multidef',rounds:1}); }
+  if(typeof ARC_retaliate==='function') ARC_retaliate(att,tgt,p);
   if(p.melee&&!tgt.isHero&&(mdef(tgt).traits||[]).includes('heatedBody')&&alive(att)) dealDamage(att,rollDice('2d6').total,'fire',tgt,{});
   // hellish rebuke (tiefling racial or spell)
   if(tgt.isHero&&alive(tgt)&&tgt.reaction&&!incapacitated(tgt)&&alive(att)&&dist(att,tgt)<=12){ let used=false;
@@ -606,6 +609,7 @@ async function autoHeroTurn(h){ const C=G.combat; const foes=()=>enemiesOf(h).fi
       else if(hurt===h&&C.ts.action>0){ const pot=(G.run.pack||[]).find(i=>GEAR[i.base]&&GEAR[i.base].use&&GEAR[i.base].use.heal&&i.base!=='healerskit'); if(pot){ C.ts.action--; await useConsumable(h,pot,h); UI.refreshParty(); return; } } } }
   if(down&&C.ts.action>0&&dist(h,down)<=1){ const kit=(G.run.pack||[]).find(i=>i.base==='potheal')||(G.run.pack||[]).find(i=>i.base==='healerskit'); if(kit){ C.ts.action--; await useConsumable(h,kit,down); UI.refreshParty(); return; } }
   if(heroFeatures(h).has('graveCall')||(h.cls==='necromancer')){ if(await autoNecroTurn(h)) return; if(!G.combat) return; }
+  if(typeof ARC_autoTurn==='function'){ if(await ARC_autoTurn(h)) return; if(!G.combat) return; }
   let opts=heroAttackOptions(h); let t=foes().sort((a,b)=>dist(a,h)-dist(b,h))[0]; if(!t) return;
   const melee=opts.find(p=>p.melee), rng=opts.find(p=>p.ranged);
   // casters use cantrip attack

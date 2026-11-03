@@ -19,11 +19,11 @@ function raiseMinion(h,kind,slot){ const map=G.run.map; if(!MINION_KINDS[kind]) 
   const d=minionDef(h,kind,slot); const e=mkMon(d,pos[0],pos[1],'ally:'+h.id); e.def=d; e.ally=true; e.owner=h.id; e.ctl=h.minionCtl||'auto'; e.summoned=1; e.awake=true; e.kind=kind; e.reaction=true;
   map.ents.push(e);
   if(G.combat){ const C=G.combat; e.inCombat=true; e.init=(h.init||10)-0.5; const i=C.order.indexOf(h); if(i<0) C.order.push(e); else C.order.splice(i+1,0,e); }
-  log(MINION_KINDS[kind].ic+' '+d.n+' claws its way up, bound to '+h.name+' ('+e.hp+' HP).','good'); floater(e.x,e.y,'RISEN','#7fdc8a',true);
-  if(typeof unlockCodex==='function') unlockCodex('necromancy');
+  const K=MINION_KINDS[kind]; log(K.ic+' '+d.n+' '+(K.verb||'claws its way up')+', bound to '+h.name+' ('+e.hp+' HP).','good'); floater(e.x,e.y,K.flt||'RISEN',K.fltC||'#7fdc8a',true);
+  if(!K.construct&&typeof unlockCodex==='function') unlockCodex('necromancy');
   R.dirty=true; if(G.combat) UI.refreshInit(); return e; }
 function removeMinion(m){ m.hp=0; m.dead=true; if(G.run&&G.run.map) G.run.map.ents=G.run.map.ents.filter(e=>e!==m); R.dirty=true; }
-function dismissMinions(heroes,why){ if(!G.run||!G.run.map) return; const ids=new Set((heroes||activeParty()).map(h=>h.id)); const ms=partyMinions().filter(m=>ids.has(m.owner)); if(!ms.length) return; ms.forEach(removeMinion); log('The bound dead collapse into dust'+(why?' ('+why+')':'')+'.','sys'); }
+function dismissMinions(heroes,why){ if(!G.run||!G.run.map) return; const ids=new Set((heroes||activeParty()).map(h=>h.id)); const ms=partyMinions().filter(m=>ids.has(m.owner)); if(!ms.length) return; ms.forEach(removeMinion); const allC=ms.every(m=>MINION_KINDS[m.kind]&&MINION_KINDS[m.kind].construct); log((allC?'Your constructs fold away into their cases':'The bound dead collapse into dust')+(why?' ('+why+')':'')+'.','sys'); }
 // exploration: minions trail behind the party
 function minionsFollow(){ if(!G.run||!G.run.map||G.combat) return; const party=activeParty().filter(h=>h.x!=null&&h.status!=='fallen'); if(!party.length) return; const tail=party[party.length-1];
   for(const m of partyMinions()){ const stacked=party.some(h=>h.x===m.x&&h.y===m.y)||partyMinions().some(o=>o!==m&&o.x===m.x&&o.y===m.y); const near=Math.min(...party.map(h=>dist(h,m)));
@@ -88,4 +88,4 @@ UI.minionBar=function(m){ const C=G.combat, ts=C.ts; const b=document.getElement
   add('⏭','End',()=>{ R.hl.reach=null; R.hl.targets=null; endHeroTurn(); },true,'b-mend');
 };
 (function(){ const _cb=UI.combatBar; UI.combatBar=function(h){ _cb.call(UI,h); const ms=minionsOf(h); if(!ms.length) return; const b=document.getElementById('actions'); const man=(h.minionCtl||'auto')==='manual';
-  b.appendChild(el('button',{class:'abtn',id:'b-minctl',title:'Switch between commanding your minions by hand and letting them act on their own.',onclick:e=>{ e.stopPropagation(); h.minionCtl=man?'auto':'manual'; ms.forEach(m=>m.ctl=h.minionCtl); toast('Minions: '+(h.minionCtl==='manual'?'Manual control':'Auto')); UI.combatBar(h); }},el('span',{class:'ai'},'💀'),el('span',{class:'al'},'Minions: '+(man?'Manual':'Auto')))); }; })();
+  b.appendChild(el('button',{class:'abtn',id:'b-minctl',title:'Switch between commanding your minions by hand and letting them act on their own.',onclick:e=>{ e.stopPropagation(); h.minionCtl=man?'auto':'manual'; ms.forEach(m=>m.ctl=h.minionCtl); toast('Minions: '+(h.minionCtl==='manual'?'Manual control':'Auto')); UI.combatBar(h); }},el('span',{class:'ai'},ms.every(m=>MINION_KINDS[m.kind]&&MINION_KINDS[m.kind].construct)?'⚙':'💀'),el('span',{class:'al al2'},el('small',null,ms.every(m=>MINION_KINDS[m.kind]&&MINION_KINDS[m.kind].construct)?'Companion':'Minions'),el('span',null,man?'Manual':'Auto')))); }; })();
