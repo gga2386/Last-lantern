@@ -8,7 +8,7 @@ function newGameFlow(){ G=newState(); refreshMarket(); creator({first:true,onDon
 // ---------- creator ----------
 function creator(opts){ opts=opts||{}; const h=opts.hero||newHeroShell(); if(!opts.hero){ const p=classPrio(h.cls); p.forEach((a,i)=>h.base[a]=STANDARD_ARRAY[i]); }
   const st={method:'array',rolled:null,chosenSkills:[],cantrips:[],spells:[]}; let custom=opts.hero?true:false;
-  const snap=()=>JSON.stringify([h.name,h.race,h.cls,h.sub,h.bg,h.base,h.app,h.style,h.dragon,h.portrait||null,h.bio||'',st.method,st.chosenSkills,st.cantrips,st.spells]); let snap0=null;
+  const snap=()=>JSON.stringify([h.name,h.race,h.cls,h.sub,h.bg,h.base,h.app,h.style,h.dragon,h.portrait||null,h.dice||'bone',h.bio||'',st.method,st.chosenSkills,st.cantrips,st.spells]); let snap0=null;
   const leave=opts.cancel||(()=>titleScreen());
   const goBack=async()=>{ if(snap0&&snap()!==snap0){ const ok=await UI.choice('Abandon this hero?','Return to '+(opts.cancel?'the previous screen':'the main menu')+'? The unfinished hero will be discarded.',[{t:'Discard and go back',v:'y'},{t:'Keep editing',v:'n'}]); if(ok!=='y') return; } leave(); };
   const allClasses=()=>[...Object.keys(CLASSES),...(G.homebrew||[]).map(c=>c.id)];
@@ -38,7 +38,7 @@ function creator(opts){ opts=opts||{}; const h=opts.hero||newHeroShell(); if(!op
     showScreen('creator',el('div',{class:'cwrap'},
       el('div',{class:'chead'},btn('← Back',goBack,'cback',{id:'b-cback',title:'Discard this hero and go back'}),el('h2',null,opts.title||'Forge a Hero'),btn('🎲 Randomize',()=>{ const a=autoHero(pick(allClasses().filter(x=>CLASSES[x]))); Object.assign(h,{name:a.name,race:a.race,cls:a.cls,bg:a.bg,app:a.app,dragon:a.dragon,sub:null,style:null,portrait:null}); st.chosenSkills=[]; setMethod('array'); }),el('span',{class:'cseal'},'✠')),
       el('div',{class:'cgrid'},
-        el('div',{class:'cleft'},el('div',{class:'cframe'},portraitEl(h,220,'big cport'),el('div',{class:'cplate'},getClass(h.cls).n+(getSub(h)?' · '+getSub(h).n:''))),portraitPicker(h,draw),el('input',{id:'c-name',class:'name',value:h.name,maxlength:24,oninput:e=>{ h.name=e.target.value||'Nameless'; const b=document.getElementById('b-create'); if(b) b.textContent='✔ Create '+h.name.split(' ')[0]; }}),btn('New name',()=>{ h.name=randomName(); draw(); },'mini'),
+        el('div',{class:'cleft'},el('div',{class:'cframe'},portraitEl(h,220,'big cport'),el('div',{class:'cplate'},getClass(h.cls).n+(getSub(h)?' · '+getSub(h).n:''))),portraitPicker(h,draw),dicePicker(h,draw),el('input',{id:'c-name',class:'name',value:h.name,maxlength:24,oninput:e=>{ h.name=e.target.value||'Nameless'; const b=document.getElementById('b-create'); if(b) b.textContent='✔ Create '+h.name.split(' ')[0]; }}),btn('New name',()=>{ h.name=randomName(); draw(); },'mini'),
           el('div',{class:'statcard'},el('div',null,'HP '+heroMaxHP(tmp)+' · AC '+heroAC(tmp)+' · Speed '+heroSpeed(tmp)),el('div',null,'Hit die d'+c.hd+' · Saves '+c.saves.map(a=>a.toUpperCase()).join('/')),el('div',{class:'small'},'Lv1 features: '+feats1)),
           sec('Appearance',...appRows)),
         el('div',{class:'cright'},

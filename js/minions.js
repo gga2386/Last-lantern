@@ -50,14 +50,14 @@ Object.assign(SPELL_FX,{
     else if(c._autoCast||G.autoPlay){ const mine=minionsOf(c); kind=mine.filter(m=>m.kind==='skeleton').length<=mine.filter(m=>m.kind==='zombie').length?'skeleton':'zombie'; }
     else kind=await UI.choice('Call the Restless','Which of the dead answers '+c.name+'?',[{t:'💀 Skeleton — shortsword & shortbow, nimble',v:'skeleton'},{t:'🧟 Zombie — heavy slam, hard to put down',v:'zombie'}])||'skeleton';
     c._autoCast=false; raiseMinion(c,kind,slot); await sleep(G.fast?0:300); },
-  siphon:async(c,sp,s,t,px,py,o)=>{ if(!t) return; const sv=doSave(t,'con',o.dc,{magic:1,dt:'necrotic'}); log(sv.txt,sv.ok?'':'hit'); let d=rollDice(spellDmgDice(c,sp,s)).total+spellDmgBonus(c,sp,'necrotic'); if(sv.ok) d=Math.floor(d/2);
+  siphon:async(c,sp,s,t,px,py,o)=>{ if(!t) return; const sv=doSave(t,'con',o.dc,{magic:1,dt:'necrotic'}); await DICE.flush(); log(sv.txt,sv.ok?'':'hit'); let d=rollDice(spellDmgDice(c,sp,s)).total+spellDmgBonus(c,sp,'necrotic'); if(sv.ok) d=Math.floor(d/2);
     const F=c.isHero?heroFeatures(c):new Set(); const dealt=d>0?dealDamage(t,d,'necrotic',c,{magical:true,spell:1,ignoreRes:F.has('blightedSoul')||F.has('wither')}):0; const g=Math.max(1,Math.floor((dealt||d)/2)); healC(c,g); log(cName(c)+' siphons '+g+' HP.','good'); await sleep(G.fast?0:200); },
   ossuary:async(c,sp,s,t,px,py,o)=>{ const mine=c.isHero?minionsOf(c):[]; if(!mine.length){ log('No bound minion answers the call.','bad'); return; }
     const foes=enemiesOf(c).filter(alive); let best=mine[0],bn=-1; for(const m of mine){ if(dist(m,c)>sp.r) continue; const n=foes.filter(f=>dist(f,m)<=1).length; if(n>bn){ bn=n; best=m; } }
     const tiles=[]; for(let dy=-1;dy<=1;dy++) for(let dx=-1;dx<=1;dx++) tiles.push([best.x+dx,best.y+dy]); flashArea(tiles);
     log('💥 '+cName(best)+' bursts in a storm of bone!','spell'); floater(best.x,best.y,'BURST','#e8e0c8',true);
     const d0=rollDice(spellDmgDice(c,sp,s)).total+spellDmgBonus(c,sp,'necrotic'); const F=heroFeatures(c);
-    for(const f of foes.filter(f=>dist(f,best)<=1)){ const sv=doSave(f,'dex',o.dc,{magic:1}); log(sv.txt,sv.ok?'':'hit'); const d=sv.ok?Math.floor(d0/2):d0; if(d>0) dealDamage(f,d,'necrotic',c,{magical:true,spell:1,ignoreRes:F.has('blightedSoul')}); }
+    for(const f of foes.filter(f=>dist(f,best)<=1)){ const sv=doSave(f,'dex',o.dc,{magic:1}); await DICE.flush(); log(sv.txt,sv.ok?'':'hit'); const d=sv.ok?Math.floor(d0/2):d0; if(d>0) dealDamage(f,d,'necrotic',c,{magical:true,spell:1,ignoreRes:F.has('blightedSoul')}); }
     removeMinion(best); UI.refreshInit(); await sleep(G.fast?0:300); }
 });
 // ---------- feature actions ----------

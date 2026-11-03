@@ -64,6 +64,7 @@ function skillCheck(c,sk,dc,opts){
   if(opts.passtrace&&sk==='stealth') bonus+=10;
   let total=r.r+bonus; let ok=dc==null?null:total>=dc; let note='';
   if(dc!=null&&!ok&&c.isHero&&c.res&&c.res.dluck>0){ const x=die(10); total+=x; c.res.dluck--; note=' (Dark One\'s Luck +'+x+')'; ok=total>=dc; }
+  if(typeof DICE!=='undefined'&&!opts.noDice) DICE.push(diceRec(c,'check',(SKILL_NAME[sk]||sk)+(dc==null?'':' check'),r,bonus,total,dc,ok,{note:note.trim(),group:opts.group}));
   const txt=cName(c)+' — '+(SKILL_NAME[sk]||sk)+': '+diceTxt(r)+' '+fmtMod(bonus)+' = '+total+(dc!=null?' vs DC '+dc+(ok?' ✔ success':' ✖ failure'):'')+note;
   return {ok,total,roll:r.r,nat:r.r,txt};
 }
@@ -91,12 +92,13 @@ function doSave(c,a,dc,opts){
   if(opts.adv) adv++;
   const r=rollD20For(c,adv,dis); let bonus=saveBonus(c,a); const ex=extraDie(c,'save'); bonus+=ex.b;
   if(c.isHero){ const p=paladinAura(c,'auraProt'); if(p) bonus+=Math.max(1,abilMod(p,'cha')); if(hasFx(c,'hasted')&&a==='dex') adv++; }
-  let total=r.r+bonus, ok=total>=dc, note='';
+  let total=r.r+bonus, ok=total>=dc, note=''; let fr=r;
   if(!ok&&c.isHero){
-    if(c.res&&c.res.indom>0&&dc-total<=10){ const r2=rollD20For(c,0,0); c.res.indom--; total=r2.r+bonus; ok=total>=dc; note=' · Indomitable reroll '+r2.r; }
-    else if(c.res&&c.res.luck>0){ const r2=rollD20For(c,0,0); c.res.luck--; total=r2.r+bonus; ok=total>=dc; note=' · Lucky Star reroll '+r2.r; }
+    if(c.res&&c.res.indom>0&&dc-total<=10){ const r2=rollD20For(c,0,0); c.res.indom--; total=r2.r+bonus; ok=total>=dc; note=' · Indomitable reroll '+r2.r; fr=r2; }
+    else if(c.res&&c.res.luck>0){ const r2=rollD20For(c,0,0); c.res.luck--; total=r2.r+bonus; ok=total>=dc; note=' · Lucky Star reroll '+r2.r; fr=r2; }
     else if(c.res&&c.res.dluck>0&&dc-total<=6){ const x=die(10); c.res.dluck--; total+=x; ok=total>=dc; note=' · Dark Luck +'+x; }
   }
+  if(typeof DICE!=='undefined'&&!opts.noDice) DICE.push(diceRec(c,'save',ABIL_NAME[a]+' saving throw',fr,bonus,total,dc,ok,{note:(fr!==r?'First roll '+r.r+'. ':'')+note.replace(/^ · /,'')}));
   return {ok,total,txt:cName(c)+' '+a.toUpperCase()+' save: '+diceTxt(r)+' '+fmtMod(bonus)+' = '+total+' vs DC '+dc+(ok?' ✔':' ✖')+note};
 }
 // resistances

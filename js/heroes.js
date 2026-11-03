@@ -7,7 +7,7 @@ function newHeroShell(){
   return {isHero:true,id:uid('h'),name:randomName(),race:'human',dragon:'red',cls:'fighter',sub:null,bg:'sellsword',level:1,xp:0,
     base:{str:10,dex:10,con:10,int:10,wis:10,cha:10},raceAsi:{},asi:{},feats:[],skills:[],expertise:[],tools:false,style:null,style2:null,favored:[],
     hpRolls:[],hp:1,tempHp:0,eq:{},cantrips:[],spells:[],slots:[0,0,0,0,0,0],res:{},injuries:[],fx:[],deathS:{s:0,f:0},status:'ok',hd:1,
-    app:randomAppearance(),kills:0,bio:'',created:Date.now()};
+    app:randomAppearance(),dice:'bone',kills:0,bio:'',created:Date.now()};
 }
 function finalizeHero(h){ // after choices at level 1
   const c=getClass(h.cls); h.hpRolls=[c.hd];

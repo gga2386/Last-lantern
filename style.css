@@ -184,3 +184,39 @@ canvas.big.cport{width:220px;height:220px;border-radius:3px;border:2px solid #12
 .cwrap .chip.on{background:linear-gradient(#8a2a18,#5a160c);color:#fff3d8;border-color:#e9c76a}
 .cwrap .chip.ae{background:rgba(232,222,255,.85);border-color:#7a5ac0;color:#2a1650}
 .cwrap .chip.ae.on{background:linear-gradient(#5a3a9a,#3a2270);color:#f3ecff;border-color:#e9c76a}
+/* ===== tap-to-roll dice ===== */
+.dicewrap{position:fixed;inset:0;z-index:9000;display:flex;align-items:center;justify-content:center;background:radial-gradient(ellipse at center,rgba(20,10,4,.55),rgba(0,0,0,.82));padding:8px;touch-action:none;animation:dfade .18s ease-out}
+.dicewrap.out{opacity:0;transition:opacity .18s}
+@keyframes dfade{from{opacity:0}to{opacity:1}}
+.dicepanel{position:relative;width:min(94vw,560px);max-height:96vh;display:flex;flex-direction:column;align-items:center;padding:10px 14px 10px;border-radius:10px;
+  background:linear-gradient(#2c2620,#120d09);border:1px solid #000;box-shadow:0 0 0 2px #8a6a22,0 0 0 4px #1a1008,0 12px 40px #000,inset 0 0 30px rgba(0,0,0,.7);color:#f0e2c0}
+.dicepanel::before,.dicepanel::after{content:'❖';position:absolute;top:4px;color:#c9a227;font-size:.8rem}.dicepanel::before{left:7px}.dicepanel::after{right:7px}
+.dtitle{font-family:'Cinzel',Georgia,serif;color:#e9c76a;font-size:1.05rem;letter-spacing:.06em;text-align:center;text-shadow:0 2px 3px #000}
+.dsub{font-size:.8rem;color:#c8b48a;text-align:center;margin-top:1px}
+.dcanvas{width:100%;height:min(38vh,250px);display:block;cursor:pointer;touch-action:none;
+  background:radial-gradient(ellipse at 50% 80%,rgba(120,80,30,.35),rgba(0,0,0,0) 60%),linear-gradient(#1a130d,#0c0805);border-radius:8px;border:1px solid #3a2a14;margin:6px 0 4px;box-shadow:inset 0 0 24px #000}
+.dhint{font-family:'Cinzel',Georgia,serif;color:#f5e6c0;font-size:.95rem;min-height:1.3em;animation:dpulse 1.2s ease-in-out infinite;cursor:pointer;padding:2px 12px}
+.rolling .dhint,.landed .dhint{animation:none}
+@keyframes dpulse{0%,100%{opacity:.55}50%{opacity:1}}
+.dout{width:100%;text-align:center}
+.drow{font-size:.92rem;padding:2px 0}.drow.good .dverdict{color:#8fd46a}.drow.bad .dverdict{color:#ff7a6a}
+.dtot{font-size:1.25rem;color:#fff3d0}.dverdict{font-weight:bold;letter-spacing:.04em}
+.dnote{font-size:.74rem;color:#bba;font-style:italic}
+.dflair{font-family:'Cinzel',Georgia,serif;font-size:1.15rem;font-weight:bold;letter-spacing:.1em;animation:dpop .5s ease-out}
+.dflair.crit{color:#ffe08a;text-shadow:0 0 10px #f0b040,0 0 22px #a06010}.dflair.fumble{color:#ff5a4a;text-shadow:0 0 8px #600}
+.nat20{box-shadow:0 0 0 2px #e9c76a,0 0 30px rgba(240,190,80,.7),0 12px 40px #000}.nat1{animation:dshake .45s}
+@keyframes dpop{0%{transform:scale(.4);opacity:0}70%{transform:scale(1.15)}100%{transform:scale(1);opacity:1}}
+@keyframes dshake{0%,100%{transform:translateX(0)}20%{transform:translateX(-8px)}40%{transform:translateX(7px)}60%{transform:translateX(-5px)}80%{transform:translateX(3px)}}
+.dfoot{margin-top:4px;min-height:0}.dfoot .btn{min-width:150px;min-height:44px}
+.dquick{position:absolute;right:10px;bottom:8px;font-size:.72rem;color:#b8a480;display:flex;align-items:center;gap:4px}
+.dquick input{width:18px;height:18px}
+@media (orientation:landscape) and (max-height:500px){ .dicepanel{width:min(80vw,620px);padding:6px 12px} .dcanvas{height:44vh} .dtitle{font-size:.95rem} .dsub{font-size:.72rem} .drow{font-size:.85rem} .dfoot .btn{min-height:38px} }
+/* dice picker */
+.dstrip{display:flex;gap:6px;overflow-x:auto;padding:4px 2px 6px;touch-action:pan-x;-webkit-overflow-scrolling:touch;max-width:100%;min-width:0}
+.dpick{flex:none;width:68px;display:flex;flex-direction:column;align-items:center;gap:1px;padding:4px 2px 3px;border-radius:6px;border:1px solid #6a4a22;background:radial-gradient(circle at 50% 40%,#3a2c1e,#140d07);color:#f0e2c0;font-size:.62rem;line-height:1.1;cursor:pointer}
+.dpick span{text-align:center;min-height:2.2em;display:flex;align-items:center}
+.dpick.on{border-color:#e9c76a;box-shadow:0 0 0 2px #6b2a14,0 0 10px rgba(233,199,106,.8)}
+.dpick:disabled{opacity:.35}
+.dthumb{display:block}
+.dsel{margin-top:2px}
+.sheet .dwrap{margin-top:8px}

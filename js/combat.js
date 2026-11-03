@@ -83,7 +83,7 @@ function attackAdvantage(att,tgt,p,spellAtk){
 // ---------- the attack ----------
 async function doAttack(att,tgt,p,opts){
   opts=opts||{}; const md=att.isHero?null:mdef(att);
-  if(hasFx(tgt,'sanctuary')&&!opts.spell){ const s=doSave(att,'wis',getFx(tgt,'sanctuary').dc||13,{magic:1}); if(!s.ok){ log(cName(att)+' cannot bring itself to attack '+cName(tgt)+' (Sanctuary).'); return {hit:false}; } }
+  if(hasFx(tgt,'sanctuary')&&!opts.spell){ const s=doSave(att,'wis',getFx(tgt,'sanctuary').dc||13,{magic:1}); await DICE.flush(); if(!s.ok){ log(cName(att)+' cannot bring itself to attack '+cName(tgt)+' (Sanctuary).'); return {hit:false}; } }
   const A=attackAdvantage(att,tgt,p,opts.spell?opts.spellAtk:null);
   const lucky=att.isHero&&RACES[att.race].lucky; let r=d20(A.net,lucky);
   let bonus=p.hit; const ex=extraDie(att,'atk'); bonus+=ex.b; if(att.isHero) bonus+=injuryMod(att,'atk');
@@ -96,11 +96,12 @@ async function doAttack(att,tgt,p,opts){
   if(hit&&!crit&&tgt.isHero){ const bard=activeParty().find(h=>alive(h)&&!incapacitated(h)&&h.reaction&&heroFeatures(h).has('cuttingWords')&&h.res&&h.res.insp>0&&h.x!=null&&dist(h,tgt)<=12); if(bard){ const red=rollDice(inspDie(bard)).total; if(total-red<ac){ bard.res.insp--; bard.reaction=false; total-=red; hit=false; log(bard.name+' uses Cutting Words (-'+red+')!','good'); } } }
   if(hit&&!crit&&typeof ARC_defReact==='function'&&ARC_defReact(att,tgt,total,ac)) hit=false;
   if(hit&&!crit&&!tgt.isHero&&tgt.reaction!==false&&(mdef(tgt).traits||[]).includes('parry')&&p.melee&&total<ac+3){ tgt.reaction=false; hit=false; log(cName(tgt)+' parries!','m'); }
-  if(!hit&&att.isHero&&att.res&&att.res.luck>0&&ac-total<=8&&r.r!==1){ att.res.luck--; const r2=d20(0,lucky); total=r2.r+bonus; crit=r2.r>=(p.crit||20); hit=crit||(r2.r!==1&&total>=ac); log(att.name+' spends a Lucky Star point: reroll '+r2.r+'.'); }
+  if(!hit&&att.isHero&&att.res&&att.res.luck>0&&ac-total<=8&&r.r!==1){ att.res.luck--; const r2=d20(0,lucky); r=r2; total=r2.r+bonus; crit=r2.r>=(p.crit||20); hit=crit||(r2.r!==1&&total>=ac); log(att.name+' spends a Lucky Star point: reroll '+r2.r+'.'); }
   if(hit&&tgt.isHero&&equippedItems(tgt).some(i=>itemFx(i).noCrit)) crit=false;
   if(hit&&!crit&&(hasFx(tgt,'paralyzed')||hasFx(tgt,'unconscious')||hasFx(tgt,'asleep'))&&dist(att,tgt)<=1) crit=true;
   const advTxt=A.net>0?' (adv: '+A.why.join(', ')+')':A.net<0?' (disadv)':'';
   const txt=cName(att)+' → '+cName(tgt)+' · '+p.n+': '+diceTxt(r)+' '+fmtMod(bonus)+' = '+total+' vs AC '+ac+(crit?' — CRITICAL!':hit?' — hit':' — miss')+advTxt;
+  if(att.isHero&&typeof DICE!=='undefined') await DICE.reveal(diceRec(att,'atk',p.n+' → '+cName(tgt),r,bonus,total,ac,hit,{dcLbl:'AC',crit,okTxt:'Hit',failTxt:'Miss',note:advTxt.replace(/^ \(|\)$/g,'')}));
   UI.roll(txt,hit?(crit?'crit':'hit'):'miss'); log(txt,hit?'hit':'miss');
   remFx(att,'hidden'); if(hasFx(att,'invisible')&&!getFx(att,'invisible').greater) remFx(att,'invisible');
   if(!hit){ floater(tgt.x,tgt.y,'miss','#ccc'); await sleep(350); return {hit:false}; }
@@ -127,12 +128,12 @@ async function doAttack(att,tgt,p,opts){
     const dm=getFx(tgt,'deathmark'); if(dm&&dm.src===att.id&&ts&&!ts.dmark){ ts.dmark=true; parts.push([rollDice('1d6',{crit}).total,'necrotic']); }
     if(getFx(tgt,'vigilbrand')) parts.push([rollDice('1d8',{crit}).total,'radiant']);
     const curse=getFx(tgt,'cursed'); if(curse&&curse.src===att.id) parts.push([rollDice('1d8',{crit}).total,'necrotic']);
-    if(hasFx(att,'poisonblade')&&!opts.spell){ remFx(att,'poisonblade'); parts.push([rollDice('2d6',{crit}).total,'poison']); const s=doSave(tgt,'con',8+profFor(att.level)+abilMod(att,'dex'),{cond:'poisoned'}); if(!s.ok) applyCond(tgt,'poisoned',2,att); }
+    if(hasFx(att,'poisonblade')&&!opts.spell){ remFx(att,'poisonblade'); parts.push([rollDice('2d6',{crit}).total,'poison']); const s=doSave(tgt,'con',8+profFor(att.level)+abilMod(att,'dex'),{cond:'poisoned'}); await DICE.flush(); if(!s.ok) applyCond(tgt,'poisoned',2,att); }
     // smite
     if(p.melee&&!opts.spell&&att.tog&&att.tog.smite&&F.has('smite')){ const sl=lowestSlot(att); if(sl){ spendSlot(att,sl); let n=Math.min(5,1+sl); if(isUndeadOrFiend(tgt)) n++; const s=rollDice(n+'d8',{crit}).total; parts.push([s,'radiant']); log(att.name+' channels a Divine Smite (level '+sl+' slot): +'+s+' radiant!','good'); } }
     // stunning strike
-    if(p.melee&&att.tog&&att.tog.stun&&F.has('stunning')&&att.res.ki>0&&ts&&!ts.stunTried){ ts.stunTried=true; att.res.ki--; const s=doSave(tgt,'con',8+profFor(att.level)+abilMod(att,'wis'),{}); log('Stunning Strike: '+s.txt); if(!s.ok) applyCond(tgt,'stunned',1,att); }
-    if(opts.flurry&&F.has('openHand')){ const s=doSave(tgt,'dex',8+profFor(att.level)+abilMod(att,'wis'),{}); if(!s.ok){ applyCond(tgt,'prone',-1,att); log(cName(tgt)+' is knocked prone (Open Hand).'); } }
+    if(p.melee&&att.tog&&att.tog.stun&&F.has('stunning')&&att.res.ki>0&&ts&&!ts.stunTried){ ts.stunTried=true; att.res.ki--; const s=doSave(tgt,'con',8+profFor(att.level)+abilMod(att,'wis'),{}); await DICE.flush(); log('Stunning Strike: '+s.txt); if(!s.ok) applyCond(tgt,'stunned',1,att); }
+    if(opts.flurry&&F.has('openHand')){ const s=doSave(tgt,'dex',8+profFor(att.level)+abilMod(att,'wis'),{}); await DICE.flush(); if(!s.ok){ applyCond(tgt,'prone',-1,att); log(cName(tgt)+' is knocked prone (Open Hand).'); } }
   } else {
     const tr=md.traits||[]; const ts=G.combat&&G.combat.ts;
     if(tr.includes('brute')&&p.melee) parts[0][0]+=rollDice(p.dmg.replace(/[+-]\d+$/,'')).total;
@@ -145,15 +146,15 @@ async function doAttack(att,tgt,p,opts){
   if(att.isHero&&heroFeatures(att).has('vampiric')&&p.melee&&G.combat&&!G.combat.ts.vamp){ G.combat.ts.vamp=true; healC(att,Math.min(att.level,Math.floor(total2/2))); }
   // monster on-hit riders
   if(!att.isHero&&p.atk&&(alive(tgt))){ const a=p.atk;
-    if(a.prone){ const s=doSave(tgt,'str',a.prone,{}); if(!s.ok){ applyCond(tgt,'prone',-1,att); log(cName(tgt)+' is knocked prone.','bad'); } }
-    if(a.poison){ const s=doSave(tgt,'con',a.poison.dc,{cond:'poisoned',dt:'poison'}); log(s.txt); if(!s.ok){ if(a.poison.dmg) dealDamage(tgt,rollDice(a.poison.dmg).total,'poison',att,{}); if(a.poison.cond||!a.poison.dmg) applyCond(tgt,'poisoned',a.poison.rounds||3,att); } else if(a.poison.dmg&&!a.poison.noHalf) dealDamage(tgt,Math.floor(rollDice(a.poison.dmg).total/2),'poison',att,{}); }
-    if(a.paralyze&&alive(tgt)&&!(tgt.isHero&&tgt.race==='highelf')){ const s=doSave(tgt,'con',a.paralyze.dc,{cond:'paralyzed'}); log(s.txt); if(!s.ok) applyCond(tgt,'paralyzed',2,att,{save:{a:'con',dc:a.paralyze.dc}}); }
+    if(a.prone){ const s=doSave(tgt,'str',a.prone,{}); await DICE.flush(); if(!s.ok){ applyCond(tgt,'prone',-1,att); log(cName(tgt)+' is knocked prone.','bad'); } }
+    if(a.poison){ const s=doSave(tgt,'con',a.poison.dc,{cond:'poisoned',dt:'poison'}); await DICE.flush(); log(s.txt); if(!s.ok){ if(a.poison.dmg) dealDamage(tgt,rollDice(a.poison.dmg).total,'poison',att,{}); if(a.poison.cond||!a.poison.dmg) applyCond(tgt,'poisoned',a.poison.rounds||3,att); } else if(a.poison.dmg&&!a.poison.noHalf) dealDamage(tgt,Math.floor(rollDice(a.poison.dmg).total/2),'poison',att,{}); }
+    if(a.paralyze&&alive(tgt)&&!(tgt.isHero&&tgt.race==='highelf')){ const s=doSave(tgt,'con',a.paralyze.dc,{cond:'paralyzed'}); await DICE.flush(); log(s.txt); if(!s.ok) applyCond(tgt,'paralyzed',2,att,{save:{a:'con',dc:a.paralyze.dc}}); }
     if(a.grapple){ applyCond(tgt,'grappled',-1,att,{save:{a:'str',dc:a.grapple}}); }
-    if(a.web){ const s=doSave(tgt,'dex',a.web,{}); if(!s.ok) applyCond(tgt,'restrained',-1,att,{save:{a:'str',dc:a.web}}); }
+    if(a.web){ const s=doSave(tgt,'dex',a.web,{}); await DICE.flush(); if(!s.ok) applyCond(tgt,'restrained',-1,att,{save:{a:'str',dc:a.web}}); }
     if(a.strDrain){ addFx(tgt,{id:'weakened',rounds:-1,persist:1}); tgt.tmpStrDrain=(tgt.tmpStrDrain||0)+die(4); log(cName(tgt)+' feels their strength drain away.','bad'); }
     if(a.drain||a.maxDrain){ healC(att,Math.floor(total2/2)); if(a.maxDrain&&tgt.isHero){ addFx(tgt,{id:'drained',rounds:-1,persist:1,amt:(getFx(tgt,'drained')||{amt:0}).amt+Math.floor(total2/2)}); } }
     if(a.curse&&tgt.isHero){ addFx(tgt,{id:'cursed',rounds:-1,persist:1,src:'curse'}); log(cName(tgt)+' is cursed!','bad'); }
-    if(a.disease&&tgt.isHero){ const s=doSave(tgt,'con',a.disease.dc||12,{cond:'disease'}); if(!s.ok&&!condImmune(tgt,'disease')){ addFx(tgt,{id:'diseased',rounds:-1,persist:1}); log(cName(tgt)+' contracts a disease (disadvantage on checks until cured).','bad'); } }
+    if(a.disease&&tgt.isHero){ const s=doSave(tgt,'con',a.disease.dc||12,{cond:'disease'}); await DICE.flush(); if(!s.ok&&!condImmune(tgt,'disease')){ addFx(tgt,{id:'diseased',rounds:-1,persist:1}); log(cName(tgt)+' contracts a disease (disadvantage on checks until cured).','bad'); } }
   }
   // retaliation auras
   if(p.melee&&tgt.isHero&&alive(tgt)){ const F=heroFeatures(tgt); if(hasFx(tgt,'raging')&&F.has('smoulder')) dealDamage(att,rageBonus(tgt),'fire',tgt,{}); if(F.has('ashCloak')) dealDamage(att,die(6),'fire',tgt,{}); if(F.has('multiDefense')) addFx(tgt,{id:'multidef',rounds:1}); }
@@ -162,7 +163,7 @@ async function doAttack(att,tgt,p,opts){
   // hellish rebuke (tiefling racial or spell)
   if(tgt.isHero&&alive(tgt)&&tgt.reaction&&!incapacitated(tgt)&&alive(att)&&dist(att,tgt)<=12){ let used=false;
     if(tgt.res&&tgt.res.hellish>0){ tgt.res.hellish--; used=true; } else if(heroSpells(tgt).includes('hellishrebuke')&&tgt.cls==='warlock'&&hasSlot(tgt,1)){ spendSlot(tgt,lowestSlot(tgt)); used=true; }
-    if(used){ tgt.reaction=false; const s=doSave(att,'dex',spellDC(tgt),{magic:1}); const dmg=rollDice('2d10').total; log(tgt.name+' casts Hellish Rebuke! '+s.txt,'good'); dealDamage(att,s.ok?Math.floor(dmg/2):dmg,'fire',tgt,{spell:1}); } }
+    if(used){ tgt.reaction=false; const s=doSave(att,'dex',spellDC(tgt),{magic:1}); await DICE.flush(); const dmg=rollDice('2d10').total; log(tgt.name+' casts Hellish Rebuke! '+s.txt,'good'); dealDamage(att,s.ok?Math.floor(dmg/2):dmg,'fire',tgt,{spell:1}); } }
   await sleep(380);
   return {hit:true,crit,dmg:total2};
 }
@@ -233,7 +234,7 @@ async function castSpell(c,sid,slot,target,px,py){
   if(isH&&c.tog&&c.tog.empower){ c.tog.empower=false; }
   for(const t of targets){
     if(sculpt&&!isFoe(c,t)) continue;
-    let ok=false; if(sp.sv){ const s=doSave(t,sp.sv,dc,{magic:1,cond:sp.cond,dt:sp.dt,disadv:sp.fx==='searing'&&cType(t)==='undead'}); ok=s.ok; log(s.txt,ok?'':'hit'); if(t.isHero&&t!==c&&sp.sv==='dex'&&heroFeatures(t).has('evasion')&&sp.half){ if(ok){ log(t.name+' evades completely.','good'); continue; } } }
+    let ok=false; if(sp.sv){ const s=doSave(t,sp.sv,dc,{magic:1,cond:sp.cond,dt:sp.dt,disadv:sp.fx==='searing'&&cType(t)==='undead'}); await DICE.flush(); ok=s.ok; log(s.txt,ok?'':'hit'); if(t.isHero&&t!==c&&sp.sv==='dex'&&heroFeatures(t).has('evasion')&&sp.half){ if(ok){ log(t.name+' evades completely.','good'); continue; } } }
     if(dmgD){ let d=rolled; if(ok) d=sp.half?Math.floor(d/2):(sp.l===0&&isH&&heroFeatures(c).has('potentCantrip')?Math.floor(d/2):0); if(t.isHero&&!ok&&sp.sv==='dex'&&heroFeatures(t).has('evasion')&&sp.half) d=Math.floor(d/2); if(d>0) dealDamage(t,d,sp.dt,c,{magical:true,spell:1,ignoreRes:isH&&(heroFeatures(c).has('wither')||heroFeatures(c).has('blightedSoul'))&&sp.dt==='necrotic'}); }
     if(sp.cond&&!ok&&alive(t)){ applyCond(t,sp.cond,sp.cd||10,c,{conc:concKey,save:sp.rs?{a:sp.sv,dc}:null}); }
     if(sp.fx==='mock'&&!ok) addFx(t,{id:'mocked',rounds:1});
@@ -259,9 +260,9 @@ const SPELL_FX={
   shillelagh:async(c)=>{ addFx(c,{id:'shillelagh',rounds:10}); log('The druid\'s staff swells with nature\'s might.'); },
   truestrike:async(c,sp,s,t)=>{ addFx(c,{id:'truestrike',rounds:2,tgt:cUid(t)}); },
   bless:async(c,sp,s,t,px,py,o)=>{ const tg=allies(c).filter(a=>dist(a,c)<=sp.r).sort((a,b)=>dist(a,c)-dist(b,c)).slice(0,(sp.nt||3)+(s-sp.l)); tg.forEach(a=>addFx(a,{id:'blessed',rounds:10,conc:o.concKey})); log('Blessed: '+tg.map(cName).join(', '),'good'); },
-  bane:async(c,sp,s,t,px,py,o)=>{ const tg=enemiesOf(c).filter(e=>dist(e,c)<=sp.r).sort((a,b)=>dist(a,c)-dist(b,c)).slice(0,(sp.nt||3)+(s-sp.l)); for(const e of tg){ const r=doSave(e,'cha',o.dc,{magic:1}); log(r.txt); if(!r.ok) addFx(e,{id:'baned',rounds:10,conc:o.concKey}); } },
+  bane:async(c,sp,s,t,px,py,o)=>{ const tg=enemiesOf(c).filter(e=>dist(e,c)<=sp.r).sort((a,b)=>dist(a,c)-dist(b,c)).slice(0,(sp.nt||3)+(s-sp.l)); for(const e of tg){ const r=doSave(e,'cha',o.dc,{magic:1}); await DICE.flush(); log(r.txt); if(!r.ok) addFx(e,{id:'baned',rounds:10,conc:o.concKey}); } },
   colorspray:async(c,sp,s,t,px,py)=>{ let pool=rollDice((6+2*(s-1))+'d10').total; const tiles=areaTiles(sp,c,px,py); flashArea(tiles); const tg=creaturesIn(tiles).filter(x=>x!==c&&!hasFx(x,'unconscious')).sort((a,b)=>a.hp-b.hp); for(const x of tg){ if(x.hp>pool) break; pool-=x.hp; applyCond(x,'blinded',1,c); } },
-  command:async(c,sp,s,t,px,py,o)=>{ const r=doSave(t,'wis',o.dc,{magic:1}); log(r.txt); if(!r.ok){ applyCond(t,'incapacitated',1,c); applyCond(t,'prone',-1,c); log(cName(t)+' obeys: "Grovel!"'); } },
+  command:async(c,sp,s,t,px,py,o)=>{ const r=doSave(t,'wis',o.dc,{magic:1}); await DICE.flush(); log(r.txt); if(!r.ok){ applyCond(t,'incapacitated',1,c); applyCond(t,'prone',-1,c); log(cName(t)+' obeys: "Grovel!"'); } },
   detectmagic:async(c)=>{ let n=0; for(const it of G.run.pack) if(it.magic||it.affixes&&it.affixes.length||it.plus){ n++; } log('You sense '+n+' magical item(s) in your pack and the faint glow of enchantment nearby.'); G.run.map.ents.filter(e=>e.type==='chest'&&e.rich).forEach(e=>{ G.run.map.explored[e.y*G.run.map.w+e.x]=1; }); R.dirty=true; },
   divinefavor:async(c)=>{ addFx(c,{id:'divinefavor',rounds:10,conc:cUid(c)}); },
   falselife:async(c,sp,s)=>{ c.tempHp=Math.max(c.tempHp||0,rollDice('1d4+4').total+5*(s-1)); floater(c.x,c.y,'+'+c.tempHp+' temp','#8ac'); },
@@ -305,8 +306,8 @@ const SPELL_FX={
   daylight:async(c)=>{ G.run.daylight={x:c.x,y:c.y}; log('Sunlight floods the chamber! Creatures of darkness flinch.','good'); computeVis(); },
   removecurse:async(c,sp,s,t)=>{ t=t||c; remFx(t,'cursed'); log(cName(t)+' is freed from curses.','good'); },
   elemweapon:async(c,sp,s,t,px,py,o)=>{ addFx(t||c,{id:'elemweapon',rounds:100,conc:o.concKey}); },
-  curse:async(c,sp,s,t,px,py,o)=>{ const r=doSave(t,'wis',o.dc,{magic:1}); log(r.txt); if(!r.ok) addFx(t,{id:'cursed',rounds:100,src:cUid(c),conc:o.concKey}); },
-  banish:async(c,sp,s,t,px,py,o)=>{ const r=doSave(t,'cha',o.dc,{magic:1}); log(r.txt); if(!r.ok){ if(!t.isHero&&mdef(t).boss){ applyCond(t,'incapacitated',1,c); return; } addFx(t,{id:'banished',rounds:10,conc:o.concKey}); log(cName(t)+' vanishes to another plane!','good'); } },
+  curse:async(c,sp,s,t,px,py,o)=>{ const r=doSave(t,'wis',o.dc,{magic:1}); await DICE.flush(); log(r.txt); if(!r.ok) addFx(t,{id:'cursed',rounds:100,src:cUid(c),conc:o.concKey}); },
+  banish:async(c,sp,s,t,px,py,o)=>{ const r=doSave(t,'cha',o.dc,{magic:1}); await DICE.flush(); log(r.txt); if(!r.ok){ if(!t.isHero&&mdef(t).boss){ applyCond(t,'incapacitated',1,c); return; } addFx(t,{id:'banished',rounds:10,conc:o.concKey}); log(cName(t)+' vanishes to another plane!','good'); } },
   ginvis:async(c,sp,s,t,px,py,o)=>{ addFx(t||c,{id:'invisible',rounds:10,conc:o.concKey,greater:1}); },
   stoneskin:async(c,sp,s,t,px,py,o)=>{ addFx(t||c,{id:'stoneskin',rounds:100,conc:o.concKey}); },
   deathward:async(c,sp,s,t)=>{ addFx(t||c,{id:'deathward',rounds:-1,persist:1}); },
@@ -324,13 +325,13 @@ function spawnWanderers(){ const map=G.run.map; const lead=activeParty().find(h=
 // ===================== Hero features (active) =====================
 const FEAT_ACT={
   rage:{res:'rage',cost:'bonus',tg:'self',ok:h=>!hasFx(h,'raging')&&!(armorOf(h)&&armorOf(h).type==='heavy'),run:async h=>{ addFx(h,{id:'raging',rounds:10}); log(h.name+' flies into a RAGE!','good'); floater(h.x,h.y,'RAGE','#f55',true); if(heroFeatures(h).has('frenzy')) addFx(h,{id:'frenzy',rounds:10}); if(heroFeatures(h).has('pyreBurst')){ for(const e of enemiesOf(h).filter(e=>dist(e,h)<=1)) dealDamage(e,rollDice('1d6').total+rageBonus(h),'fire',h,{}); } }},
-  intimPresence:{res:'intim',cost:'action',tg:'enemy',range:6,run:async(h,t)=>{ const s=doSave(t,'wis',8+profFor(h.level)+abilMod(h,'cha'),{cond:'frightened'}); log(s.txt); if(!s.ok) applyCond(t,'frightened',3,h,{save:{a:'wis',dc:8+profFor(h.level)+abilMod(h,'cha')}}); }},
+  intimPresence:{res:'intim',cost:'action',tg:'enemy',range:6,run:async(h,t)=>{ const s=doSave(t,'wis',8+profFor(h.level)+abilMod(h,'cha'),{cond:'frightened'}); await DICE.flush(); log(s.txt); if(!s.ok) applyCond(t,'frightened',3,h,{save:{a:'wis',dc:8+profFor(h.level)+abilMod(h,'cha')}}); }},
   inspiration:{res:'insp',cost:'bonus',tg:'ally',range:12,ok:(h)=>true,run:async(h,t)=>{ addFx(t,{id:'inspired',rounds:100,die:inspDie(h),persist:1}); log(h.name+' inspires '+cName(t)+' ('+inspDie(h)+').','good'); }},
-  mournVerse:{res:'insp',cost:'bonus',tg:'enemy',range:6,run:async(h,t)=>{ const s=doSave(t,'wis',spellDC(h),{cond:'frightened',magic:1}); log(s.txt); if(!s.ok) applyCond(t,'frightened',1,h); }},
+  mournVerse:{res:'insp',cost:'bonus',tg:'enemy',range:6,run:async(h,t)=>{ const s=doSave(t,'wis',spellDC(h),{cond:'frightened',magic:1}); await DICE.flush(); log(s.txt); if(!s.ok) applyCond(t,'frightened',1,h); }},
   turnUndead:{res:'channel',cost:'action',tg:'none',run:async h=>turnFoes(h,['undead'])},
   turnUnholy:{res:'channel',cost:'action',tg:'none',run:async h=>turnFoes(h,['undead','fiend'])},
   preserveLife:{res:'channel',cost:'action',tg:'none',run:async h=>{ let pool=5*h.level; const al=allies(h).filter(a=>dist(a,h)<=6&&a.hp<cMaxHP(a)/2).sort((a,b)=>a.hp-b.hp); for(const a of al){ const need=Math.floor(cMaxHP(a)/2)-Math.max(0,a.hp); const g=Math.min(need,pool); if(g>0){ healC(a,g); pool-=g; } } if(pool===5*h.level) log('No ally needs Preserve Life.'); }},
-  searingDawn:{res:'channel',cost:'action',tg:'none',run:async h=>{ for(const e of enemiesOf(h).filter(e=>dist(e,h)<=2)){ const s=doSave(e,'con',spellDC(h),{magic:1,disadv:cType(e)==='undead'}); log(s.txt); const d=rollDice('2d10').total+h.level; dealDamage(e,s.ok?Math.floor(d/2):d,'radiant',h,{magical:true,spell:1}); } }},
+  searingDawn:{res:'channel',cost:'action',tg:'none',run:async h=>{ for(const e of enemiesOf(h).filter(e=>dist(e,h)<=2)){ const s=doSave(e,'con',spellDC(h),{magic:1,disadv:cType(e)==='undead'}); await DICE.flush(); log(s.txt); const d=rollDice('2d10').total+h.level; dealDamage(e,s.ok?Math.floor(d/2):d,'radiant',h,{magical:true,spell:1}); } }},
   divineIntervention:{res:'dint',cost:'action',tg:'none',run:async h=>{ const r=die(100); if(r<=h.level){ log('Divine Intervention! ('+r+') The party is restored.','good'); for(const a of allies(h)){ healC(a,cMaxHP(a)); a.fx=(a.fx||[]).filter(e=>!['poisoned','frightened','paralyzed','charmed','cursed'].includes(e.id)); } } else { log('The heavens are silent... ('+r+')'); h.res.dint=1; } }},
   wildShape:{res:'wild',cost:'action',tg:'self',ok:h=>!hasFx(h,'wildshape'),run:async h=>{ const b=beastFor(h); addFx(h,{id:'wildshape',rounds:-1,beast:b,hp:BEASTS[b].hp}); log(h.name+' becomes a '+BEASTS[b].n+'!','good'); R.portraitCache={}; }},
   blightTouch:{cost:'bonus',tg:'enemy',range:1,run:async(h,t)=>{ const p={n:'Blight Touch',hit:spellAtk(h),dmg:'1d8',dmgB:0,dt:'necrotic',melee:true,reach:1,magical:true,crit:20,extra:[]}; const r=await doAttack(h,t,p,{spell:1,spellAtk:'m'}); if(r.hit) applyCond(t,'poisoned',1,h); }},
@@ -348,7 +349,7 @@ const FEAT_ACT={
   primeval:{res:'primeval',cost:'action',tg:'none',run:async h=>{ for(const e of G.run.map.ents) if(e.type==='mon'&&e.hp>0){ G.run.map.explored[e.y*G.run.map.w+e.x]=1; e.sensed=1; } log('Primeval Awareness: you sense every creature on this floor.','good'); }},
   deathmark:{cost:'bonus',tg:'enemy',range:18,run:async(h,t)=>{ addFx(t,{id:'deathmark',rounds:100,src:h.id}); }},
   poisoner:{cost:'bonus',tg:'self',run:async h=>{ addFx(h,{id:'poisonblade',rounds:10}); log(h.name+' coats a blade in venom.'); }},
-  saintToll:{res:'toll',cost:'action',tg:'none',run:async h=>{ for(const e of enemiesOf(h).filter(e=>dist(e,h)<=3)){ const s=doSave(e,'wis',spellDC(h),{cond:'frightened',magic:1}); log(s.txt); const d=rollDice('3d8').total; dealDamage(e,s.ok?Math.floor(d/2):d,'psychic',h,{magical:true}); if(!s.ok) applyCond(e,'frightened',2,h); } }},
+  saintToll:{res:'toll',cost:'action',tg:'none',run:async h=>{ for(const e of enemiesOf(h).filter(e=>dist(e,h)<=3)){ const s=doSave(e,'wis',spellDC(h),{cond:'frightened',magic:1}); await DICE.flush(); log(s.txt); const d=rollDice('3d8').total; dealDamage(e,s.ok?Math.floor(d/2):d,'psychic',h,{magical:true}); if(!s.ok) applyCond(e,'frightened',2,h); } }},
   shadowmeld:{cost:'bonus',tg:'self',run:async h=>heroHide(h)},
 };
 // derived/common features as actions
@@ -370,7 +371,7 @@ function breathDice(h){ return (h.level>=16?5:h.level>=11?4:h.level>=6?3:2)+'d6'
 async function useFeat(h,id,t,x,y){ const ts=G.combat?G.combat.ts:null; const spend=c=>{ if(!ts) return; if(c==='action') ts.action--; else if(c==='bonus') ts.bonus--; };
   const a=FEAT_ACT[id];
   if(a){ if(a.res) h.res[a.res]-=(a.n||1); spend(a.cost); await a.run(h,t,x,y); }
-  else if(id==='breath'){ h.res.breath--; spend('action'); const dt=DRAGON_ANCESTRY[h.dragon||'red']; const sp={area:{sh:'cone',sz:3}}; const tiles=areaTiles(sp,h,x,y); flashArea(tiles); const d=rollDice(breathDice(h)).total; for(const e of creaturesIn(tiles).filter(e=>e!==h)){ const s=doSave(e,'dex',8+abilMod(h,'con')+profFor(h.level),{}); log(s.txt); dealDamage(e,s.ok?Math.floor(d/2):d,dt,h,{}); } }
+  else if(id==='breath'){ h.res.breath--; spend('action'); const dt=DRAGON_ANCESTRY[h.dragon||'red']; const sp={area:{sh:'cone',sz:3}}; const tiles=areaTiles(sp,h,x,y); flashArea(tiles); const d=rollDice(breathDice(h)).total; for(const e of creaturesIn(tiles).filter(e=>e!==h)){ const s=doSave(e,'dex',8+abilMod(h,'con')+profFor(h.level),{}); await DICE.flush(); log(s.txt); dealDamage(e,s.ok?Math.floor(d/2):d,dt,h,{}); } }
   else if(id==='medic'){ h.res.medic--; spend('action'); healC(t,rollDice('1d6+4').total+(t.level||1)); }
   else if(id==='flurry'){ h.res.ki--; spend('bonus'); const p=weaponProfile(h,null,'unarmed'); for(let i=0;i<2;i++){ if(!alive(t)) break; await doAttack(h,t,p,{flurry:1}); } }
   else if(id==='maBonus'){ spend('bonus'); await doAttack(h,t,weaponProfile(h,null,'unarmed')); }
@@ -413,7 +414,7 @@ async function useConsumable(h,it,t,x,y){ const g=GEAR[it.base]; if(!g) return; 
     else if(fx==='resistall') addFx(t,{id:'resistall',rounds:-1,persist:1});
     else if(fx==='antitoxin'){ addFx(t,{id:'antitoxin',rounds:-1,persist:1}); remFx(t,'poisoned'); }
     else if(fx==='cleanse'){ ['diseased','blinded','poisoned','paralyzed'].forEach(k=>remFx(t,k)); }
-    else if(fx==='firebreath'){ const f=enemiesOf(h).filter(e=>dist(e,h)<=3).sort((a,b)=>dist(a,h)-dist(b,h))[0]; if(f){ const tiles=areaTiles({area:{sh:'cone',sz:3}},h,f.x,f.y); flashArea(tiles); const d=rollDice('4d6').total; for(const v of creaturesIn(tiles).filter(v=>v!==h)){ const s=doSave(v,'dex',13,{}); dealDamage(v,s.ok?Math.floor(d/2):d,'fire',h,{magical:true}); } } else log('No enemy close enough to burn.'); }
+    else if(fx==='firebreath'){ const f=enemiesOf(h).filter(e=>dist(e,h)<=3).sort((a,b)=>dist(a,h)-dist(b,h))[0]; if(f){ const tiles=areaTiles({area:{sh:'cone',sz:3}},h,f.x,f.y); flashArea(tiles); const d=rollDice('4d6').total; for(const v of creaturesIn(tiles).filter(v=>v!==h)){ const s=doSave(v,'dex',13,{}); await DICE.flush(); dealDamage(v,s.ok?Math.floor(d/2):d,'fire',h,{magical:true}); } } else log('No enemy close enough to burn.'); }
     else if(fx==='return'){ log('The Writ of Return flares — the party is pulled home!','good'); G.run.returned=true; setTimeout(()=>returnToTavern(true),G.fast?0:600); }
     else if(fx==='torch'){ G.run.lightBonus=(G.run.lightBonus||0)+1; computeVis(); log('Torchlight pushes back the dark.'); }
     else if(fx==='stabilize'){ if(downed(t)){ t.deathS.s=3; log(cName(t)+' is stabilized.','good'); if(hasFeat(h,'medic')) healC(t,4+die(6)); } }
@@ -474,9 +475,9 @@ async function runCombat(){ const C=G.combat; if(!C) return;
     const c=C.order[C.idx]; C.cur=c; UI.refreshInit();
     if(C.surprised.has(cUid(c))&&C.round===1){ log(cName(c)+' is surprised and loses the turn.'); continue; }
     if(hasFx(c,'banished')) { tickFx(c); continue; }
-    const skip=await turnStart(c); if(G.combat!==C) return; if(checkCombatEnd()) return;
+    const skip=await turnStart(c); await DICE.flush(); if(G.combat!==C) return; if(checkCombatEnd()) return;
     if(!skip){ if(c.isHero) await heroTurn(c); else if(c.ally) await minionTurn(c); else await monsterTurn(c); }
-    if(G.combat!==C) return; turnEnd(c); if(checkCombatEnd()) return;
+    if(G.combat!==C) return; turnEnd(c); await DICE.flush(); if(checkCombatEnd()) return;
     // legendary actions: boss gets a free attack after a hero turn
     if(c.isHero){ for(const b of inCombatMons().filter(m=>(mdef(m).traits||[]).includes('legendary')&&!incapacitated(m)&&(m.leg||0)<1)){ const t=enemiesOf(b).filter(h=>alive(h)&&dist(h,b)<=1)[0]; if(t){ b.leg=(b.leg||0)+1; log(cName(b)+' uses a Legendary Action!','bad'); await doAttack(b,t,monAttackProfile(b,mdef(b).atks[0])); if(checkCombatEnd()) return; } } }
   } }
@@ -492,7 +493,7 @@ async function turnStart(c){ const C=G.combat; c.reaction=true; c._nimble=false;
   for(const e of (c.fx||[]).filter(e=>e.dot)) dealDamage(c,rollDice(e.dot).total,e.dt||'fire',null,{});
   // zones
   for(const z of C.zones){ const owner=[...activeParty(),...G.run.map.ents].find(x=>cUid(x)===z.owner); let inside; if(z.follow){ const f=owner; inside=f&&alive(f)&&dist(f,c)<=z.sz&&isFoe(f,c); } else inside=dist2(c.x,c.y,z.x,z.y)<=z.sz&&(!z.foesOnly||!owner||isFoe(owner,c));
-    if(inside&&alive(c)){ let d=rollDice(z.dmg).total; if(z.sv){ const s=doSave(c,z.sv,z.dc,{magic:1}); log(z.n+': '+s.txt); if(s.ok) d=z.half?Math.floor(d/2):0; } if(d) dealDamage(c,d,z.dt,owner,{magical:true,spell:1}); } }
+    if(inside&&alive(c)){ let d=rollDice(z.dmg).total; if(z.sv){ const s=doSave(c,z.sv,z.dc,{magic:1}); await DICE.flush(); log(z.n+': '+s.txt); if(s.ok) d=z.half?Math.floor(d/2):0; } if(d) dealDamage(c,d,z.dt,owner,{magical:true,spell:1}); } }
   C.zones.forEach(z=>{ if(z.owner===cUid(c)&&z.rounds>0) z.rounds--; }); C.zones=C.zones.filter(z=>z.rounds!==0);
   // monster regen
   if(!c.isHero){ const md=mdef(c); if(md.regen&&c.hp>0&&!c._noRegen) healC(c,md.regen); c._noRegen=false; if(md.breath&&c.breathUsed&&die(6)>=md.breath.rech) c.breathUsed=false; }
@@ -512,6 +513,7 @@ async function deathSave(h){ const r=d20(hasFx(h,'requiemAdv')||heroFeatures(h).
   else if(r.r===1){ h.deathS.f+=2; t='natural 1 — two failures'; }
   else if(r.r>=10){ h.deathS.s++; t='success ('+h.deathS.s+'/3)'; if(h.deathS.s>=3) t+=' — stable.'; }
   else { h.deathS.f++; t='failure ('+h.deathS.f+'/3)'; }
+  if(typeof DICE!=='undefined') await DICE.reveal(diceRec(h,'death','Death saving throw',r,0,r.r,10,r.r>=10,{note:t}));
   UI.roll(h.name+' death save: d20['+r.r+'] — '+t,r.r>=10?'hit':'miss'); log('☠ '+h.name+' death save: '+r.r+' — '+t,r.r>=10?'good':'bad'); checkDeath(h); UI.refreshParty(); await sleep(700); }
 function heroTurn(h){ return new Promise(res=>{ G.combat.endTurn=res; if(!G.fast) centerOn(h.x,h.y); UI.heroTurn(h); if(G.autoPlay) autoHeroTurn(h).then(()=>endHeroTurn()); }); }
 function endHeroTurn(){ if(!G.combat||!G.combat.endTurn) return; const f=G.combat.endTurn; G.combat.endTurn=null; UI.clearTargeting(); f(); }
@@ -549,14 +551,14 @@ async function monsterTurn(m){ const C=G.combat; const md=mdef(m); const tr=md.t
   if(tr.includes('summonRats')&&C.round%3===1&&C.round>1){ summonMinions(m,'giantrat',2); }
   if(tr.includes('raiseDead')&&C.round%3===2){ summonMinions(m,'zombie',1); }
   if(tr.includes('summonSpawn')&&C.round%4===2){ summonMinions(m,MONSTERS.ghoul?'ghoul':'zombie',2); }
-  if((tr.includes('horrifying')||tr.includes('dreadfulGlare'))&&!m._feared){ m._feared=true; for(const h of foes.filter(h=>alive(h)&&dist(h,m)<=6)){ const s=doSave(h,'wis',md.caster?md.caster.dc:13,{cond:'frightened'}); log(s.txt); if(!s.ok) applyCond(h,'frightened',2,m,{save:{a:'wis',dc:13}}); } }
-  if(tr.includes('wail')&&!m._wailed&&m.hp<m.hpMax*0.6){ m._wailed=true; log(md.n+' lets out a horrible WAIL!','bad'); for(const h of foes.filter(h=>alive(h)&&dist(h,m)<=6)){ const s=doSave(h,'con',13,{}); log(s.txt); dealDamage(h,s.ok?Math.floor(rollDice('3d6').total/2):rollDice('3d6').total+6,'psychic',m,{magical:true}); } return; }
-  if(tr.includes('stench')) for(const h of foes.filter(h=>alive(h)&&dist(h,m)<=1&&!hasFx(h,'stenchImm'))){ const s=doSave(h,'con',10,{cond:'poisoned'}); if(!s.ok){ applyCond(h,'poisoned',1,m); log(cName(h)+' gags on the stench.'); } else addFx(h,{id:'stenchImm',rounds:-1}); }
-  if((tr.includes('petrifyingGaze')||tr.includes('gibbering'))&&Math.random()<0.5){ const t=foes.filter(h=>alive(h)&&dist(h,m)<=6)[0]; if(t){ const s=doSave(t,tr.includes('gibbering')?'wis':'con',12,{}); log(md.n+(tr.includes('gibbering')?' gibbers maddeningly. ':' fixes its gaze. ')+s.txt); if(!s.ok) applyCond(t,tr.includes('gibbering')?'incapacitated':'restrained',1,m); } }
-  if((tr.includes('enslave')||tr.includes('luringSong'))&&Math.random()<0.3){ const t=foes.filter(h=>alive(h)&&dist(h,m)<=6&&!hasFx(h,'charmed'))[0]; if(t){ const s=doSave(t,'wis',13,{cond:'charmed',magic:1}); log(md.n+' sings a luring dirge. '+s.txt); if(!s.ok){ applyCond(t,'charmed',3,m,{save:{a:'wis',dc:13}}); return; } } }
+  if((tr.includes('horrifying')||tr.includes('dreadfulGlare'))&&!m._feared){ m._feared=true; for(const h of foes.filter(h=>alive(h)&&dist(h,m)<=6)){ const s=doSave(h,'wis',md.caster?md.caster.dc:13,{cond:'frightened'}); await DICE.flush(); log(s.txt); if(!s.ok) applyCond(h,'frightened',2,m,{save:{a:'wis',dc:13}}); } }
+  if(tr.includes('wail')&&!m._wailed&&m.hp<m.hpMax*0.6){ m._wailed=true; log(md.n+' lets out a horrible WAIL!','bad'); for(const h of foes.filter(h=>alive(h)&&dist(h,m)<=6)){ const s=doSave(h,'con',13,{}); await DICE.flush(); log(s.txt); dealDamage(h,s.ok?Math.floor(rollDice('3d6').total/2):rollDice('3d6').total+6,'psychic',m,{magical:true}); } return; }
+  if(tr.includes('stench')) for(const h of foes.filter(h=>alive(h)&&dist(h,m)<=1&&!hasFx(h,'stenchImm'))){ const s=doSave(h,'con',10,{cond:'poisoned'}); await DICE.flush(); if(!s.ok){ applyCond(h,'poisoned',1,m); log(cName(h)+' gags on the stench.'); } else addFx(h,{id:'stenchImm',rounds:-1}); }
+  if((tr.includes('petrifyingGaze')||tr.includes('gibbering'))&&Math.random()<0.5){ const t=foes.filter(h=>alive(h)&&dist(h,m)<=6)[0]; if(t){ const s=doSave(t,tr.includes('gibbering')?'wis':'con',12,{}); await DICE.flush(); log(md.n+(tr.includes('gibbering')?' gibbers maddeningly. ':' fixes its gaze. ')+s.txt); if(!s.ok) applyCond(t,tr.includes('gibbering')?'incapacitated':'restrained',1,m); } }
+  if((tr.includes('enslave')||tr.includes('luringSong'))&&Math.random()<0.3){ const t=foes.filter(h=>alive(h)&&dist(h,m)<=6&&!hasFx(h,'charmed'))[0]; if(t){ const s=doSave(t,'wis',13,{cond:'charmed',magic:1}); await DICE.flush(); log(md.n+' sings a luring dirge. '+s.txt); if(!s.ok){ applyCond(t,'charmed',3,m,{save:{a:'wis',dc:13}}); return; } } }
   // breath weapon
   if(md.breath&&!m.breathUsed){ const b=md.breath; const sp={area:{sh:b.sh||'cone',sz:b.sz||3}}; let best=null,bn=0; for(const h of foes.filter(alive)){ if(dist(h,m)>sp.area.sz) continue; const n=creaturesIn(areaTiles(sp,m,h.x,h.y)).filter(c=>c.isHero).length; if(n>bn){ bn=n; best=h; } }
-    if(best&&(bn>=2||Math.random()<0.6)){ m.breathUsed=true; const tiles=areaTiles(sp,m,best.x,best.y); flashArea(tiles); log('🔥 '+md.n+' uses '+(b.n||'Breath')+'!','bad'); UI.roll(md.n+': '+(b.n||'Breath Weapon')+'!','miss'); const d=rollDice(b.dmg).total; for(const v of creaturesIn(tiles).filter(c=>c!==m)){ const s=doSave(v,b.sv||'dex',b.dc,{dt:b.dt}); log(s.txt); let dd=s.ok?Math.floor(d/2):d; if(v.isHero&&heroFeatures(v).has('evasion')&&(b.sv||'dex')==='dex') dd=s.ok?0:Math.floor(d/2); dealDamage(v,dd,b.dt,m,{magical:true}); if(b.cond&&!s.ok) applyCond(v,b.cond,2,m); } await sleep(500); return; } }
+    if(best&&(bn>=2||Math.random()<0.6)){ m.breathUsed=true; const tiles=areaTiles(sp,m,best.x,best.y); flashArea(tiles); log('🔥 '+md.n+' uses '+(b.n||'Breath')+'!','bad'); UI.roll(md.n+': '+(b.n||'Breath Weapon')+'!','miss'); const d=rollDice(b.dmg).total; for(const v of creaturesIn(tiles).filter(c=>c!==m)){ const s=doSave(v,b.sv||'dex',b.dc,{dt:b.dt}); await DICE.flush(); log(s.txt); let dd=s.ok?Math.floor(d/2):d; if(v.isHero&&heroFeatures(v).has('evasion')&&(b.sv||'dex')==='dex') dd=s.ok?0:Math.floor(d/2); dealDamage(v,dd,b.dt,m,{magical:true}); if(b.cond&&!s.ok) applyCond(v,b.cond,2,m); } await sleep(500); return; } }
   // spellcasting
   if(md.caster&&(m.casts==null?(m.casts=md.boss?6:3):m.casts)>0&&Math.random()<0.55){ const r=await monsterCast(m,foes); if(r) { m.casts--; return; } }
   // attacks

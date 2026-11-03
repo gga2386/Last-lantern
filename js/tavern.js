@@ -71,7 +71,7 @@ async function talk(id,node){ const n=NPCS[id]; node=node||'start'; const N=n.no
   let text=N.t.replace('$RUMOR',pick(RUMORS));
   const opts=N.o.filter(o=>!(o.once&&G.flags[o.once])).map((o,i)=>({t:o.t,v:i,o}));
   const pickIdx=await UI.choice(n.n,text,opts.map(x=>({t:x.t,v:x.v}))); const o=opts.find(x=>x.v===pickIdx).o;
-  if(o.chk){ const h=bestSpeaker(o.chk.s); G.flags[o.once]=1; const r=skillCheck(h,o.chk.s,o.chk.dc); UI.roll(h.name+': '+r.txt,r.ok?'good':'bad'); toast(h.name+' — '+SKILL_NAME[o.chk.s]+' '+(r.ok?'success':'failure')+' ('+r.total+' vs DC '+o.chk.dc+')'); return talk(id,r.ok?o.ok:o.no); }
+  if(o.chk){ const h=bestSpeaker(o.chk.s); G.flags[o.once]=1; const r=skillCheck(h,o.chk.s,o.chk.dc); await DICE.flush(); UI.roll(h.name+': '+r.txt,r.ok?'good':'bad'); toast(h.name+' — '+SKILL_NAME[o.chk.s]+' '+(r.ok?'success':'failure')+' ('+r.total+' vs DC '+o.chk.dc+')'); return talk(id,r.ok?o.ok:o.no); }
   if(o.once) G.flags[o.once]=1;
   if(o.act){ const more=await doAct(o.act,id); if(more) return; return talk(id,o.go||'start'); }
   if(o.go==='end'||!o.go){ patrons(); return; } return talk(id,o.go); }
@@ -172,4 +172,5 @@ function stashScreen(){ showScreen('tavern',el('div',{class:'tav'},el('div',{cla
 // ---------- save/load ----------
 function saveMenu(){ UI.modal('Save & Load',el('div',{class:'col'},btn('💾 Save now',()=>{ saveGame(); toast('Saved.'); }),btn('📂 Load last save',()=>{ if(loadGame()){ UI.closeAll(); showTavern(); toast('Loaded.'); } }),btn('📤 Export save file',()=>exportSave()),btn('📥 Import save file',()=>importSave()),btn('🏠 Title screen',()=>{ saveGame(); UI.closeAll(); titleScreen(); }),
   el('label',{class:'small'},el('input',{type:'checkbox',checked:G.settings.autoEnd,onchange:e=>G.settings.autoEnd=e.target.checked}),' Auto-end turn when out of actions'),
-  el('label',{class:'small'},el('input',{type:'checkbox',checked:G.settings.fastAnim,onchange:e=>G.settings.fastAnim=e.target.checked}),' Fast animations'))); }
+  el('label',{class:'small'},el('input',{type:'checkbox',checked:G.settings.fastAnim,onchange:e=>G.settings.fastAnim=e.target.checked}),' Fast animations'),
+  el('label',{class:'small'},el('input',{type:'checkbox',id:'set-quickrolls',checked:!!G.settings.quickRolls,onchange:e=>G.settings.quickRolls=e.target.checked}),' Quick rolls (skip the tap-to-roll dice animation)'))); }
