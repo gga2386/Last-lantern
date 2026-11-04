@@ -84,7 +84,22 @@ function portraitSrc(pid){ return PORTRAIT_IDS.includes(pid)?'assets/p_'+pid+'.j
 const HB_PORTRAIT_BY_ABIL={str:'fighter',dex:'rogue',con:'barbarian',int:'wizard',wis:'cleric',cha:'sorcerer'};
 function strHash(s){ let x=0; s=String(s||''); for(let i=0;i<s.length;i++) x=(x*31+s.charCodeAt(i))|0; return Math.abs(x); }
 function portraitBaseClass(cls){ if(PORTRAIT_CLASSES.includes(cls)) return cls; const c=getClass(cls); return HB_PORTRAIT_BY_ABIL[(c.primary||['str'])[0]]||'fighter'; }
-function heroPortraitId(h){ if(h.portrait&&portraitValid(h.portrait)) return h.portrait; const d=racePortraitId(h.race,h.cls,heroSex(h)); return PORTRAIT_AVAIL.has(d)?d:legacyPortraitId(h); }
+// Portrait ids: race art '<race>_<class>_<m|f>' (assets/portraits/) or legacy class art '<class>_<a|b>' (assets/p_*.jpg).
+// The id is stamped on the hero once (creator / autoHero / load migration) and never re-derived at render time.
+function heroDefaultPortraitId(h){ const d=racePortraitId(h.race,h.cls,heroSex(h)); return PORTRAIT_AVAIL.has(d)?d:legacyPortraitId(h); }
+function normPortraitKey(p){ if(p==null||typeof p!=='string') return null; let k=p.trim().toLowerCase().replace(/^.*\//,'').replace(/\.(jpe?g|png|webp)$/,'');
+  if(/^p_/.test(k)&&PORTRAIT_IDS.includes(k.slice(2))) k=k.slice(2);
+  k=k.replace(/^high_elf_/,'highelf_').replace(/^half_elf_/,'halfelf_').replace(/^half_orc_/,'halforc_').replace(/^hill_dwarf_/,'hilldwarf_');
+  return portraitValid(k)?k:null; }
+function portraitRaceOf(pid){ return PORTRAIT_AVAIL.has(pid)?pid.split('_')[0]:null; }
+// PORTRAIT_FIX_V2: deterministic, idempotent. Keeps explicit picks; repairs auto-assigned/legacy/mismatched-race portraits.
+function fixHeroPortrait(h){ if(!h) return; const k=normPortraitKey(h.portrait); const want=heroDefaultPortraitId(h);
+  if(h.portraitPicked&&k&&(!portraitRaceOf(k)||portraitRaceOf(k)===portraitRace(h.race))){ h.portrait=k; return; }
+  if(!k){ h.portrait=want; h.portraitPicked=false; return; } // missing / index / unknown legacy format
+  if(PORTRAIT_IDS.includes(k)){ h.portrait=PORTRAIT_AVAIL.has(want)?want:k; if(h.portrait!==k) h.portraitPicked=false; return; } // legacy class art (often another race) -> own race art
+  if(portraitRaceOf(k)!==portraitRace(h.race)){ h.portrait=want; h.portraitPicked=false; return; } // wrong-race art can't be a pick (picker only shows own race)
+  h.portrait=k; }
+function heroPortraitId(h){ if(h.portrait&&portraitValid(h.portrait)) return h.portrait; const k=normPortraitKey(h.portrait); return k||heroDefaultPortraitId(h); }
 function portraitImg(pid){ const k='P_'+pid; let im=R.imgs[k]; if(!im){ im=new Image(); im.decoding='async'; im.onload=()=>{ for(const kk in R.portraitCache) if(kk.startsWith('P|'+pid+'|')||kk.indexOf('|')>0&&!kk.startsWith('P|')&&!kk.startsWith('m|')) delete R.portraitCache[kk]; R.dirty=true; }; im.src=portraitSrc(pid); R.imgs[k]=im; } return im; }
 function portraitReady(pid){ const im=portraitImg(pid); return im.complete&&im.naturalWidth>0; }
 function heroPortrait(h,size,frame){ const pid=heroPortraitId(h); const im=portraitImg(pid);

@@ -51,6 +51,7 @@ function autoHero(cls,level,opts){
   finalizeHero(h); autoSpells(h);
   while(h.level<(level||1)){ h.xp=Math.max(h.xp,XP_LEVELS[h.level]); applyLevelUp(h,autoLevelChoices(h)); }
   h.hp=heroMaxHP(h); restoreSlots(h); restoreRes(h,true);
+  h.portrait=heroDefaultPortraitId(h); h.portraitPicked=false;
   return h;
 }
 function autoLevelChoices(h){

@@ -11,7 +11,7 @@ function saveHomebrew(){ try{ localStorage.setItem(HB_KEY,JSON.stringify(G.homeb
 function serialize(){ const skip=new Set(['combat','fast','autoPlay','busy','screen','_pendingOutro']); return JSON.stringify(G,(k,v)=>{ if(skip.has(k)&&v!==undefined&&typeof v!=='function') return undefined; if(k==='_fcache') return undefined; if(v instanceof Set) return undefined; return v; }); }
 function saveGame(){ if(!G||!G.roster||!G.roster.length) return false; if(G.combat) return false; try{ localStorage.setItem(SAVE_KEY,serialize()); return true; }catch(e){ console.warn('save failed',e.message); return false; } }
 function autosave(){ saveGame(); }
-function migrateHeroLook(h){ if(!h) return; if(h.sex!=='m'&&h.sex!=='f') h.sex=heroSex(h); if(!h.portrait||!portraitValid(h.portrait)) h.portrait=legacyPortraitId(h); delete h.app; }
+function migrateHeroLook(h){ if(!h) return; if(h.sex!=='m'&&h.sex!=='f') h.sex=heroSex(h); fixHeroPortrait(h); delete h.app; }
 function applyLoaded(o){ const base=newState(); const fast=G.fast, auto=G.autoPlay; G=Object.assign(base,o); G.fast=fast; G.autoPlay=auto; G.combat=null; G.busy=false; G.settings=G.settings||{}; if(G.settings.quickRolls==null) G.settings.quickRolls=false; for(const h of (G.roster||[])) if(!h.dice||(typeof DICE_STYLES!=='undefined'&&!DICE_STYLES[h.dice])) h.dice='bone';
   const hb=loadHomebrew(); for(const c of hb) if(!G.homebrew.some(x=>x.id===c.id)) G.homebrew.push(c);
   for(const h of G.roster){ h._fcache=null; migrateHeroLook(h); } for(const h of (G.recruits||[])) migrateHeroLook(h);
