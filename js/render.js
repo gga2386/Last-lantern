@@ -64,95 +64,32 @@ function drawStairs(g,x,y,up,dim){
   else { g.fillStyle='rgba(0,0,0,0.6)'; g.beginPath(); g.ellipse(0,0,TW/6,TH/6,0,0,7); g.fill(); }
   g.restore();
 }
-// ===== procedural hero portrait (fallback while painted art loads) =====
-function heroPortraitProc(h,size){
-  const a=h.app||{}; const key=h.id+'|'+JSON.stringify(a)+'|'+h.race+'|'+h.cls+'|'+size+'|'+(h.dragon||'');
-  if(R.portraitCache[key]) return R.portraitCache[key];
-  const c=document.createElement('canvas'); c.width=size; c.height=size; const g=c.getContext('2d'); const s=size/100;
-  g.scale(s,s);
-  const skin=h.race==='dragonborn'?({red:'#8a2a1a',blue:'#2a4a8a',green:'#2a6a3a',black:'#2a2a2a',white:'#c8d0d8',gold:'#b8902a',silver:'#9aa0a8',brass:'#a07a3a',bronze:'#8a6a2a',copper:'#9a5a3a'}[h.dragon]||'#8a2a1a'):h.race==='tiefling'?(['#9b4b4b','#7a3a5a','#a0674a','#c7b3d6'][a.skin%4]):APPEAR.skin[a.skin||0];
-  const hair=APPEAR.hair[a.hair||0], eyes=APPEAR.eyes[a.eyes||0], cloak=APPEAR.cloak[a.cloak||0], ring=APPEAR.ring[a.ring||0];
-  // background
-  const bg=g.createRadialGradient(50,40,5,50,50,70); bg.addColorStop(0,shade(cloak,2.2)); bg.addColorStop(1,'#0b0806'); g.fillStyle=bg; g.fillRect(0,0,100,100);
-  // emblem faint
-  g.globalAlpha=0.18; g.fillStyle='#e8d9b0'; g.font='bold 60px serif'; g.textAlign='center'; g.fillText({Skull:'☠',Sun:'☀',Moon:'☾',Sword:'⚔',Rose:'✿',Raven:'⚚',Flame:'♨',Eye:'◉'}[APPEAR.emblem[a.emblem||0]]||'✦',50,62); g.globalAlpha=1;
-  // shoulders / cloak
-  g.fillStyle=cloak; g.beginPath(); g.moveTo(8,100); g.quadraticCurveTo(14,68,50,64); g.quadraticCurveTo(86,68,92,100); g.fill();
-  g.fillStyle=shade(cloak,1.4); g.beginPath(); g.moveTo(40,66); g.lineTo(50,82); g.lineTo(60,66); g.fill();
-  // class hint at shoulder
-  const armor={fighter:'#8a8a90',paladin:'#c0c0c8',cleric:'#9a9aa0',barbarian:'#6b4a2a',ranger:'#3b4a2a',rogue:'#2a2a2a',necromancer:'#cfc6ad'}[h.cls];
-  if(armor){ g.fillStyle=armor; g.beginPath(); g.ellipse(22,84,14,9,-0.3,0,7); g.ellipse(78,84,14,9,0.3,0,7); g.fill(); }
-  if(h.cls==='necromancer'){ g.fillStyle='#1a1410'; g.font='bold 11px serif'; g.textAlign='center'; g.fillText('☠',22,88); g.fillText('☠',78,88); g.fillStyle='rgba(120,220,140,0.35)'; g.beginPath(); g.arc(50,90,6,0,7); g.fill(); }
-  // neck & head
-  g.fillStyle=shade(skin,0.85); g.fillRect(43,56,14,12);
-  // ears
-  const elfEar=['highelf','halfelf'].includes(h.race), gnome=h.race==='gnome';
-  g.fillStyle=skin;
-  if(elfEar){ g.beginPath(); g.moveTo(30,42); g.lineTo(16,28); g.lineTo(32,50); g.fill(); g.beginPath(); g.moveTo(70,42); g.lineTo(84,28); g.lineTo(68,50); g.fill(); }
-  else { g.beginPath(); g.ellipse(30,44,4,6,0,0,7); g.ellipse(70,44,4,6,0,0,7); g.fill(); }
-  // face
-  const fw=h.race==='halforc'||h.race==='hilldwarf'?22:gnome||h.race==='halfling'?19:20;
-  g.beginPath(); if(h.race==='dragonborn'){ g.ellipse(50,42,fw,22,0,0,7); } else g.ellipse(50,42,fw,24,0,0,7); g.fill();
-  if(h.race==='dragonborn'){ g.fillStyle=shade(skin,0.8); g.beginPath(); g.ellipse(50,52,12,9,0,0,7); g.fill(); g.strokeStyle=shade(skin,0.6); for(let i=0;i<4;i++){ g.beginPath(); g.arc(50,30+i*4,10,3.6,5.8); g.stroke(); } g.fillStyle=shade(skin,1.3); g.beginPath(); g.moveTo(34,24); g.lineTo(26,8); g.lineTo(40,22); g.moveTo(66,24); g.lineTo(74,8); g.lineTo(60,22); g.fill(); }
-  // shading
-  const fg=g.createLinearGradient(30,20,70,60); fg.addColorStop(0,'rgba(255,220,170,0.15)'); fg.addColorStop(1,'rgba(0,0,0,0.3)'); g.fillStyle=fg; g.beginPath(); g.ellipse(50,42,fw,24,0,0,7); g.fill();
-  // hair (back/top)
-  const hs=APPEAR.hairStyle[a.hairStyle||0];
-  g.fillStyle=hair;
-  if(h.race!=='dragonborn'){
-    if(hs==='Long'||hs==='Braided'||hs==='Tied Back'){ g.beginPath(); g.moveTo(28,40); g.quadraticCurveTo(26,74,36,72); g.lineTo(36,40); g.fill(); g.beginPath(); g.moveTo(72,40); g.quadraticCurveTo(74,74,64,72); g.lineTo(64,40); g.fill(); }
-    if(hs!=='Bald'){ g.beginPath(); g.ellipse(50,28,fw+2,hs==='Wild'?16:12,0,Math.PI,0); g.fill(); if(hs==='Wild'){ for(let i=0;i<7;i++){ g.beginPath(); g.moveTo(30+i*6.5,20); g.lineTo(28+i*7,8+(i%2)*4); g.lineTo(36+i*6.5,20); g.fill(); } } if(hs==='Mohawk'){ g.fillRect(46,6,8,18); } if(hs==='Topknot'){ g.beginPath(); g.arc(50,12,6,0,7); g.fill(); } if(hs==='Braided'){ g.fillRect(63,50,4,20); } }
-  }
-  // horns
-  if(h.race==='tiefling'){ g.fillStyle='#2a1a1a'; g.beginPath(); g.moveTo(36,24); g.quadraticCurveTo(24,6,34,2); g.quadraticCurveTo(30,14,42,22); g.fill(); g.beginPath(); g.moveTo(64,24); g.quadraticCurveTo(76,6,66,2); g.quadraticCurveTo(70,14,58,22); g.fill(); }
-  // eyes
-  g.fillStyle='#f2ead8'; g.beginPath(); g.ellipse(42,42,4.5,2.6,0,0,7); g.ellipse(58,42,4.5,2.6,0,0,7); g.fill();
-  g.fillStyle=h.race==='tiefling'?'#c9a227':eyes; g.beginPath(); g.arc(42,42,2.2,0,7); g.arc(58,42,2.2,0,7); g.fill();
-  g.strokeStyle=shade(hair,0.8); g.lineWidth=1.8; g.beginPath(); g.moveTo(36,37); g.lineTo(47,36); g.moveTo(53,36); g.lineTo(64,37); g.stroke();
-  // nose & mouth
-  g.strokeStyle=shade(skin,0.6); g.lineWidth=1.2; g.beginPath(); g.moveTo(50,44); g.lineTo(48,51); g.lineTo(51,52); g.stroke();
-  g.beginPath(); g.moveTo(44,57); g.quadraticCurveTo(50,59,56,57); g.stroke();
-  if(h.race==='halforc'){ g.fillStyle='#efe6d0'; g.beginPath(); g.moveTo(43,58); g.lineTo(44,52); g.lineTo(46,58); g.moveTo(54,58); g.lineTo(56,52); g.lineTo(57,58); g.fill(); }
-  // beard
-  const bd=APPEAR.beard[a.beard||0]; g.fillStyle=hair;
-  if(bd==='Stubble'){ g.globalAlpha=0.35; g.beginPath(); g.ellipse(50,56,15,9,0,0,Math.PI); g.fill(); g.globalAlpha=1; }
-  if(bd==='Short Beard'){ g.beginPath(); g.moveTo(32,48); g.quadraticCurveTo(50,74,68,48); g.quadraticCurveTo(50,60,32,48); g.fill(); }
-  if(bd==='Long Beard'||bd==='Forked'){ g.beginPath(); g.moveTo(31,46); g.quadraticCurveTo(38,86,50,88); g.quadraticCurveTo(62,86,69,46); g.quadraticCurveTo(50,62,31,46); g.fill(); if(bd==='Forked'){ g.fillStyle=cloak; g.beginPath(); g.moveTo(47,88); g.lineTo(50,74); g.lineTo(53,88); g.fill(); } }
-  if(bd==='Moustache'||bd==='Long Beard'||bd==='Short Beard'||bd==='Forked'){ g.fillStyle=hair; g.beginPath(); g.ellipse(45,54,6,2.2,0.2,0,7); g.ellipse(55,54,6,2.2,-0.2,0,7); g.fill(); }
-  // marks
-  const mk=APPEAR.marks[a.marks||0]; g.lineWidth=1.5;
-  if(mk==='Left Scar'){ g.strokeStyle='#7a3a3a'; g.beginPath(); g.moveTo(37,32); g.lineTo(44,52); g.stroke(); }
-  if(mk==='Right Scar'){ g.strokeStyle='#7a3a3a'; g.beginPath(); g.moveTo(63,32); g.lineTo(56,52); g.stroke(); }
-  if(mk==='War Paint'){ g.fillStyle='rgba(150,20,20,0.6)'; g.fillRect(34,40,32,4); }
-  if(mk==='Tattoo'){ g.strokeStyle='rgba(30,60,90,0.8)'; g.beginPath(); g.arc(60,50,4,0,5); g.stroke(); g.beginPath(); g.moveTo(40,30); g.lineTo(44,34); g.lineTo(40,38); g.stroke(); }
-  if(mk==='Eyepatch'){ g.fillStyle='#111'; g.beginPath(); g.ellipse(58,42,6,5,0,0,7); g.fill(); g.strokeStyle='#111'; g.beginPath(); g.moveTo(30,34); g.lineTo(70,46); g.stroke(); }
-  if(mk==='Freckles'){ g.fillStyle='rgba(120,60,30,0.6)'; for(let i=0;i<8;i++){ g.beginPath(); g.arc(40+((i*7)%20),47+(i%3),0.9,0,7); g.fill(); } }
-  if(mk==='Burn'){ g.fillStyle='rgba(120,40,30,0.45)'; g.beginPath(); g.ellipse(40,48,9,7,0.4,0,7); g.fill(); }
-  // headwear
-  const hw=APPEAR.headwear[a.headwear||0];
-  if(hw==='Hood'){ g.fillStyle=cloak; g.beginPath(); g.moveTo(22,70); g.quadraticCurveTo(16,6,50,6); g.quadraticCurveTo(84,6,78,70); g.lineTo(70,66); g.quadraticCurveTo(74,22,50,20); g.quadraticCurveTo(26,22,30,66); g.fill(); }
-  if(hw==='Iron Helm'||hw==='Horned Helm'){ g.fillStyle='#7a7a82'; g.beginPath(); g.ellipse(50,30,fw+3,16,0,Math.PI,0); g.fill(); g.fillRect(48,28,4,20); g.fillStyle='#55555c'; g.fillRect(27,28,46,5); if(hw==='Horned Helm'){ g.fillStyle='#e8dcc0'; g.beginPath(); g.moveTo(28,28); g.quadraticCurveTo(10,20,14,4); g.quadraticCurveTo(20,18,34,24); g.fill(); g.beginPath(); g.moveTo(72,28); g.quadraticCurveTo(90,20,86,4); g.quadraticCurveTo(80,18,66,24); g.fill(); } }
-  if(hw==='Circlet'){ g.strokeStyle=ring; g.lineWidth=2.5; g.beginPath(); g.ellipse(50,28,fw,5,0,0,Math.PI); g.stroke(); g.fillStyle='#7fd'; g.beginPath(); g.arc(50,33,2,0,7); g.fill(); }
-  if(hw==='Wide Hat'){ g.fillStyle='#2a2018'; g.beginPath(); g.ellipse(50,24,36,7,0,0,7); g.fill(); g.beginPath(); g.moveTo(34,24); g.lineTo(38,4); g.lineTo(62,4); g.lineTo(66,24); g.fill(); g.fillStyle=ring; g.fillRect(36,18,28,3); }
-  if(hw==='Bandana'){ g.fillStyle=shade(cloak,1.8); g.beginPath(); g.ellipse(50,26,fw+1,8,0,Math.PI,0); g.fill(); g.fillRect(70,22,10,4); }
-  if(hw==='Crown of Thorns'){ g.strokeStyle='#3a2a1a'; g.lineWidth=2; for(let i=0;i<8;i++){ g.beginPath(); g.moveTo(30+i*5.7,26); g.lineTo(32+i*5.7,18); g.stroke(); } g.beginPath(); g.ellipse(50,26,fw,3,0,0,7); g.stroke(); }
-  // frame
-  g.strokeStyle=ring; g.lineWidth=4; g.strokeRect(2,2,96,96);
-  const vg=g.createRadialGradient(50,50,30,50,50,75); vg.addColorStop(0,'rgba(0,0,0,0)'); vg.addColorStop(1,'rgba(0,0,0,0.55)'); g.fillStyle=vg; g.fillRect(0,0,100,100);
-  R.portraitCache[key]=c; return c;
-}
+// ===== placeholder hero portrait (shown while painted art loads) =====
+function heroPortraitProc(h,size){ const key='ph|'+(h.race||'')+'|'+size; if(R.portraitCache[key]) return R.portraitCache[key];
+  const c=document.createElement('canvas'); c.width=size; c.height=size; const g=c.getContext('2d'); const s=size/100; g.scale(s,s);
+  const bg=g.createRadialGradient(50,40,5,50,50,70); bg.addColorStop(0,'#3a2a1a'); bg.addColorStop(1,'#0b0806'); g.fillStyle=bg; g.fillRect(0,0,100,100);
+  g.fillStyle='rgba(20,12,6,0.9)'; g.beginPath(); g.arc(50,40,17,0,7); g.fill(); g.beginPath(); g.moveTo(14,100); g.quadraticCurveTo(18,64,50,62); g.quadraticCurveTo(82,64,86,100); g.fill();
+  g.strokeStyle='#c9a227'; g.lineWidth=4; g.strokeRect(2,2,96,96); R.portraitCache[key]=c; return c; }
 // ===== painted hero portraits (assets/p_<class>_<a|b>.jpg) =====
 const PORTRAIT_CLASSES=['barbarian','bard','cleric','druid','fighter','monk','paladin','ranger','rogue','sorcerer','warlock','wizard','necromancer','lanternwright','veilseer'];
-const PORTRAIT_IDS=PORTRAIT_CLASSES.flatMap(c=>[c+'_a',c+'_b']);
+const PORTRAIT_IDS=PORTRAIT_CLASSES.flatMap(c=>[c+'_a',c+'_b']); // legacy class art (kept for existing heroes)
+const PORTRAIT_RACES=['human','hilldwarf','highelf','halfling','dragonborn','gnome','halfelf','halforc','tiefling'];
+const PORTRAIT_AVAIL=new Set(typeof PORTRAIT_LIST!=='undefined'?PORTRAIT_LIST:[]); // race_class_sex ids present in assets/portraits
+function portraitRace(r){ return PORTRAIT_RACES.includes(r)?r:'human'; }
+function heroSex(h){ return h.sex==='f'||h.sex==='m'?h.sex:(strHash(h.id)%2?'f':'m'); }
+function racePortraitId(race,cls,sex){ return portraitRace(race)+'_'+portraitBaseClass(cls)+'_'+sex; }
+function legacyPortraitId(h){ return portraitBaseClass(h.cls)+'_'+(strHash(h.id)%2?'b':'a'); }
+function portraitValid(pid){ return PORTRAIT_IDS.includes(pid)||PORTRAIT_AVAIL.has(pid); }
+function portraitSrc(pid){ return PORTRAIT_IDS.includes(pid)?'assets/p_'+pid+'.jpg':'assets/portraits/'+pid+'.jpg'; }
 const HB_PORTRAIT_BY_ABIL={str:'fighter',dex:'rogue',con:'barbarian',int:'wizard',wis:'cleric',cha:'sorcerer'};
 function strHash(s){ let x=0; s=String(s||''); for(let i=0;i<s.length;i++) x=(x*31+s.charCodeAt(i))|0; return Math.abs(x); }
 function portraitBaseClass(cls){ if(PORTRAIT_CLASSES.includes(cls)) return cls; const c=getClass(cls); return HB_PORTRAIT_BY_ABIL[(c.primary||['str'])[0]]||'fighter'; }
-function heroPortraitId(h){ if(h.portrait&&PORTRAIT_IDS.includes(h.portrait)) return h.portrait; return portraitBaseClass(h.cls)+'_'+(strHash(h.id)%2?'b':'a'); }
-function portraitImg(pid){ const k='P_'+pid; let im=R.imgs[k]; if(!im){ im=new Image(); im.decoding='async'; im.onload=()=>{ for(const kk in R.portraitCache) if(kk.startsWith('P|'+pid+'|')||kk.indexOf('|')>0&&!kk.startsWith('P|')&&!kk.startsWith('m|')) delete R.portraitCache[kk]; R.dirty=true; }; im.src='assets/p_'+pid+'.jpg'; R.imgs[k]=im; } return im; }
+function heroPortraitId(h){ if(h.portrait&&portraitValid(h.portrait)) return h.portrait; const d=racePortraitId(h.race,h.cls,heroSex(h)); return PORTRAIT_AVAIL.has(d)?d:legacyPortraitId(h); }
+function portraitImg(pid){ const k='P_'+pid; let im=R.imgs[k]; if(!im){ im=new Image(); im.decoding='async'; im.onload=()=>{ for(const kk in R.portraitCache) if(kk.startsWith('P|'+pid+'|')||kk.indexOf('|')>0&&!kk.startsWith('P|')&&!kk.startsWith('m|')) delete R.portraitCache[kk]; R.dirty=true; }; im.src=portraitSrc(pid); R.imgs[k]=im; } return im; }
 function portraitReady(pid){ const im=portraitImg(pid); return im.complete&&im.naturalWidth>0; }
 function heroPortrait(h,size,frame){ const pid=heroPortraitId(h); const im=portraitImg(pid);
   if(!(im.complete&&im.naturalWidth)) return heroPortraitProc(h,size);
-  const ring=APPEAR.ring[(h.app||{}).ring||0]||'#c9a227'; const key='P|'+pid+'|'+size+'|'+ring+'|'+(frame?1:0); if(R.portraitCache[key]) return R.portraitCache[key];
+  const ring='#c9a227'; const key='P|'+pid+'|'+size+'|'+ring+'|'+(frame?1:0); if(R.portraitCache[key]) return R.portraitCache[key];
   const c=document.createElement('canvas'); c.width=size; c.height=size; const g=c.getContext('2d'); g.imageSmoothingEnabled=true; g.imageSmoothingQuality='high';
   const w=im.naturalWidth, hh=im.naturalHeight, s=Math.min(w,hh); g.drawImage(im,(w-s)/2,Math.max(0,(hh-s)*0.25),s,s,0,0,size,size);
   const vg=g.createRadialGradient(size/2,size*0.45,size*0.28,size/2,size/2,size*0.75); vg.addColorStop(0,'rgba(0,0,0,0)'); vg.addColorStop(1,'rgba(10,4,0,0.6)'); g.fillStyle=vg; g.fillRect(0,0,size,size);
@@ -257,9 +194,9 @@ function draw(){
     for(let x=Math.max(minX,d-maxY); x<=Math.min(maxX,d-minY); x++){
       const y=d-x; const i=y*W+x; if(!map.explored[i]) continue;
       const t=map.t[i]; const sx=isoX(x,y), sy=isoY(x,y); const isVis=vis.has(i); const dim=isVis?1:0.45;
-      if(t===T.WALL||t===T.SECRET){ drawWall(g,sx,sy,th,dim*0.9); continue; }
+      if(t===T.WALL||t===T.SECRET){ if(texThemeReady(map.theme)&&wallIsDeep(map,x,y)){ texBlit(g,texDeepTile(map,isVis?0:1),sx-TW/2,sy-TH/2-WALLH,TW,TH+WALLH); continue; } const ws=texWallSprite(map,x,y,isVis?0:1); if(ws) texBlit(g,ws,sx-TW/2,sy-TH/2-WALLH,TW,TH+WALLH); else drawWall(g,sx,sy,th,dim*0.9); continue; }
       const kind=t===T.WATER?'water':t===T.RUBBLE?'rubble':'stone';
-      g.drawImage(floorTile(map.theme,(x*7+y*13)%11,kind),sx-TW/2,sy-TH/2);
+      const ft=texFloorTile(map,x,y,kind); if(ft) texBlit(g,ft,sx-TW/2,sy-TH/2,TW,TH); else g.drawImage(floorTile(map.theme,(x*7+y*13)%11,kind),sx-TW/2,sy-TH/2);
       if(!isVis){ diamond(g,sx,sy,'rgba(5,3,2,0.55)'); }
       if(t===T.DOWN||t===T.UP) drawStairs(g,sx,sy,t===T.UP,dim);
       // highlights
@@ -303,6 +240,7 @@ function drawLighting(g,map,vis){
   const lights=[];
   for(const h of activeParty()) if(h.x!=null&&h.status!=='fallen') lights.push([h.x,h.y,lightRadius(h)*TW*0.55*flick,1]);
   for(const e of map.ents) if(e.type==='obj'&&(e.kind==='brazier'||e.kind==='candles')&&!e.out&&map.explored[e.y*map.w+e.x]) lights.push([e.x,e.y,(e.kind==='brazier'?4:2.5)*TW*0.55*flick,0.9]);
+  if(typeof mapSconces==='function'&&texThemeReady(map.theme)){ const cx=R.cam.x, cy=R.cam.y, hw=R.cv.width/dpr/z/2+TW*3, hh=R.cv.height/dpr/z/2+TH*4; for(const [x,y] of mapSconces(map)){ const xi=Math.floor(x), yi=Math.floor(y); if(!map.explored[yi*map.w+xi]) continue; const sx=isoX(x,y), sy=isoY(x,y); if(Math.abs(sx-cx)>hw||Math.abs(sy-cy)>hh) continue; lights.push([x,y,2.2*TW*0.55*flick,0.75]); } }
   if(G.run.daylight) lights.push([G.run.daylight.x,G.run.daylight.y,8*TW*0.55,1]);
   for(const [x,y,r,a] of lights){ const sx=isoX(x,y), sy=isoY(x,y); const gr=l.createRadialGradient(sx,sy,r*0.1,sx,sy,r); gr.addColorStop(0,'rgba(0,0,0,'+a+')'); gr.addColorStop(0.6,'rgba(0,0,0,'+a*0.7+')'); gr.addColorStop(1,'rgba(0,0,0,0)'); l.fillStyle=gr; l.beginPath(); l.ellipse(sx,sy,r,r*0.6,0,0,7); l.fill(); }
   l.globalCompositeOperation='source-over';

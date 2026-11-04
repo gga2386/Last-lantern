@@ -106,19 +106,6 @@ const INJURIES = [
   {id:'mangledhand',n:'Mangled Hand',sev:2,days:7,cost:180,d:'-2 to all attack rolls.',mod:{atk:-2}}
 ];
 
-// Appearance / token customization
-const APPEAR = {
-  skin:['#f1d3b6','#e3b48f','#c98e65','#a0674a','#6e4630','#4a2f22','#8fa3a8','#9b6b6b','#b0c4a0','#c7b3d6'],
-  hair:['#1a1410','#3b2a1e','#6b4423','#a0662d','#c9a15a','#e2d3a8','#8c8c8c','#e8e8e8','#7a1f1f','#2e3b5c'],
-  eyes:['#3a6ea5','#4f7942','#6b4423','#8c8c8c','#c9a227','#a32020','#7d3cb5','#111'],
-  cloak:['#3b1f1f','#1f2b3b','#24331f','#3b331f','#2b1f3b','#4a4a4a','#5c2a12','#123a3a','#6b0f1a','#1a1a1a'],
-  hairStyle:['Bald','Cropped','Long','Braided','Topknot','Wild','Mohawk','Tied Back'],
-  beard:['None','Stubble','Short Beard','Long Beard','Moustache','Forked'],
-  headwear:['None','Hood','Iron Helm','Circlet','Wide Hat','Horned Helm','Bandana','Crown of Thorns'],
-  marks:['None','Left Scar','Right Scar','War Paint','Tattoo','Eyepatch','Freckles','Burn'],
-  ring:['#c9a227','#a8a8a8','#8b2e2e','#2e5c8b','#3e7b3e','#6b3e8b'],
-  emblem:['Skull','Sun','Moon','Sword','Rose','Raven','Flame','Eye']
-};
 const NAMES_A = ['Ald','Bren','Cael','Dorn','Edda','Fen','Garr','Hild','Isol','Jarek','Kess','Lorn','Mira','Nyx','Orsk','Perrin','Quill','Rhea','Sable','Tor','Ulric','Vey','Wren','Ysolt','Zed','Brann','Corva','Mael','Thane','Sera','Oswin','Rook','Ivo','Greta','Halv','Elsk'];
 const NAMES_B = ['an','ric','wyn','a','ek','is','mund','ra','o','eth','ira','ard','ette','us','ka','grim','vald','hart','iel','ow'];
 const SURNAMES = ['Ashgrave','Blackthorn','Coldwater','Duskmantle','Embervale','Grimsby','Hollowell','Ironvein','Lanternfall','Mournwood','Nightbell','Ravensmoor','Saltmarsh','Thornbury','Vane','Wolfsbane','Greaves','Holloway','Marsh','Crane'];

@@ -12,6 +12,22 @@ const UI={ targeting:null, logOpen:false,
       wrap.appendChild(m); wrap.addEventListener('click',e=>{ if(e.target===wrap&&!opts.noClose) close(null); }); document.getElementById('modals').appendChild(wrap); UI._close=close; if(opts.onOpen) opts.onOpen(m,close); }); },
   choice(title,text,options,art){ if(G.autoChoice){ const v=typeof G.autoChoice==='function'?G.autoChoice(title,options):options.filter(o=>!o.dis)[0].v; return Promise.resolve(v); } return new Promise(res=>{ const body=el('div',{class:'choice'},art?el('img',{class:'chart',src:'assets/m_'+art+'.jpg'}):null,el('p',{class:'ctext'},text),el('div',{class:'copts'},options.map(o=>btn(o.t,()=>{ wrap.remove(); res(o.v); },'opt'+(o.dis?' dis':''),o.dis?{disabled:true}:null))));
       const wrap=el('div',{class:'modal-wrap'},el('div',{class:'modal'},el('div',{class:'mhead'},el('h2',null,title)),el('div',{class:'mbody'},body))); document.getElementById('modals').appendChild(wrap); }); },
+  // ---------- visual-novel dialogue (talk to an NPC) ----------
+  // One persistent full-bleed scene per NPC: backdrop + portrait + parchment panel. Reused across dialogue nodes (no flicker); removed by closeVN / showScreen.
+  dialogue(id,text,options){ if(G.autoChoice){ const v=typeof G.autoChoice==='function'?G.autoChoice(NPCS[id].n,options):options.filter(o=>!o.dis)[0].v; return Promise.resolve(v); }
+    const n=NPCS[id]; const loc=(typeof NPC_ART!=='undefined'&&NPC_ART[id])||null; const host=document.getElementById('modals');
+    let w=document.getElementById('vn'); if(w&&w.dataset.npc!==id){ w.remove(); w=null; }
+    if(!w){ const fb=el('div',{class:'vnav',style:{background:n.col||'#553'}},n.n[0]);
+      const img=el('img',{class:'vnpimg',alt:n.n,decoding:'async',loading:'lazy',src:npcPortraitSrc(id),onerror:()=>{ img.remove(); fig.classList.add('noimg'); fig.appendChild(fb); },onload:()=>fig.classList.add('ok')});
+      const fig=el('div',{class:'vnfig'},img);
+      w=el('div',{id:'vn',class:'vn-wrap loc-'+(loc||'none'),'data-npc':id,style:locBgStyle(loc)},el('div',{class:'vnbg'}),fig,
+        el('div',{class:'vnpanel'},el('div',{class:'vnname'},el('b',null,n.n),el('span',{class:'vnrole'},n.role||'')),el('div',{class:'vntext'}),el('div',{class:'vnopts'})));
+      host.insertBefore(w,host.firstChild); }
+    else w.classList.remove('busy');
+    const tx=w.querySelector('.vntext'); tx.textContent=text; tx.classList.remove('in'); void tx.offsetWidth; tx.classList.add('in'); tx.scrollTop=0;
+    const ob=w.querySelector('.vnopts'); ob.innerHTML='';
+    return new Promise(res=>{ options.forEach(o=>ob.appendChild(btn(o.t,()=>{ if(w.classList.contains('busy')) return; w.classList.add('busy'); res(o.v); },'opt vnopt'+(o.dis?' dis':''),o.dis?{disabled:true}:null))); }); },
+  closeVN(){ const w=document.getElementById('vn'); if(w) w.remove(); },
   closeAll(){ document.getElementById('modals').innerHTML=''; },
   story(title,text){ return UI.modal(title,el('div',{class:'story'},String(text).split('\n').map(p=>el('p',null,p))),{buttons:[{t:'Continue',v:1}]}); },
   toast(msg){ const t=el('div',{class:'toast'},msg); document.getElementById('toasts').appendChild(t); setTimeout(()=>t.classList.add('out'),G.fast?50:2600); setTimeout(()=>t.remove(),G.fast?100:3200); },

@@ -3,7 +3,22 @@ const T={WALL:0,FLOOR:1,DOOR:2,DOOROPEN:3,SECRET:4,DOWN:5,UP:6,LOCKED:7,WATER:8,
 function walkable(t){ return t===T.FLOOR||t===T.DOOROPEN||t===T.DOWN||t===T.UP||t===T.WATER||t===T.RUBBLE; }
 function opaque(t){ return t===T.WALL||t===T.DOOR||t===T.SECRET||t===T.LOCKED; }
 function partyLevel(){ const p=activeParty(); if(!p.length) return 1; return p.reduce((a,h)=>a+h.level,0)/p.length; }
-function genDungeon(opts){ let m=null; for(let i=0;i<10;i++){ m=genDungeon0(opts); if(dungeonSolvable(m,opts)) return m; } return m; }
+function genDungeon(opts){ let m=null; for(let i=0;i<10;i++){ m=genDungeon0(opts); if(dungeonSolvable(m,opts)) break; } ensurePassable(m); return m; }
+// Furniture, chests and prisoners must never seal off the only route (doors, locks, obstacles and traps can all be dealt with in play).
+function hardBlocker(e){ return (e.type==='obj'&&OBJ_INFO[e.kind]&&OBJ_INFO[e.kind].block&&!e.broken)||e.type==='chest'||(e.type==='prisoner'&&!e.freed); }
+function ensurePassable(m){ const W=m.w, pass=t=>walkable(t)||t===T.DOOR||t===T.LOCKED; let s=-1; for(let k=0;k<m.t.length;k++) if(m.t[k]===T.UP) s=k; if(s<0) return 0;
+  const targets=[]; for(let k=0;k<m.t.length;k++) if(m.t[k]===T.DOWN) targets.push(k);
+  for(const r of (m.rooms||[])){ if(r.kind==='vault') continue; const k=r.cy*W+r.cx; if(pass(m.t[k])) targets.push(k); }
+  for(const e of m.ents) if(e.type==='mon'&&e.boss) targets.push(e.y*W+e.x);
+  const search=(hard)=>{ const prev=new Map([[s,-1]]); const q=[s]; for(let qi=0;qi<q.length;qi++){ const k=q[qi], x=k%W, y=(k/W)|0; for(const [dx,dy] of [[1,0],[-1,0],[0,1],[0,-1]]){ const n=(y+dy)*W+x+dx; if(prev.has(n)||!pass(m.t[n])) continue; if(hard&&hard.has(n)) continue; prev.set(n,k); q.push(n); } } return prev; };
+  let fixed=0;
+  for(let guard=0;guard<30;guard++){ const hard=new Set(m.ents.filter(hardBlocker).map(e=>e.y*W+e.x)); const prev=search(hard); const miss=targets.find(k=>!prev.has(k)&&!hard.has(k)); if(miss==null) break;
+    const all=search(null); if(!all.has(miss)) break; const path=new Set(); for(let c=miss;c!==-1;c=all.get(c)) path.add(c);
+    for(const e of m.ents.filter(e=>hardBlocker(e)&&path.has(e.y*W+e.x))){ fixed++;
+      if(e.type==='obj'){ m.ents.splice(m.ents.indexOf(e),1); continue; }
+      let moved=false; for(const [dx,dy] of [[1,0],[-1,0],[0,1],[0,-1],[1,1],[-1,-1],[1,-1],[-1,1]]){ const x=e.x+dx,y=e.y+dy,k=y*W+x; if(m.t[k]===T.FLOOR&&!path.has(k)&&!m.ents.some(o=>o.x===x&&o.y===y)&&roomAt(m,x,y)){ e.x=x; e.y=y; moved=true; break; } }
+      if(!moved){ if(e.type==='chest'){ e.type='loot'; e.items=e.items||[]; e.gold=e.gold||0; } else m.ents.splice(m.ents.indexOf(e),1); } } }
+  m.unblocked=fixed; return fixed; }
 function dungeonSolvable(m,opts){ let s=-1,e=-1; for(let k=0;k<m.t.length;k++){ if(m.t[k]===T.UP) s=k; if(m.t[k]===T.DOWN) e=k; } if(s<0) return false;
   if(e<0){ const b=m.ents.find(x=>x.type==='mon'&&opts.boss&&(x.mid===opts.boss||x.id===opts.boss||x.key===opts.boss)); if(b) e=b.y*m.w+b.x; } if(e<0) return true;
   const ok=t=>walkable(t)||t===T.DOOR||t===T.LOCKED; const seen=new Set([s]); const q=[s]; while(q.length){ const k=q.pop(); if(k===e) return true; const x=k%m.w,y=(k/m.w)|0; for(const [dx,dy] of [[1,0],[-1,0],[0,1],[0,-1]]){ const n=(y+dy)*m.w+x+dx; if(!seen.has(n)&&ok(m.t[n])){ seen.add(n); q.push(n);} } } return seen.has(e); }
@@ -125,16 +140,19 @@ function los(map,x0,y0,x1,y1){ let dx=Math.abs(x1-x0),dy=Math.abs(y1-y0),sx=x0<x
 function dist(a,b){ return Math.max(Math.abs(a.x-b.x),Math.abs(a.y-b.y)); }
 function dist2(ax,ay,bx,by){ return Math.max(Math.abs(ax-bx),Math.abs(ay-by)); }
 // BFS path with 8 directions (no corner cutting through walls). occ: function(x,y)->blocked
+// Dijkstra-lite flood fill. blocked(x,y) returns falsy (free), 2 (an ally's space: you may move THROUGH it but not
+// stop there, as in 5e) or any other truthy value (impassable). Only tiles you can actually end on appear in .dist.
 function bfs(map,sx,sy,maxCost,blocked){
-  const W=map.w, dist=new Map(), prev=new Map(); const k=(x,y)=>y*W+x; const q=[[sx,sy]]; dist.set(k(sx,sy),0);
-  while(q.length){ const [x,y]=q.shift(); const d0=dist.get(k(x,y)); if(d0>=maxCost) continue;
+  const W=map.w, dist=new Map(), seen=new Map(), prev=new Map(); const k=(x,y)=>y*W+x; const q=[[sx,sy]]; seen.set(k(sx,sy),0); dist.set(k(sx,sy),0);
+  while(q.length){ const [x,y]=q.shift(); const d0=seen.get(k(x,y)); if(d0>=maxCost) continue;
     for(const [dx,dy] of [[1,0],[-1,0],[0,1],[0,-1],[1,1],[1,-1],[-1,1],[-1,-1]]){
-      const nx=x+dx, ny=y+dy; if(dist.has(k(nx,ny))) continue;
+      const nx=x+dx, ny=y+dy; if(seen.has(k(nx,ny))) continue;
       if(dx&&dy&&(!walkable(tileAt(map,x+dx,y))||!walkable(tileAt(map,x,y+dy)))) continue;
-      if(blocked(nx,ny)) continue; const t=tileAt(map,nx,ny); const cost=(t===T.WATER||t===T.RUBBLE)?2:1;
-      const nd=d0+cost; if(nd>maxCost) continue; dist.set(k(nx,ny),nd); prev.set(k(nx,ny),k(x,y)); q.push([nx,ny]);
+      if(nx<0||ny<0||nx>=map.w||ny>=map.h) continue; const t=tileAt(map,nx,ny); if(!(walkable(t)||t===T.DOOR)) continue;
+      const b=blocked(nx,ny); if(b&&b!==2) continue; const cost=(t===T.WATER||t===T.RUBBLE)?2:1;
+      const nd=d0+cost; if(nd>maxCost) continue; seen.set(k(nx,ny),nd); if(b!==2) dist.set(k(nx,ny),nd); prev.set(k(nx,ny),k(x,y)); q.push([nx,ny]);
       // re-sort small queue by distance (Dijkstra-lite)
-      if(cost>1) q.sort((a,b)=>dist.get(k(a[0],a[1]))-dist.get(k(b[0],b[1])));
+      if(cost>1) q.sort((a,b)=>seen.get(k(a[0],a[1]))-seen.get(k(b[0],b[1])));
     }
   }
   return {dist,prev,W,path:(tx,ty)=>{ const out=[]; let c=k(tx,ty); if(!dist.has(c)) return null; while(c!==k(sx,sy)){ out.unshift([c%W,Math.floor(c/W)]); c=prev.get(c); } return out; }};

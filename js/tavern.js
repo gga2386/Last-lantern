@@ -64,13 +64,19 @@ function packScreen(){ return new Promise(res=>{ const plan=G.packPlan=G.packPla
 function moveOne(from,to,it){ if(it.stack&&(it.qty||1)>1){ it.qty--; const c=Object.assign({},it,{uid:uid('i'),qty:1}); stackAdd(to,c); } else { from.splice(from.indexOf(it),1); stackAdd(to,it); } }
 // ---------- patrons & dialogue ----------
 function npcAvailable(id){ const n=NPCS[id]; return !n.ch||G.story.done.length>=n.ch; }
-function patrons(){ showScreen('tavern',el('div',{class:'tav'},el('div',{class:'tavhead'},el('h2',null,'Patrons of the Lantern'),btn('Back',showTavern,'',{id:'b-back'})),
-  el('div',{class:'col'},Object.keys(NPCS).filter(npcAvailable).map(id=>{ const n=NPCS[id]; return el('div',{class:'card hrow',onclick:()=>talk(id),id:'npc-'+id},el('div',{class:'npcav',style:{background:n.col||'#553'}},n.n[0]),el('div',{class:'grow'},el('b',null,n.n),el('div',{class:'small'},n.role))); })))); }
+// visual-novel art: NPC portrait + location backdrop (wide for landscape, tall for portrait)
+const NPC_ART={ marta:'common_room', aldous:'shrine', hrolf:'forge', ysolde:'library', vey:'barracks', sable:'common_room', quill:'market', thornelder:'common_room' };
+function locSrc(loc,tall){ return 'assets/loc/'+loc+(tall?'_tall':'')+'.jpg'; }
+function npcPortraitSrc(id){ return 'assets/npc/'+id+'.jpg'; }
+// CSS custom props must go through the style attribute (el()'s style object uses Object.assign, which ignores --vars)
+function locBgStyle(loc){ return loc?"--bgw:url('"+locSrc(loc,false)+"');--bgt:url('"+locSrc(loc,true)+"')":null; }
+function patrons(){ UI.closeVN(); showScreen('tavern',el('div',{class:'tav'},el('div',{class:'tavhead patronshead',style:locBgStyle('common_room')},el('h2',null,'Patrons of the Lantern'),btn('Back',showTavern,'',{id:'b-back'})),
+  el('div',{class:'col'},Object.keys(NPCS).filter(npcAvailable).map(id=>{ const n=NPCS[id]; return el('div',{class:'card hrow',onclick:()=>talk(id),id:'npc-'+id},el('div',{class:'npcav',style:{background:n.col||'#553'}},n.n[0],el('img',{class:'npcthumb',alt:'',loading:'lazy',decoding:'async',src:npcPortraitSrc(id),onerror:function(){ this.remove(); }})),el('div',{class:'grow'},el('b',null,n.n),el('div',{class:'small'},n.role))); })))); }
 function bestSpeaker(sk){ let best=null,bb=-99; for(const h of (activeParty().length?activeParty():G.roster)){ const b=skillBonus(h,sk); if(b>bb){ bb=b; best=h; } } return best; }
 async function talk(id,node){ const n=NPCS[id]; node=node||'start'; const N=n.nodes[node]; if(!N||node==='end'){ patrons(); return; }
   let text=N.t.replace('$RUMOR',pick(RUMORS));
   const opts=N.o.filter(o=>!(o.once&&G.flags[o.once])).map((o,i)=>({t:o.t,v:i,o}));
-  const pickIdx=await UI.choice(n.n,text,opts.map(x=>({t:x.t,v:x.v}))); const o=opts.find(x=>x.v===pickIdx).o;
+  const pickIdx=await UI.dialogue(id,text,opts.map(x=>({t:x.t,v:x.v}))); const o=opts.find(x=>x.v===pickIdx).o;
   if(o.chk){ const h=bestSpeaker(o.chk.s); G.flags[o.once]=1; const r=skillCheck(h,o.chk.s,o.chk.dc); await DICE.flush(); UI.roll(h.name+': '+r.txt,r.ok?'good':'bad'); toast(h.name+' — '+SKILL_NAME[o.chk.s]+' '+(r.ok?'success':'failure')+' ('+r.total+' vs DC '+o.chk.dc+')'); return talk(id,r.ok?o.ok:o.no); }
   if(o.once) G.flags[o.once]=1;
   if(o.act){ const more=await doAct(o.act,id); if(more) return; return talk(id,o.go||'start'); }

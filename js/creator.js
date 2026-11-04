@@ -1,5 +1,5 @@
 // ===== Title, character creator, homebrew class builder =====
-function showScreen(cls,...kids){ G.screen=cls; const s=document.getElementById('screen'); const keep=s.dataset.cls===cls?s.scrollTop:0; s.innerHTML=''; s.className='screen '+cls; s.dataset.cls=cls; kids.flat().forEach(k=>k&&s.appendChild(k)); s.classList.remove('hidden'); document.getElementById('hud').classList.add('hidden'); document.getElementById('cv').classList.add('hidden'); s.scrollTop=keep; return s; }
+function showScreen(cls,...kids){ if(typeof UI!=='undefined'&&UI.closeVN) UI.closeVN(); G.screen=cls; const s=document.getElementById('screen'); const keep=s.dataset.cls===cls?s.scrollTop:0; s.innerHTML=''; s.className='screen '+cls; s.dataset.cls=cls; kids.flat().forEach(k=>k&&s.appendChild(k)); s.classList.remove('hidden'); document.getElementById('hud').classList.add('hidden'); document.getElementById('cv').classList.add('hidden'); s.scrollTop=keep; return s; }
 function titleScreen(){ const has=!!localStorage.getItem(SAVE_KEY);
   showScreen('title',el('div',{class:'titlebox'},el('h1',null,'The Last Lantern'),el('div',{class:'sub'},'A gothic dungeon chronicle'),
     el('div',{class:'col tmenu'},has?btn('▶ Continue',()=>{ if(loadGame()) resumeGame(); },'big',{id:'b-continue'}):null,btn('✦ New Chronicle',()=>newGameFlow(),'big',{id:'b-new'}),btn('📥 Import save',()=>importSave(),''),btn('🛠 Homebrew classes',()=>homebrewList(()=>titleScreen()),''),btn('📜 Credits & License',()=>UI.credits(),'')),
@@ -8,7 +8,7 @@ function newGameFlow(){ G=newState(); refreshMarket(); creator({first:true,onDon
 // ---------- creator ----------
 function creator(opts){ opts=opts||{}; const h=opts.hero||newHeroShell(); if(!opts.hero){ const p=classPrio(h.cls); p.forEach((a,i)=>h.base[a]=STANDARD_ARRAY[i]); }
   const st={method:'array',rolled:null,chosenSkills:[],cantrips:[],spells:[]}; let custom=opts.hero?true:false;
-  const snap=()=>JSON.stringify([h.name,h.race,h.cls,h.sub,h.bg,h.base,h.app,h.style,h.dragon,h.portrait||null,h.dice||'bone',h.bio||'',st.method,st.chosenSkills,st.cantrips,st.spells]); let snap0=null;
+  const snap=()=>JSON.stringify([h.name,h.race,h.cls,h.sub,h.bg,h.base,h.sex,h.style,h.dragon,h.portrait||null,h.dice||'bone',h.bio||'',st.method,st.chosenSkills,st.cantrips,st.spells]); let snap0=null;
   const leave=opts.cancel||(()=>titleScreen());
   const goBack=async()=>{ if(snap0&&snap()!==snap0){ const ok=await UI.choice('Abandon this hero?','Return to '+(opts.cancel?'the previous screen':'the main menu')+'? The unfinished hero will be discarded.',[{t:'Discard and go back',v:'y'},{t:'Keep editing',v:'n'}]); if(ok!=='y') return; } leave(); };
   const allClasses=()=>[...Object.keys(CLASSES),...(G.homebrew||[]).map(c=>c.id)];
@@ -30,39 +30,43 @@ function creator(opts){ opts=opts||{}; const h=opts.hero||newHeroShell(); if(!op
       st.cantrips=st.cantrips.filter(s=>cl.includes(s)).slice(0,ca); st.spells=st.spells.filter(s=>sl.includes(s)).slice(0,sa);
       spellSec=sec('Spells ('+CLASS_SPELL_LIST_NAMES[c.list]+' list) — leave empty to auto-pick',el('div',{class:'small'},'Cantrips '+st.cantrips.length+'/'+ca),el('div',{class:'chips'},cl.map(s=>el('button',{class:'chip'+(st.cantrips.includes(s)?' on':''),title:SPELLS[s].d,onclick:()=>{ const i=st.cantrips.indexOf(s); if(i>=0) st.cantrips.splice(i,1); else if(st.cantrips.length<ca) st.cantrips.push(s); draw(); }},SPELLS[s].n))),
         sa?el('div',{class:'small'},'1st-level spells '+st.spells.length+'/'+sa):null,sa?el('div',{class:'chips'},sl.map(s=>el('button',{class:'chip'+(st.spells.includes(s)?' on':''),title:SPELLS[s].d,onclick:()=>{ const i=st.spells.indexOf(s); if(i>=0) st.spells.splice(i,1); else if(st.spells.length<sa) st.spells.push(s); draw(); }},SPELLS[s].n))):null); }
-    const appRows=Object.keys(APPEAR).map(k=>{ const list=APPEAR[k]; const v=h.app[k]||0; const isCol=typeof list[0]==='string'&&list[0][0]==='#';
-      return el('div',{class:'aprow'},el('span',null,k.replace(/([A-Z])/g,' $1')),btn('◀',()=>{ h.app[k]=(v-1+list.length)%list.length; draw(); },'mini'),isCol?el('span',{class:'swatch',style:{background:list[v]}}):el('span',{class:'apv'},list[v]),btn('▶',()=>{ h.app[k]=(v+1)%list.length; draw(); },'mini')); });
     const subSec=c.subLvl<=1&&Object.keys(c.subs).length?sec('Subclass',chips(Object.keys(c.subs),h.sub||Object.keys(c.subs)[0],k=>{ h.sub=k; draw(); },k=>c.subs[k].n)):null;
     const styleSec=(c.feats[1]||[]).includes('fightingStyle')?sec('Fighting Style',chips(Object.keys(FIGHTING_STYLES),h.style||defaultStyle(tmp),k=>{ h.style=k; draw(); },k=>FIGHTING_STYLES[k].n),el('p',{class:'small'},FIGHTING_STYLES[h.style||defaultStyle(tmp)].d)):null;
     const feats1=[...(c.feats[1]||[])].map(f=>FEATURES[f]?FEATURES[f].n:f).join(', ');
     showScreen('creator',el('div',{class:'cwrap'},
-      el('div',{class:'chead'},btn('← Back',goBack,'cback',{id:'b-cback',title:'Discard this hero and go back'}),el('h2',null,opts.title||'Forge a Hero'),btn('🎲 Randomize',()=>{ const a=autoHero(pick(allClasses().filter(x=>CLASSES[x]))); Object.assign(h,{name:a.name,race:a.race,cls:a.cls,bg:a.bg,app:a.app,dragon:a.dragon,sub:null,style:null,portrait:null}); st.chosenSkills=[]; setMethod('array'); }),el('span',{class:'cseal'},'✠')),
+      el('div',{class:'chead'},btn('← Back',goBack,'cback',{id:'b-cback',title:'Discard this hero and go back'}),el('h2',null,opts.title||'Forge a Hero'),btn('🎲 Randomize',()=>{ const a=autoHero(pick(allClasses().filter(x=>CLASSES[x]))); Object.assign(h,{name:a.name,race:a.race,cls:a.cls,bg:a.bg,sex:a.sex,dragon:a.dragon,sub:null,style:null,portrait:null}); st.chosenSkills=[]; setMethod('array'); }),el('span',{class:'cseal'},'✠')),
       el('div',{class:'cgrid'},
-        el('div',{class:'cleft'},el('div',{class:'cframe'},portraitEl(h,220,'big cport'),el('div',{class:'cplate'},getClass(h.cls).n+(getSub(h)?' · '+getSub(h).n:''))),portraitPicker(h,draw),dicePicker(h,draw),el('input',{id:'c-name',class:'name',value:h.name,maxlength:24,oninput:e=>{ h.name=e.target.value||'Nameless'; const b=document.getElementById('b-create'); if(b) b.textContent='✔ Create '+h.name.split(' ')[0]; }}),btn('New name',()=>{ h.name=randomName(); draw(); },'mini'),
-          el('div',{class:'statcard'},el('div',null,'HP '+heroMaxHP(tmp)+' · AC '+heroAC(tmp)+' · Speed '+heroSpeed(tmp)),el('div',null,'Hit die d'+c.hd+' · Saves '+c.saves.map(a=>a.toUpperCase()).join('/')),el('div',{class:'small'},'Lv1 features: '+feats1)),
-          sec('Appearance',...appRows)),
+        el('div',{class:'cleft'},el('div',{class:'cframe'},portraitEl(h,220,'big cport'),el('div',{class:'cplate'},getClass(h.cls).n+(getSub(h)?' · '+getSub(h).n:''))),el('div',{class:'cname'},h.name),
+          el('div',{class:'statcard'},el('div',null,'HP '+heroMaxHP(tmp)+' · AC '+heroAC(tmp)+' · Speed '+heroSpeed(tmp)),el('div',null,'Hit die d'+c.hd+' · Saves '+c.saves.map(a=>a.toUpperCase()).join('/')),el('div',{class:'small'},'Lv1 features: '+feats1))),
         el('div',{class:'cright'},
-          sec('Ancestry',chips(Object.keys(RACES),h.race,k=>{ h.race=k; draw(); },k=>RACES[k].n,'race-'),el('p',{class:'small'},r.traits.join(' ')),h.race==='dragonborn'?chips(Object.keys(DRAGON_ANCESTRY),h.dragon,k=>{ h.dragon=k; draw(); },k=>k+' ('+DRAGON_ANCESTRY[k]+')'):null),
+          sec('Ancestry',chips(Object.keys(RACES),h.race,k=>{ h.race=k; if(h.portrait&&!PORTRAIT_IDS.includes(h.portrait)) h.portrait=null; draw(); },k=>RACES[k].n,'race-'),el('p',{class:'small'},r.traits.join(' ')),h.race==='dragonborn'?chips(Object.keys(DRAGON_ANCESTRY),h.dragon,k=>{ h.dragon=k; draw(); },k=>k+' ('+DRAGON_ANCESTRY[k]+')'):null),
           sec('Class',chips(allClasses(),h.cls,k=>{ h.cls=k; h.sub=null; h.style=null; h.portrait=null; st.chosenSkills=[]; st.cantrips=[]; st.spells=[]; if(st.method==='array') setMethod('array'); else draw(); },k=>getClass(k).n+(getClass(k).homebrew?' ✎':'')+(getClass(k).arcana?' ✧':''),'cls-'),el('p',{class:'small'},c.desc||''),c.arcana?el('div',{class:'aebadge'},'✧ Arcana Experimental — original playtest content, subject to change'):null,subsPreview(c),btn('🛠 Build homebrew class',()=>homebrewBuilder(null,()=>creator(Object.assign(opts,{hero:h}))),'mini',{id:'b-hb'})),
           subSec,styleSec,
           sec('Background',chips(Object.keys(BACKGROUNDS),h.bg,k=>{ h.bg=k; draw(); },k=>BACKGROUNDS[k].n),el('p',{class:'small'},'Skills: '+(bg.skills||[]).map(s=>SKILL_NAME[s]).join(', ')+' · '+bg.feat+' · +'+(bg.gold||0)+' gold')),
           sec('Ability Scores',chips(['array','point','roll'],st.method,setMethod,k=>({array:'Standard Array',point:'Point Buy (27)',roll:'Roll 4d6'})[k]),st.method==='point'?el('div',{class:'small'},'Points: '+pointsUsed()+'/27'):null,st.method==='roll'?btn('Reroll',()=>setMethod('roll'),'mini'):null,...abilRows),
           sec('Skills — choose '+nPick+' ('+st.chosenSkills.length+')',el('div',{class:'chips'},Object.keys(SKILLS).filter(s=>pool.includes(s)||(r.extraSkills&&!bgSk.includes(s))).map(s=>el('button',{class:'chip'+(st.chosenSkills.includes(s)?' on':''),onclick:()=>{ const i=st.chosenSkills.indexOf(s); if(i>=0) st.chosenSkills.splice(i,1); else if(st.chosenSkills.length<nPick) st.chosenSkills.push(s); draw(); }},SKILL_NAME[s]+' ('+SKILLS[s]+')')))),
           spellSec,
+          sec('Name',el('input',{id:'c-name',class:'name',value:h.name,maxlength:24,oninput:e=>{ h.name=e.target.value||'Nameless'; const b=document.getElementById('b-create'); if(b) b.textContent='✔ Create '+h.name.split(' ')[0]; const n=document.querySelector('.cname'); if(n) n.textContent=h.name; }}),btn('New name',()=>{ h.name=randomName(); draw(); },'mini')),
+          dicePicker(h,draw),
+          portraitPicker(h,draw),
           sec('Biography',el('textarea',{id:'c-bio',rows:2,placeholder:'A line of history (optional)',oninput:e=>h.bio=e.target.value},h.bio||'')))),
       el('div',{class:'cfoot'},btn('✔ Create '+(h.name.split(' ')[0]),finish,'big',{id:'b-create'})))); if(snap0==null) snap0=snap(); }
   function finish(){ const c=getClass(h.cls); if(st.method==='point'&&pointsUsed()>27){ toast('Too many points spent.'); return; }
     const r=RACES[h.race]; const bgSk=BACKGROUNDS[h.bg].skills||[]; const pool=shuffle(c.skillList.filter(s=>!bgSk.includes(s)&&!st.chosenSkills.includes(s)));
     while(st.chosenSkills.length<c.nSkills&&pool.length) st.chosenSkills.push(pool.shift());
     if(r.extraSkills){ const ex=shuffle(Object.keys(SKILLS).filter(s=>!st.chosenSkills.includes(s)&&!bgSk.includes(s))); while(st.chosenSkills.length<c.nSkills+r.extraSkills) st.chosenSkills.push(ex.shift()); }
-    h.skills=st.chosenSkills.slice(); h.cantrips=st.cantrips.slice(); h.spells=st.spells.slice(); h.eq={}; h.raceAsi={}; h._fcache=null;
+    h.sex=heroSex(h); h.portrait=heroPortraitId(h); h.skills=st.chosenSkills.slice(); h.cantrips=st.cantrips.slice(); h.spells=st.spells.slice(); h.eq={}; h.raceAsi={}; h._fcache=null;
     if(c.subLvl<=1&&!h.sub) h.sub=Object.keys(c.subs)[0]||null;
     finalizeHero(h); autoSpells(h); const targetXp=opts.keepXp||0; h.xp=targetXp; while(canLevel(h)) applyLevelUp(h,autoLevelChoices(h)); h.hp=heroMaxHP(h); restoreSlots(h); restoreRes(h,true);
     opts.onDone&&opts.onDone(h); }
   draw(); }
 function subsPreview(c){ const ks=Object.keys(c.subs||{}); if(!ks.length||c.subLvl<=1) return null; return el('div',{class:'small subprev'},'Subclass at level '+c.subLvl+': ',ks.map((k,i)=>el('span',{class:c.subs[k].src==='Arcana Experimental'?'ae':''},(i?', ':'')+c.subs[k].n+(c.subs[k].src==='Arcana Experimental'?' ✧':'')))); }
-function portraitPicker(h,redraw){ const base=portraitBaseClass(h.cls); const cur=heroPortraitId(h); const ids=[base+'_a',base+'_b',...PORTRAIT_IDS.filter(p=>!p.startsWith(base+'_'))];
-  return el('div',{class:'csec pwrap'},el('h3',null,'Portrait'),el('div',{class:'pstrip',id:'c-portraits'},ids.map(pid=>el('img',{class:'pthumb'+(pid===cur?' on':''),id:'pt-'+pid,src:'assets/p_'+pid+'.jpg',loading:'lazy',decoding:'async',alt:pid.replace('_',' '),draggable:'false',onclick:()=>{ h.portrait=pid; redraw(); }})))); }
+function portraitPicker(h,redraw){ const sex=heroSex(h); h.sex=sex; const race=portraitRace(h.race); const base=portraitBaseClass(h.cls); const cur=heroPortraitId(h);
+  const order=[base,...PORTRAIT_CLASSES.filter(c=>c!==base)]; let ids=order.map(c=>race+'_'+c+'_'+sex).filter(p=>PORTRAIT_AVAIL.has(p));
+  if(!ids.length) ids=[base+'_a',base+'_b']; // art not shipped for this combination: fall back to class art
+  const sexBtn=(k,n)=>el('button',{class:'chip'+(sex===k?' on':''),id:'sex-'+k,onclick:()=>{ h.sex=k; if(h.portrait&&!PORTRAIT_IDS.includes(h.portrait)) h.portrait=null; redraw(); }},n);
+  return el('div',{class:'csec pwrap'},el('h3',null,'Portrait — '+RACES[h.race].n),el('div',{class:'chips sexrow'},sexBtn('m','♂ Male'),sexBtn('f','♀ Female')),
+    el('div',{class:'pstrip',id:'c-portraits'},ids.map(pid=>el('img',{class:'pthumb'+(pid===cur?' on':''),id:'pt-'+pid,src:portraitSrc(pid),loading:'lazy',decoding:'async',alt:pid.replace(/_/g,' '),title:getClass(pid.split('_')[1]).n||pid,draggable:'false',onerror:function(){ if(!this.dataset.fb&&!PORTRAIT_IDS.includes(pid)){ this.dataset.fb='1'; this.classList.add('missing'); this.src=portraitSrc(base+'_a'); } else this.style.visibility='hidden'; },onclick:()=>{ h.portrait=pid; redraw(); }})))); }
 // ---------- homebrew ----------
 const HB_POOL=(()=>{ const s=new Set(); for(const c in CLASSES) for(const l in CLASSES[c].feats) CLASSES[c].feats[l].forEach(f=>{ if(!['asi','spellcasting','pact'].includes(f)&&FEATURES[f]) s.add(f); }); ['graveCommand','reaperTouch','lifeSiphon','boneBond'].concat(typeof ARCANA_POOL!=='undefined'?ARCANA_POOL:[]).forEach(f=>{ if(FEATURES[f]) s.add(f); }); return [...s].sort((a,b)=>(!!FEATURES[b].ae)-(!!FEATURES[a].ae)); })();
 const HB_COST={casterfull:5,casterhalf:3,casterpact:4,hd12:2,hd10:1,heavy:2,medium:1,martial:1};

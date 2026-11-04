@@ -41,6 +41,7 @@ async function onTapDungeon(tx,ty){ if(!G.run||!G.run.map||G.busy) return; const
   if(inter||tile===T.LOCKED||tile===T.DOWN||tile===T.UP){ if(dist2(L.x,L.y,tx,ty)<=1&&!(tile===T.DOWN||tile===T.UP)){ await interact(inter,tx,ty); return; }
     if((tile===T.DOWN||tile===T.UP)&&L.x===tx&&L.y===ty){ await interact(null,tx,ty); return; }
     const goal=(tile===T.DOWN||tile===T.UP)?[tx,ty]:adjacentReachable(L,tx,ty); if(!goal) { toast('No path.'); return; } const ok=await walkTo(L,goal[0],goal[1]); if(ok&&!G.combat&&(dist2(L.x,L.y,tx,ty)<=1)) await interact(inter,tx,ty); return; }
+  if(tile===T.DOOR){ if(dist2(L.x,L.y,tx,ty)<=1&&(L.x===tx||L.y===ty)){ setTile(map,tx,ty,T.DOOROPEN); addNoise(0.2); log('The door creaks open.'); computeVis(); R.dirty=true; return; } if(!await walkTo(L,tx,ty)) toast('No path.'); return; }
   if(walkable(tile)) await walkTo(L,tx,ty); }
 function isInteractable(e){ if(!e) return false; return (e.type==='obj'&&OBJ_INFO[e.kind]&&OBJ_INFO[e.kind].act&&!e.used)||(e.type==='chest'&&!e.opened)||(e.type==='obstacle'&&!e.cleared)||(e.type==='prisoner'&&!e.freed)||e.type==='questitem'||e.type==='loot'||(e.type==='trap'&&e.found&&!e.disarmed&&!e.triggered)||(e.type==='mon'&&!e.ally&&e.hp>0&&!e.inCombat&&mdef(e).talk); }
 function exploreBlocked(h){ const map=G.run.map; const b=heroBlocked(h); return (x,y)=>{ if(activeParty().some(o=>o!==h&&o.x===x&&o.y===y)) return false; if(G.run.map.ents.some(e=>e.ally&&e.hp>0&&e.x===x&&e.y===y)&&!blocksMove(G.run.map,x,y,false,true)) return false; return b(x,y); }; }
@@ -151,8 +152,9 @@ async function interact(e,x,y){ const map=G.run.map; const t=tileAt(map,x,y); co
 async function openLock(lk,what,onOpen){ const party=activeParty().filter(h=>alive(h)&&h.x!=null); const hasTools=G.run.pack.some(i=>i.base==='thievestools')||party.some(h=>h.tools); const crow=G.run.pack.some(i=>i.base==='crowbar'); const dc=lk.dc;
   const knock=party.find(h=>heroSpells(h).includes('knock')&&hasSlot(h,2));
   const opts=[{t:'[Thieves\' Tools DC '+dc+'] Pick the lock'+(hasTools?'':' (no tools: -5)'),v:'pick'},{t:'[Athletics DC '+(dc+2)+'] Force it'+(crow?' (crowbar: advantage)':'')+' — noisy',v:'force'}];
-  if(knock) opts.push({t:'Cast Knock ('+knock.name+')',v:'knock'}); opts.push({t:'Leave it',v:'leave'});
+  if(knock) opts.push({t:'Cast Knock ('+knock.name+')',v:'knock'}); if(what==='door') opts.push({t:'Batter it down (10 minutes, very loud, a hero takes 1d4 bruises) — always works',v:'bash'}); opts.push({t:'Leave it',v:'leave'});
   const ch=await UI.choice('Locked '+what,'The '+what+' is locked fast with old iron.',opts);
+  if(ch==='bash'){ const h=bestHero('athletics',party); const d=1+rnd(4); h.hp=Math.max(1,h.hp-d); log(h.name+' batters the door off its hinges (-'+d+' HP). The din echoes through the halls!','bad'); addNoise(3); if(typeof passTime==='function') passTime(10); onOpen(); UI.refreshParty&&UI.refreshParty(); R.dirty=true; return true; }
   if(ch==='knock'){ spendSlot(knock,lowestSlot(knock,2)); log(knock.name+' casts Knock. The lock bursts open with a loud clang!','good'); addNoise(2); onOpen(); R.dirty=true; return true; }
   if(ch==='pick'){ const h=bestHero('tools',party); const r=skillCheck(h,'tools',dc,{bonus:hasTools?0:-5}); await DICE.flush(); UI.roll(r.txt,r.ok?'hit':'miss'); log(r.txt,r.ok?'good':'bad'); if(r.ok){ onOpen(); shareXP(10*(1+G.run.tier)); R.dirty=true; return true; } if(r.nat===1){ log('Your pick snaps in the lock.','bad'); lk.dc+=2; } addNoise(0.5); return false; }
   if(ch==='force'){ const h=bestHero('athletics',party); const r=skillCheck(h,'athletics',dc+2,{adv:crow}); await DICE.flush(); UI.roll(r.txt,r.ok?'hit':'miss'); log(r.txt,r.ok?'good':'bad'); addNoise(1.5); if(r.ok){ onOpen(); R.dirty=true; return true; } return false; }

@@ -2,12 +2,11 @@
 const CLASS_PRIO = {necromancer:'int,con,dex,wis,cha,str',barbarian:'str,con,dex,wis,cha,int',bard:'cha,dex,con,wis,int,str',cleric:'wis,con,str,dex,cha,int',druid:'wis,con,dex,int,cha,str',fighter:'str,con,dex,wis,cha,int',monk:'dex,wis,con,str,int,cha',paladin:'str,cha,con,wis,dex,int',ranger:'dex,wis,con,str,int,cha',rogue:'dex,con,int,wis,cha,str',sorcerer:'cha,con,dex,wis,int,str',warlock:'cha,con,dex,wis,int,str',wizard:'int,con,dex,wis,cha,str'};
 function classPrio(cid){ if(CLASS_PRIO[cid]) return CLASS_PRIO[cid].split(','); const c=getClass(cid); const o=[...c.primary,'con','dex','wis','cha','str','int']; return [...new Set(o)]; }
 function randomName(){ return pick(NAMES_A)+(Math.random()<0.5?pick(NAMES_B):'')+' '+pick(SURNAMES); }
-function randomAppearance(){ return {skin:rnd(APPEAR.skin.length),hair:rnd(APPEAR.hair.length),eyes:rnd(APPEAR.eyes.length),cloak:rnd(APPEAR.cloak.length),hairStyle:rnd(APPEAR.hairStyle.length),beard:rnd(APPEAR.beard.length),headwear:rnd(APPEAR.headwear.length),marks:rnd(APPEAR.marks.length),ring:rnd(APPEAR.ring.length),emblem:rnd(APPEAR.emblem.length)}; }
 function newHeroShell(){
   return {isHero:true,id:uid('h'),name:randomName(),race:'human',dragon:'red',cls:'fighter',sub:null,bg:'sellsword',level:1,xp:0,
     base:{str:10,dex:10,con:10,int:10,wis:10,cha:10},raceAsi:{},asi:{},feats:[],skills:[],expertise:[],tools:false,style:null,style2:null,favored:[],
     hpRolls:[],hp:1,tempHp:0,eq:{},cantrips:[],spells:[],slots:[0,0,0,0,0,0],res:{},injuries:[],fx:[],deathS:{s:0,f:0},status:'ok',hd:1,
-    app:randomAppearance(),dice:'bone',kills:0,bio:'',created:Date.now()};
+    sex:Math.random()<0.5?'m':'f',dice:'bone',kills:0,bio:'',created:Date.now()};
 }
 function finalizeHero(h){ // after choices at level 1
   const c=getClass(h.cls); h.hpRolls=[c.hd];

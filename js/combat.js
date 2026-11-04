@@ -469,7 +469,7 @@ function heroFeaturesAny(f){ return activeParty().some(h=>heroFeatures(h).has(f)
 function joinCombat(seed){ const map=G.run.map; for(const e of map.ents){ if(e.type==='mon'&&!e.ally&&e.hp>0&&!e.inCombat&&(e.group===seed.group||e===seed)){ e.inCombat=true; e.awake=true; e.hidden=false; const r=d20(0); e.init=r.r+amod(mdef(e).ab[1]); const i=G.combat.order.findIndex(c=>c.init<e.init); if(i<0) G.combat.order.push(e); else { G.combat.order.splice(i,0,e); if(i<=G.combat.idx) G.combat.idx++; } log(mdef(e).n+' joins the fight!','bad'); } } UI.refreshInit(); }
 async function runCombat(){ const C=G.combat; if(!C) return;
   while(G.combat===C){
-    C.idx++; if(C.idx>=C.order.length){ C.idx=0; C.round++; if(C.round===0) C.round=1; await roundStart(); }
+    C.idx++; if(C.idx>=C.order.length){ C.idx=0; C.round++; if(C.round===0) C.round=1; if(checkStalemate(C)) return; await roundStart(); }
     if(C.round===0){ C.round=1; await roundStart(); }
     C.order=C.order.filter(c=>c.isHero?(c.status!=='fallen'&&activeParty().includes(c)):(c.hp>0&&!c.dead)); if(C.idx>=C.order.length) continue;
     const c=C.order[C.idx]; C.cur=c; UI.refreshInit();
@@ -522,6 +522,20 @@ function checkCombatEnd(){ if(!G.combat) return true;
   if(foes.length===0){ endCombat(true); return true; }
   if(heroesUp.length===0){ endCombat(false); return true; }
   return false; }
+// Stalemate: if neither side can reach the other (e.g. a fight that started across a locked door) and nobody's HP has changed
+// for 3 full rounds, the fight breaks off instead of looping forever (no XP; the monsters stay awake where they are).
+function combatSig(C){ return C.order.map(c=>c.hp+'/'+(c.tempHp||0)+'/'+(c.deathS?c.deathS.s+'.'+c.deathS.f:'')+'@'+c.x+','+c.y).join(';'); }
+function sidesCutOff(){ const map=G.run.map; const heroes=activeParty().filter(h=>h.x!=null&&alive(h)); const tgt=new Set(heroes.map(h=>h.y*map.w+h.x));
+  for(const e of map.ents) if(e.type==='mon'&&e.ally&&e.hp>0) tgt.add(e.y*map.w+e.x);
+  const wall=(x,y)=>{ if(tgt.has(y*map.w+x)) return false; const t=tileAt(map,x,y); if(t===T.LOCKED||t===T.SECRET) return true; return map.ents.some(e=>e.x===x&&e.y===y&&(hardBlocker(e)||(e.type==='obstacle'&&!e.cleared))); };
+  for(const m of inCombatMons()){ const B=bfs(map,m.x,m.y,400,wall); for(const k of tgt){ const x=k%map.w,y=(k/map.w)|0; for(const [dx,dy] of [[0,0],[1,0],[-1,0],[0,1],[0,-1],[1,1],[1,-1],[-1,1],[-1,-1]]) if(B.dist.has((y+dy)*map.w+x+dx)) return false; } }
+  return true; }
+function checkStalemate(C){ const sig=combatSig(C); if(sig!==C.stSig){ C.stSig=sig; C.stRounds=0; return false; } C.stRounds=(C.stRounds||0)+1; if(C.stRounds<3||!sidesCutOff()) return false;
+  log('Neither side can reach the other. The fight breaks off.','bad'); toast('The fight breaks off');
+  G.combat=null; if(C.endTurn){ const f=C.endTurn; C.endTurn=null; setTimeout(f,0); }
+  for(const e of G.run.map.ents) if(e.type==='mon'){ e.inCombat=false; if(e.fx) e.fx=e.fx.filter(f=>f.persist); }
+  for(const h of activeParty()){ h.fx=(h.fx||[]).filter(f=>f.persist); h.reaction=true; }
+  UI.exitCombat(); computeVis(); R.dirty=true; UI.refreshParty(); autosave(); return true; }
 function endCombat(win){ const C=G.combat; if(!C) return; G.combat=null; if(C.endTurn) { const f=C.endTurn; C.endTurn=null; setTimeout(f,0); }
   const party=activeParty();
   for(const e of G.run.map.ents) if(e.type==='mon'){ e.inCombat=false; if(e.fx) e.fx=e.fx.filter(f=>f.persist); }
@@ -591,11 +605,21 @@ async function monsterCast(m,foes){ const md=mdef(m); const map=G.run.map; const
     const t=tg.sort((a,b)=>chooseScore(m,b)-chooseScore(m,a))[0]; await castSpell(m,sid,sp.l,t,t.x,t.y); return true; }
   return false; }
 function summonMinions(m,mid,n){ if(!MONSTERS[mid]) return; const map=G.run.map; let k=0; for(const [dx,dy] of shuffle([[1,0],[-1,0],[0,1],[0,-1],[1,1],[-1,-1],[1,-1],[-1,1]])){ if(k>=n) break; const x=m.x+dx, y=m.y+dy; if(!blocksMove(map,x,y)&&!occupied(x,y)){ const e=mkMon(MONSTERS[mid],x,y,m.group); e.awake=true; e.inCombat=true; e.init=m.init-0.5; e.summoned=1; map.ents.push(e); const i=G.combat.order.indexOf(m); G.combat.order.splice(i+1,0,e); k++; } } if(k) { log(mdef(m).n+' calls forth '+k+' '+MONSTERS[mid].n+(k>1?'s':'')+'!','bad'); UI.refreshInit(); } }
-function monBlocked(m){ const map=G.run.map; const heroes=new Set(activeParty().filter(h=>h.x!=null&&h.status!=='fallen').map(h=>h.y*map.w+h.x)); const mons=new Set(map.ents.filter(e=>e.type==='mon'&&e.hp>0&&e!==m).map(e=>e.y*map.w+e.x)); return (x,y)=>heroes.has(y*map.w+x)||mons.has(y*map.w+x)||G.run.map.ents.some(e=>e.type==='obstacle'&&!e.cleared&&e.x===x&&e.y===y); }
+// Creatures may move through a friendly creature's space (5e) but never end there: friendly tiles return 2 (see bfs).
+function monBlocked(m){ const map=G.run.map; const side=!!m.ally; const heroes=new Set(activeParty().filter(h=>h.x!=null&&h.status!=='fallen').map(h=>h.y*map.w+h.x)); const friends=new Set(), foes=new Set(); for(const e of map.ents){ if(e.type==='mon'&&e.hp>0&&e!==m) (!!e.ally===side?friends:foes).add(e.y*map.w+e.x); }
+  const obs=new Set(map.ents.filter(e=>e.type==='obstacle'&&!e.cleared).map(e=>e.y*map.w+e.x));
+  return (x,y)=>{ const i=y*map.w+x; if(obs.has(i)) return true; if(heroes.has(i)) return side?2:true; if(foes.has(i)) return true; if(friends.has(i)) return 2; return false; }; }
+// Walk the real shortest path toward a tile within `reach` of t (not straight-line closest, which can stall behind a wall).
+// Returns the steps affordable this turn (ending on a tile we may stop on), or null if t can't be reached at all.
+function pathToward(map,sx,sy,t,reach,sp,blocked){ const F=bfs(map,sx,sy,400,blocked); let g=null,gd=1e9;
+  for(const [k,d] of F.dist){ const x=k%map.w,y=(k/map.w)|0; if(d>0&&d<gd&&dist2(x,y,t.x,t.y)<=reach){ gd=d; g=[x,y]; } } if(!g) return null;
+  const p=F.path(g[0],g[1]); if(!p) return null; let end=-1; for(let i=0;i<p.length;i++){ const d=F.dist.get(p[i][1]*map.w+p[i][0]); if(d!=null&&d<=sp) end=i; }
+  return end>=0?p.slice(0,end+1):null; }
 async function approach(m,t,reach){ const map=G.run.map; const sp=G.combat.ts.move; if(sp<=0) return; const blocked=monBlocked(m);
   const B=bfs(map,m.x,m.y,sp+12,(x,y)=>blocked(x,y)||tileAt(map,x,y)===T.LOCKED);
   let best=null,bd=1e9; for(const [k,d] of B.dist){ const x=k%map.w, y=(k/map.w)|0; const dd=dist2(x,y,t.x,t.y); if(d<=sp&&dd<=reach&&(reach>2?los(map,x,y,t.x,t.y):true)){ const s=d+dd*0.1; if(s<bd){ bd=s; best=[x,y]; } } }
-  if(!best){ // get as close as possible
+  if(!best){ const pt=pathToward(map,m.x,m.y,t,reach,sp,(x,y)=>blocked(x,y)||tileAt(map,x,y)===T.LOCKED); if(pt&&pt.length){ await moveAlong(m,pt); return; }
+    // unreachable: get as close as possible
     let gd=1e9; for(const [k,d] of B.dist){ if(d>sp) continue; const x=k%map.w, y=(k/map.w)|0; const dd=dist2(x,y,t.x,t.y)*10+d; if(dd<gd){ gd=dd; best=[x,y]; } } }
   if(!best||(best[0]===m.x&&best[1]===m.y)) return;
   const path=B.path(best[0],best[1]); await moveAlong(m,path.slice(0,sp)); }
@@ -618,8 +642,9 @@ async function autoHeroTurn(h){ const C=G.combat; const foes=()=>enemiesOf(h).fi
   const cant=heroCantrips(h).map(s=>SPELLS[s]).find(s=>s&&(s.atk||s.sv)&&s.dmg&&s.tg==='enemy');
   if(rng&&los(G.run.map,h.x,h.y,t.x,t.y)&&dist(h,t)<=rng.lr&&!adjacentFoes(h).length&&(!melee||dist(h,t)>2)){ while(C.ts.action>0||C.ts.attacksLeft>0){ if(!alive(t)){ t=foes().filter(f=>los(G.run.map,h.x,h.y,f.x,f.y))[0]; if(!t) break; } await heroAttack(h,t,rng); if(!G.combat) return; } return; }
   if(cant&&!melee.item&&dist(h,t)<=cant.r&&los(G.run.map,h.x,h.y,t.x,t.y)){ C.ts.action--; await castSpell(h,Object.keys(SPELLS).find(k=>SPELLS[k]===cant),0,t,t.x,t.y); return; }
-  if(dist(h,t)>melee.reach){ const map=G.run.map; const blocked=heroBlocked(h); const B=bfs(map,h.x,h.y,C.ts.move,blocked); let best=null,bd=1e9; for(const [k,d] of B.dist){ const x=k%map.w,y=(k/map.w)|0; const dd=dist2(x,y,t.x,t.y); if(dd<=melee.reach&&d<bd){ bd=d; best=[x,y]; } } if(!best){ let gd=1e9; for(const [k,d] of B.dist){ const x=k%map.w,y=(k/map.w)|0; const dd=dist2(x,y,t.x,t.y); if(dd<gd){ gd=dd; best=[x,y]; } } } if(best) await moveAlong(h,B.path(best[0],best[1])); if(!G.combat||!alive(h)) return; }
+  if(dist(h,t)>melee.reach){ const map=G.run.map; const blocked=heroBlocked(h); const B=bfs(map,h.x,h.y,C.ts.move,blocked); let best=null,bd=1e9; for(const [k,d] of B.dist){ const x=k%map.w,y=(k/map.w)|0; const dd=dist2(x,y,t.x,t.y); if(dd<=melee.reach&&d<bd){ bd=d; best=[x,y]; } } let pt=null; if(!best) pt=pathToward(map,h.x,h.y,t,melee.reach,C.ts.move,blocked); if(pt&&pt.length) await moveAlong(h,pt); else { if(!best){ let gd=1e9; for(const [k,d] of B.dist){ const x=k%map.w,y=(k/map.w)|0; const dd=dist2(x,y,t.x,t.y); if(dd<gd){ gd=dd; best=[x,y]; } } } if(best) await moveAlong(h,B.path(best[0],best[1])); } if(!G.combat||!alive(h)) return; }
   while((C.ts.action>0||C.ts.attacksLeft>0)&&dist(h,t)<=melee.reach){ await heroAttack(h,t,melee); if(!G.combat) return; if(!alive(t)){ t=foes().filter(f=>dist(f,h)<=melee.reach)[0]; if(!t) break; } }
   if(G.combat&&C.ts.action>0) doDodge(h); }
-function heroBlocked(h){ const map=G.run.map; const mons=new Set(map.ents.filter(e=>e.type==='mon'&&e.hp>0).map(e=>e.y*map.w+e.x)); const heroes=new Set(activeParty().filter(o=>o!==h&&o.x!=null&&o.status!=='fallen').map(o=>o.y*map.w+o.x)); const obs=new Set(map.ents.filter(e=>e.type==='obstacle'&&!e.cleared||(e.type==='obj'&&OBJ_INFO[e.kind]&&OBJ_INFO[e.kind].block)||e.type==='chest').map(e=>e.y*map.w+e.x)); const traps=new Set(map.ents.filter(e=>e.type==='trap'&&e.found&&!e.disarmed).map(e=>e.y*map.w+e.x));
-  return (x,y)=>{ const i=y*map.w+x; return mons.has(i)||heroes.has(i)||obs.has(i)||traps.has(i)||tileAt(map,x,y)===T.LOCKED||tileAt(map,x,y)===T.SECRET; }; }
+function heroBlocked(h){ const map=G.run.map; const mons=new Set(map.ents.filter(e=>e.type==='mon'&&e.hp>0).map(e=>e.y*map.w+e.x)); const heroes=new Set(activeParty().filter(o=>o!==h&&o.x!=null&&o.status!=='fallen').map(o=>o.y*map.w+o.x)); const obs=new Set(map.ents.filter(e=>e.type==='obstacle'&&!e.cleared||(e.type==='obj'&&OBJ_INFO[e.kind]&&OBJ_INFO[e.kind].block)||e.type==='chest').map(e=>e.y*map.w+e.x)); const traps=new Set(map.ents.filter(e=>e.type==='trap'&&e.found&&!e.disarmed&&!e.triggered).map(e=>e.y*map.w+e.x));
+  const allyMons=new Set(map.ents.filter(e=>e.type==='mon'&&e.ally&&e.hp>0).map(e=>e.y*map.w+e.x));
+  return (x,y)=>{ const i=y*map.w+x; if(obs.has(i)||traps.has(i)||tileAt(map,x,y)===T.LOCKED||tileAt(map,x,y)===T.SECRET) return true; if(allyMons.has(i)||heroes.has(i)) return 2; return mons.has(i); }; }

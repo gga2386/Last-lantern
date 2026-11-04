@@ -220,3 +220,45 @@ canvas.big.cport{width:220px;height:220px;border-radius:3px;border:2px solid #12
 .dthumb{display:block}
 .dsel{margin-top:2px}
 .sheet .dwrap{margin-top:8px}
+.cname{font-family:inherit;font-size:1.15em;color:#e9c76a;text-align:center;margin:4px 0}
+.sexrow{margin:2px 0 6px}
+.pwrap .pstrip{display:grid;grid-template-columns:repeat(auto-fill,minmax(68px,1fr));gap:6px;overflow:visible;touch-action:auto}
+.pwrap .pthumb{width:100%;height:auto;aspect-ratio:1}
+
+/* ===== visual-novel NPC dialogue ===== */
+.vn-wrap{position:absolute;inset:0;pointer-events:auto;overflow:hidden;background:radial-gradient(ellipse at 50% 30%,#3a2814,#0b0806 75%);animation:vnfade .35s ease-out both;z-index:0}
+@keyframes vnfade{from{opacity:0}to{opacity:1}}
+.vnbg{position:absolute;inset:0;background-image:var(--bgw);background-size:cover;background-position:center;filter:brightness(.82)}
+.vn-wrap::after{content:'';position:absolute;inset:0;pointer-events:none;background:linear-gradient(to bottom,rgba(0,0,0,.25),rgba(0,0,0,0) 30%,rgba(0,0,0,.55) 100%)}
+.vnfig{position:absolute;z-index:1;left:2%;bottom:0;height:88%;aspect-ratio:1/1;max-width:52%;-webkit-mask-image:radial-gradient(ellipse 50% 50% at 50% 50%,#000 58%,transparent 100%);mask-image:radial-gradient(ellipse 50% 50% at 50% 50%,#000 58%,transparent 100%);animation:vnslide .45s ease-out both}
+@keyframes vnslide{from{opacity:0;transform:translateX(-18px)}to{opacity:1;transform:none}}
+.vnfig img{width:100%;height:100%;object-fit:cover;opacity:0;transition:opacity .3s}.vnfig.ok img{opacity:1}
+.vnfig.noimg{-webkit-mask-image:none;mask-image:none;display:flex;align-items:center;justify-content:center}
+.vnav{width:120px;height:120px;border-radius:50%;border:3px solid var(--gold);display:flex;align-items:center;justify-content:center;font:bold 3rem 'Cinzel',Georgia,serif;color:var(--ink);box-shadow:0 0 20px #000}
+.vnpanel{position:absolute;z-index:2;right:1.5%;bottom:8px;width:56%;max-height:calc(100% - 16px);display:flex;flex-direction:column;background:linear-gradient(#e4d4ae,#cdb586);color:var(--parchInk);border:2px solid #6b4e26;border-radius:10px;box-shadow:0 6px 24px rgba(0,0,0,.8),inset 0 0 30px rgba(110,70,20,.35);padding:8px 12px 10px}
+.vnname{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;border-bottom:1px solid rgba(90,60,25,.45);padding-bottom:3px;margin-bottom:4px}
+.vnname b{font-family:'Cinzel',Georgia,serif;font-size:1.05rem;color:#5a1a10;letter-spacing:.05em}
+.vnrole{font-size:.74rem;font-style:italic;opacity:.75}
+.vntext{font-size:.92rem;line-height:1.35;overflow:auto;flex:0 1 auto;min-height:2.6em}
+.vntext.in{animation:vntext .3s ease-out}
+@keyframes vntext{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+.vnopts{display:flex;flex-direction:column;gap:5px;margin-top:6px;overflow:auto;flex:0 0 auto;max-height:52%}
+.vn-wrap .vnopt{min-height:40px;text-align:left;background:linear-gradient(#4a3016,#2a1a0a);color:var(--ink);border-color:#8a6a30;font-size:.86rem;padding:6px 10px}
+.vn-wrap.busy .vnopt{opacity:.6;pointer-events:none}
+.loc-common_room{--tallpos:50% 30%}.loc-forge{--tallpos:72% 45%}
+@media (orientation:portrait){
+ .vnbg{background-image:var(--bgt,var(--bgw));background-position:var(--tallpos,center 40%)}
+ .vnfig{left:50%;transform:translateX(-50%);bottom:auto;top:4%;height:auto;width:78%;max-width:400px;animation:vnfadein .45s ease-out both}
+ @keyframes vnfadein{from{opacity:0}to{opacity:1}}
+ .vnpanel{left:8px;right:8px;width:auto;bottom:8px;max-height:56%}
+ .vntext{font-size:.95rem}
+}
+.patronshead{position:relative;padding:14px 10px;border-radius:8px;overflow:hidden;background:linear-gradient(rgba(10,6,3,.35),rgba(10,6,3,.75)),var(--bgw) center 40%/cover}
+@media (orientation:portrait){.patronshead{background:linear-gradient(rgba(10,6,3,.35),rgba(10,6,3,.75)),var(--bgw) center 40%/cover}}
+.npcav.img{background-size:cover!important;background-position:center 25%!important;color:transparent}
+.npcav{position:relative;overflow:hidden}.npcthumb{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:center 25%}
+@media (orientation:landscape){
+ .vnopts{display:grid;grid-template-columns:1fr 1fr;max-height:none}
+ .vn-wrap .vnopt{min-height:38px;font-size:.82rem;padding:5px 9px}
+ .vnpanel{width:60%}
+}
