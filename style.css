@@ -127,7 +127,7 @@ details{border-bottom:1px solid rgba(90,68,38,.4);padding:4px}summary{cursor:poi
 .toast{background:rgba(20,12,6,.95);border:1px solid var(--gold);padding:6px 14px;border-radius:16px;font-size:.85rem;transition:opacity .5s;max-width:86vw;text-align:center}.toast.out{opacity:0}
 @media (orientation:portrait){
  #party{flex-direction:row;flex-wrap:wrap;max-width:calc(100% - 8px);max-height:none}
- .pcard{width:calc(33% - 3px);min-width:118px}.pcard .btn.mini{display:none}
+ .pcard{width:calc((100vw - 16px) / 3);min-width:0;gap:2px;box-sizing:border-box}.pcard .pp{width:30px!important;height:30px!important}.pcard .pbtns .btn.mini{min-width:32px;min-height:32px}
  #topbar{top:136px;right:4px;max-width:70%}
  #init{top:168px;bottom:auto;max-width:96%;left:50%}
  #actions{flex-wrap:wrap;justify-content:center;overflow-x:visible}
@@ -286,3 +286,13 @@ canvas.big.cport{width:220px;height:220px;border-radius:3px;border:2px solid #12
 .helplist .hti{font-size:1.3em;width:1.6em;text-align:center}
 .helpnav{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px;padding-bottom:calc(8px + env(safe-area-inset-bottom))}
 .helpnav .btn{flex:1}
+
+.pbtns{display:flex;flex-direction:column;align-items:center;gap:2px;flex:0 0 auto}
+.lvlpill{background:linear-gradient(#e0b840,#a07a10);color:#1a0f00;border:1px solid #fff3c0;border-radius:10px;font-weight:bold;font-size:.7rem;padding:2px 5px;min-height:22px;min-width:34px;cursor:pointer;box-shadow:0 0 6px rgba(240,200,80,.7)}
+.pcard:has(.lvlpill) .btn.mini{min-height:26px}
+#b-levelup.pulse{animation:lvpulse 1s ease-in-out 3}@keyframes lvpulse{50%{box-shadow:0 0 14px #f0c860}}
+
+.mapov{position:fixed;inset:0;z-index:90;display:flex;flex-direction:column;background:radial-gradient(#e8d6a8,#b89a60);color:#2a1a08;padding:8px;padding-bottom:calc(8px + env(safe-area-inset-bottom))}
+.maphead{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:6px}
+.mapwrap{flex:1;min-height:0;display:flex;align-items:center;justify-content:center;overflow:hidden;border:2px solid #6a4a20;border-radius:6px;background:rgba(255,245,215,.35)}
+.maplegend{font-size:.72rem;text-align:center;margin-top:4px}

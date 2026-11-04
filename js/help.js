@@ -3,16 +3,17 @@ const HELP_TOPICS=[
  {id:'level',ic:'⬆',n:'Leveling up',p:[
   'Heroes earn XP by winning fights. Each slain foe adds XP to the battle; on victory it is split evenly among the heroes still standing. Finished quests also grant XP.',
   'When a hero has enough XP, a ⬆ appears next to their name on the party card (in the dungeon and in the tavern). A toast also says "A hero can level up!" after a battle.',
-  'Open that hero\'s character sheet (see "Opening the character sheet"). Right under the HP and XP bar is the ⬆ Level up! button. Tap it, make your choices, then Confirm.',
+  'When a hero has enough XP, a gold ⬆ Lvl button appears on their party card. Tap it to open their sheet at the Level up button. You can also open the sheet with the card\'s 📜 button; right under the HP and XP bar is the ⬆ Level up! button. Tap it, make your choices, then Confirm.',
   'The Level up! button only shows outside combat. Finish the fight first, then level up — you can do it in the dungeon or back at the tavern.',
   'Spellcasters who level up get their new spells chosen automatically. You can change them later at the Library in the tavern.',
   'Heroes can reach level 12.']},
  {id:'sheet',ic:'📜',n:'Opening the character sheet',p:[
-  'In the dungeon: double-tap a hero\'s party card (or tap its small 📜 button when it shows).',
+  'In the dungeon: double-tap a hero\'s party card or tap the 📜 button on the right side of the card. Tapping a hero on the map outside combat only makes them the leader.',
   'During combat: a single tap on a party card, or tapping one of your heroes on the map, also opens their sheet.',
   'In the tavern: tap a hero\'s portrait in the party row at the top.',
   'The sheet has tabs for Stats, Gear, Spells, Features and Dice (your dice style). Lasting injuries are listed on the Stats tab.']},
  {id:'explore',ic:'👣',n:'Moving and exploring',p:[
+  'Map: tap 🗺 Map in the bottom bar to see everything the party has explored on this floor: walls, doors (red = locked), stairs and where your party stands. Tap ✕ Close to return.',
   'Tap a floor tile to walk the party leader there; the others follow. Tap a door next to the leader to open it, or a door farther away to walk to it.',
   'Tap chests, objects, traps you have found, or stairs to walk over and interact. Locked doors and chests offer options such as picking the lock, a spell, or bashing it (loud).',
   'Each hero carries light; you only see what your lanterns reach. Unexplored areas stay dark.',
