@@ -233,22 +233,22 @@ function drawLighting(g,map,vis){
   if(!R.lc){ R.lc=document.createElement('canvas'); }
   const lc=R.lc; if(lc.width!==R.cv.width||lc.height!==R.cv.height){ lc.width=R.cv.width; lc.height=R.cv.height; }
   const l=lc.getContext('2d'); const dpr=R.dpr, z=R.cam.z;
-  l.setTransform(1,0,0,1,0,0); l.globalCompositeOperation='source-over'; l.clearRect(0,0,lc.width,lc.height); l.fillStyle='rgba(8,4,2,0.72)'; l.fillRect(0,0,lc.width,lc.height);
+  l.setTransform(1,0,0,1,0,0); l.globalCompositeOperation='source-over'; l.clearRect(0,0,lc.width,lc.height); l.fillStyle='rgba(8,4,2,0.6)'; l.fillRect(0,0,lc.width,lc.height);
   l.setTransform(dpr*z,0,0,dpr*z,(R.cv.width/2)-R.cam.x*dpr*z,(R.cv.height/2)-R.cam.y*dpr*z);
   l.globalCompositeOperation='destination-out';
   const t=(performance.now()-R.t0)/200; const flick=1+Math.sin(t)*0.02+Math.sin(t*2.7)*0.015;
   const lights=[];
-  for(const h of activeParty()) if(h.x!=null&&h.status!=='fallen') lights.push([h.x,h.y,lightRadius(h)*TW*0.55*flick,1]);
+  for(const h of activeParty()) if(h.x!=null&&h.status!=='fallen') lights.push([h.x,h.y,lightRadius(h)*TW*0.64*flick,1]);
   for(const e of map.ents) if(e.type==='obj'&&(e.kind==='brazier'||e.kind==='candles')&&!e.out&&map.explored[e.y*map.w+e.x]) lights.push([e.x,e.y,(e.kind==='brazier'?4:2.5)*TW*0.55*flick,0.9]);
   if(typeof mapSconces==='function'&&texThemeReady(map.theme)){ const cx=R.cam.x, cy=R.cam.y, hw=R.cv.width/dpr/z/2+TW*3, hh=R.cv.height/dpr/z/2+TH*4; for(const [x,y] of mapSconces(map)){ const xi=Math.floor(x), yi=Math.floor(y); if(!map.explored[yi*map.w+xi]) continue; const sx=isoX(x,y), sy=isoY(x,y); if(Math.abs(sx-cx)>hw||Math.abs(sy-cy)>hh) continue; lights.push([x,y,2.2*TW*0.55*flick,0.75]); } }
   if(G.run.daylight) lights.push([G.run.daylight.x,G.run.daylight.y,8*TW*0.55,1]);
-  for(const [x,y,r,a] of lights){ const sx=isoX(x,y), sy=isoY(x,y); const gr=l.createRadialGradient(sx,sy,r*0.1,sx,sy,r); gr.addColorStop(0,'rgba(0,0,0,'+a+')'); gr.addColorStop(0.6,'rgba(0,0,0,'+a*0.7+')'); gr.addColorStop(1,'rgba(0,0,0,0)'); l.fillStyle=gr; l.beginPath(); l.ellipse(sx,sy,r,r*0.6,0,0,7); l.fill(); }
+  for(const [x,y,r,a] of lights){ const sx=isoX(x,y), sy=isoY(x,y); const gr=l.createRadialGradient(sx,sy,r*0.1,sx,sy,r); gr.addColorStop(0,'rgba(0,0,0,'+a+')'); gr.addColorStop(0.55,'rgba(0,0,0,'+a*0.9+')'); gr.addColorStop(0.82,'rgba(0,0,0,'+a*0.55+')'); gr.addColorStop(1,'rgba(0,0,0,0)'); l.fillStyle=gr; l.beginPath(); l.ellipse(sx,sy,r,r*0.6,0,0,7); l.fill(); }
   l.globalCompositeOperation='source-over';
   g.save(); g.setTransform(1,0,0,1,0,0); g.drawImage(lc,0,0);
   // warm candle tint
   g.globalCompositeOperation='soft-light'; g.fillStyle='rgba(255,150,60,0.18)'; g.fillRect(0,0,R.cv.width,R.cv.height); g.globalCompositeOperation='source-over';
   // vignette
-  const vg=g.createRadialGradient(R.cv.width/2,R.cv.height/2,Math.min(R.cv.width,R.cv.height)*0.3,R.cv.width/2,R.cv.height/2,Math.max(R.cv.width,R.cv.height)*0.7); vg.addColorStop(0,'rgba(0,0,0,0)'); vg.addColorStop(1,'rgba(0,0,0,0.6)'); g.fillStyle=vg; g.fillRect(0,0,R.cv.width,R.cv.height);
+  const vg=g.createRadialGradient(R.cv.width/2,R.cv.height/2,Math.min(R.cv.width,R.cv.height)*0.3,R.cv.width/2,R.cv.height/2,Math.max(R.cv.width,R.cv.height)*0.7); vg.addColorStop(0,'rgba(0,0,0,0)'); vg.addColorStop(1,'rgba(0,0,0,0.45)'); g.fillStyle=vg; g.fillRect(0,0,R.cv.width,R.cv.height);
   g.restore(); R.anim=true;
 }
 function floater(x,y,s,c,big){ R.floaters.push({x,y,s:String(s),c:c||'#fff',t:performance.now(),big}); R.dirty=true; }
