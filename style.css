@@ -280,3 +280,9 @@ canvas.big.cport{width:220px;height:220px;border-radius:3px;border:2px solid #12
 .cinfo-t th{text-align:left;padding:2px 8px 2px 0;color:#5a1a10;white-space:nowrap;vertical-align:top}
 .cinfo-t td{padding:2px 0}
 .cinfo-d{font-size:.92rem;line-height:1.35;margin:6px 0 10px}
+/* help */
+.helpbox p.helptext{margin:.45em 0;line-height:1.4}
+.helplist .helptopic{display:flex;align-items:center;gap:10px;text-align:left;width:100%}
+.helplist .hti{font-size:1.3em;width:1.6em;text-align:center}
+.helpnav{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px;padding-bottom:calc(8px + env(safe-area-inset-bottom))}
+.helpnav .btn{flex:1}

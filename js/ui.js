@@ -55,7 +55,7 @@ const UI={ targeting:null, logOpen:false,
       btn('💾 Save game',()=>{ saveGame(); toast('Saved.'); }),btn('📤 Export save file',()=>exportSave()),
       btn('🔍 Zoom in',()=>{ R.cam.z=clamp(R.cam.z*1.25,0.45,2.6); R.dirty=true; }),btn('🔎 Zoom out',()=>{ R.cam.z=clamp(R.cam.z/1.25,0.45,2.6); R.dirty=true; }),
       btn('🎯 Center on party',()=>{ const L=leader(); if(L) centerOn(L.x,L.y); }),
-      btn('📜 Credits & License',()=>UI.credits()),
+      btn('❓ Help',()=>{ UI.closeAll(); UI.help(); },'',{id:'b-help'}),btn('📜 Credits & License',()=>UI.credits()),
       btn('🏚 Abandon expedition (return to tavern)',async()=>{ UI.closeAll(); const ok=await UI.choice('Abandon?','Flee back to the Last Lantern? You keep what you carry.',[{t:'Flee home',v:'y'},{t:'Stay',v:'n'}]); if(ok==='y'){ if(G.combat){ toast('You cannot flee mid-combat without a Writ of Return.'); return; } returnToTavern(false); } },'danger')),{}); },
   exploreSpells(){ const party=activeParty().filter(h=>alive(h)&&h.x!=null); const rows=[];
     for(const h of party){ const list=[...heroCantrips(h),...heroSpells(h)].filter(s=>SPELLS[s]&&(SPELLS[s].ooc||SPELLS[s].heal||['findtraps','knock','light','detectmagic','identify','longstrider','magearmor','aid','passtrace','guidance','lesserrest','greaterrest','removecurse','revivify','daylight','falselife','invis','enhance','freedom','deathward','teleport','stabilize'].includes(SPELLS[s].fx)));

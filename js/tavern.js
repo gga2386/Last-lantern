@@ -25,6 +25,7 @@ function showTavern(){ G.run=null; G.combat=null; G.screen='tavern'; UI.closeAll
       tile('🛏','Rest','Pass a day',()=>{ advanceDays(1); toast('A day passes. Injuries mend; the market restocks.'); saveGame(); showTavern(); },'t-rest'),
       tile('💾','Save / Load','Export, import',()=>saveMenu(),'t-save'),
       tile('🛠','Homebrew','Class builder',()=>homebrewList(()=>showTavern()),'t-hb'),
+      tile('❓','Help','How to play',()=>UI.help(),'t-help'),
       tile('📜','Credits','SRD license',()=>UI.credits(),'t-credits')))); }
 // ---------- roster / party ----------
 function rosterScreen(){ const cap=ROSTER_CAP[G.tavern.barracks];
