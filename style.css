@@ -304,3 +304,6 @@ canvas.big.cport{width:220px;height:220px;border-radius:3px;border:2px solid #12
 /* TOAST_TOP_V1 (positions set by UI.posToasts) */
 #toasts{max-width:96%}
 #log.ltop #logtoggle{margin-left:0}
+
+/* TOAST_TOP_V2 */
+@media (orientation:portrait){ #toasts{top:auto} #topbar{max-width:94%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis} #log{max-width:94%} }
