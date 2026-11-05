@@ -296,3 +296,11 @@ canvas.big.cport{width:220px;height:220px;border-radius:3px;border:2px solid #12
 .maphead{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:6px}
 .mapwrap{flex:1;min-height:0;display:flex;align-items:center;justify-content:center;overflow:hidden;border:2px solid #6a4a20;border-radius:6px;background:rgba(255,245,215,.35)}
 .maplegend{font-size:.72rem;text-align:center;margin-top:4px}
+/* LEVELUP_INFO_V1 */
+.lvl-new{display:flex;flex-wrap:wrap;gap:6px 10px;margin:0 0 10px}
+.lvl-feat{display:inline-flex;align-items:center;padding:4px 8px;border:1px solid rgba(138,90,26,.5);border-radius:6px;background:rgba(120,70,20,.08)}
+.cinfo-d{white-space:pre-line}
+.cinfo-wrap{z-index:10050}
+/* TOAST_TOP_V1 (positions set by UI.posToasts) */
+#toasts{max-width:96%}
+#log.ltop #logtoggle{margin-left:0}

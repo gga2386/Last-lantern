@@ -41,3 +41,10 @@ function infoPopup(title,sub,rows,text){ const old=document.getElementById('c-in
 function infoBtn(fn){ return el('span',{class:'ibtn',role:'button','aria-label':'Details',onclick:e=>{ e.stopPropagation(); e.preventDefault(); fn(); }},'i'); }
 function spellInfo(id){ const s=SPELLS[id]; infoPopup(s.n,s.ae?'✧ Arcana Experimental':null,spellMeta(id),s.d); }
 function skillInfo(s){ infoPopup(SKILL_NAME[s],'Ability: '+(ABIL_FULL[SKILLS[s]]||'Dexterity'),null,skillDesc(s)); }
+// LEVELUP_INFO_V1 — level-up (i) popups
+function featureInfo(f,sub){ const F=FEATURES[f]; infoPopup(F?F.n:f,sub||'Class feature',null,F&&F.d?F.d:'A new class feature.'); }
+function subclassInfo(c,k){ const s=c.subs[k]; const rows=Object.keys(s.feats).map(l=>['Level '+l,s.feats[l].map(f=>FEATURES[f]?FEATURES[f].n:f).join(', ')]);
+  const txt=Object.values(s.feats).flat().filter((f,i,a)=>a.indexOf(f)===i).map(f=>FEATURES[f]?FEATURES[f].n+': '+(FEATURES[f].d||''):f).join('\n\n');
+  infoPopup(s.n,s.src==='Original'?'✧ Arcana Experimental (original)':'SRD subclass',rows,txt); }
+function featInfo(f){ infoPopup(FEATS[f].n,'Feat',null,FEATS[f].d); }
+function asiInfo(){ infoPopup('Ability Score Improvement','Choose one',null,'Raise one ability score by 2, or two scores by 1 each (max 20). Or take a feat instead: a special talent that grants new abilities.'); }

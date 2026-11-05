@@ -30,7 +30,7 @@ const UI={ targeting:null, logOpen:false,
   closeVN(){ const w=document.getElementById('vn'); if(w) w.remove(); },
   closeAll(){ document.getElementById('modals').innerHTML=''; },
   story(title,text){ return UI.modal(title,el('div',{class:'story'},String(text).split('\n').map(p=>el('p',null,p))),{buttons:[{t:'Continue',v:1}]}); },
-  toast(msg){ const t=el('div',{class:'toast'},msg); document.getElementById('toasts').appendChild(t); setTimeout(()=>t.classList.add('out'),G.fast?50:2600); setTimeout(()=>t.remove(),G.fast?100:3200); },
+  toast(msg){ UI.posToasts&&UI.posToasts(); const t=el('div',{class:'toast'},msg); document.getElementById('toasts').appendChild(t); setTimeout(()=>t.classList.add('out'),G.fast?50:2600); setTimeout(()=>t.remove(),G.fast?100:3200); },
   roll(txt,kind){ const d=document.getElementById('dice'); if(!d) return; d.className='dice show '+(kind||''); d.innerHTML=''; d.appendChild(el('span',{class:'d20'},'🎲')); d.appendChild(el('span',null,txt)); clearTimeout(UI._rt); UI._rt=setTimeout(()=>d.className='dice',G.fast?200:2600); },
   addLog(msg,cls){ const L=document.getElementById('logbody'); if(!L) return; L.appendChild(el('div',{class:'ll '+(cls||'')},msg)); while(L.childNodes.length>120) L.removeChild(L.firstChild); L.scrollTop=L.scrollHeight; const last=document.getElementById('loglast'); if(last) last.textContent=msg; },
   // ---------- dungeon HUD ----------
@@ -188,3 +188,10 @@ async function combatTap(h,tx,ty){ const map=G.run.map; const foe=map.ents.find(
     document.getElementById('actions').innerHTML=''; await heroAttack(h,foe,p); UI.afterAction(h); return; }
   const ally=activeParty().find(o=>o.x===tx&&o.y===ty); if(ally){ UI.sheet(ally); return; }
   const k=ty*map.w+tx; if(R.hl.reach&&R.hl.reach.has(k)){ const path=UI._reach.path(tx,ty); document.getElementById('actions').innerHTML=''; await moveAlong(h,path); UI.afterAction(h); } }
+// TOAST_TOP_V1 — park toasts and the latest-log pill just below the party cards
+UI.posToasts=function(){ const p=document.getElementById('party'); if(!p) return; const port=innerHeight>innerWidth; const pr=p.getBoundingClientRect(); const pb=p.children.length?pr.bottom:pr.top;
+  const t=document.getElementById('toasts'), l=document.getElementById('log');
+  const place=(e,y)=>{ if(!e||!e.offsetParent) return; const o=e.offsetParent.getBoundingClientRect(); e.style.top=Math.round(y-o.top)+'px'; e.style.bottom='auto'; };
+  if(port){ const tb=document.getElementById('topbar'); const tr=tb&&tb.offsetParent?tb.getBoundingClientRect():null; const y=Math.max(pb,tr&&tr.height?tr.bottom:0)+4; place(l,y); place(t,y+(l&&l.offsetParent?42:2)); if(l){ l.style.left='4px'; l.style.right='auto'; l.classList.add('ltop'); } }
+  else { place(t,8); if(l){ l.style.top=''; l.style.bottom=''; l.style.left=''; l.style.right=''; l.classList.remove('ltop'); } } };
+(function(){ const go=()=>{ const p=document.getElementById('party'); if(!p){ setTimeout(go,300); return; } UI.posToasts(); try{ new ResizeObserver(()=>UI.posToasts()).observe(p); new MutationObserver(()=>UI.posToasts()).observe(p,{childList:true}); }catch(e){} addEventListener('resize',()=>UI.posToasts()); }; go(); })();
