@@ -188,16 +188,23 @@ async function combatTap(h,tx,ty){ const map=G.run.map; const foe=map.ents.find(
     document.getElementById('actions').innerHTML=''; await heroAttack(h,foe,p); UI.afterAction(h); return; }
   const ally=activeParty().find(o=>o.x===tx&&o.y===ty); if(ally){ UI.sheet(ally); return; }
   const k=ty*map.w+tx; if(R.hl.reach&&R.hl.reach.has(k)){ const path=UI._reach.path(tx,ty); document.getElementById('actions').innerHTML=''; await moveAlong(h,path); UI.afterAction(h); } }
-// TOAST_TOP_V2 — portrait: stack floor bar, initiative, log pill and toasts strictly below the party cards
+// HUD_LAYOUT_V3 — portrait: toasts under party; floor/mission bar above action bar; nothing above party
 UI.posToasts=function(){ const p=document.getElementById('party'); if(!p) return; const port=innerHeight>innerWidth;
-  const t=document.getElementById('toasts'), l=document.getElementById('log'), tb=document.getElementById('topbar'), ini=document.getElementById('init');
+  const t=document.getElementById('toasts'), l=document.getElementById('log'), tb=document.getElementById('topbar'), ini=document.getElementById('init'), ac=document.getElementById('actions');
   const vis=e=>e&&e.offsetParent&&getComputedStyle(e).display!=='none';
   const place=(e,y)=>{ if(!e||!e.offsetParent) return; const o=e.offsetParent.getBoundingClientRect(); e.style.top=Math.round(y-o.top)+'px'; e.style.bottom='auto'; };
   if(port){ let pb=p.getBoundingClientRect().top; for(const c of p.children){ const r=c.getBoundingClientRect(); if(r.height) pb=Math.max(pb,r.bottom); }
     let y=pb+4;
-    if(vis(tb)){ place(tb,y); tb.style.right='auto'; tb.style.left='50%'; tb.style.transform='translateX(-50%)'; y=tb.getBoundingClientRect().bottom+3; }
-    if(vis(ini)){ place(ini,y); y=ini.getBoundingClientRect().bottom+3; }
-    if(l){ l.style.left='50%'; l.style.right='auto'; l.style.transform='translateX(-50%)'; l.classList.add('ltop'); if(vis(l)){ place(l,y); y=l.getBoundingClientRect().top+40; } }
-    place(t,y+2); }
-  else { place(t,8); for(const e of [l,tb,ini]) if(e){ e.style.top=''; e.style.bottom=''; e.style.left=''; e.style.right=''; e.style.transform=''; } if(l) l.classList.remove('ltop'); } };
-(function(){ const go=()=>{ const p=document.getElementById('party'); if(!p){ setTimeout(go,300); return; } UI.posToasts(); try{ new ResizeObserver(()=>UI.posToasts()).observe(p); new MutationObserver(()=>UI.posToasts()).observe(p,{childList:true,subtree:true}); const h=document.getElementById('hud'); if(h) new MutationObserver(()=>UI.posToasts()).observe(h,{attributes:true,attributeFilter:['class']}); }catch(e){} addEventListener('resize',()=>UI.posToasts()); }; go(); })();
+    // Initiative (combat) sits just under the party cards
+    if(vis(ini)){ place(ini,y); ini.style.left='50%'; ini.style.right='auto'; ini.style.transform='translateX(-50%)'; y=ini.getBoundingClientRect().bottom+3; }
+    // Drop/loot toasts just below party (and init if shown)
+    place(t,y+2); if(t){ t.style.left='50%'; t.style.right='auto'; t.style.transform='translateX(-50%)'; }
+    // Mission/floor bar at the BOTTOM, just above the action bar
+    if(tb){ const acTop=ac&&ac.offsetParent?ac.getBoundingClientRect().top:innerHeight; const th=Math.max(24,tb.getBoundingClientRect().height||28);
+      place(tb,acTop-th-6); tb.style.right='auto'; tb.style.left='50%'; tb.style.transform='translateX(-50%)'; tb.style.bottom='auto'; }
+    // Log pill sits just above the floor bar (right side) so the two never stack on top of each other
+    if(l){ const tbR=tb&&tb.offsetParent?tb.getBoundingClientRect():{top:(ac&&ac.offsetParent?ac.getBoundingClientRect().top:innerHeight)};
+      const lh=Math.max(34,l.getBoundingClientRect().height||34); place(l,tbR.top-lh-4);
+      l.style.left='auto'; l.style.right='4px'; l.style.transform=''; l.style.bottom='auto'; l.classList.remove('ltop'); }
+  } else { place(t,8); for(const e of [l,tb,ini]) if(e){ e.style.top=''; e.style.bottom=''; e.style.left=''; e.style.right=''; e.style.transform=''; } if(l) l.classList.remove('ltop'); } };
+(function(){ const go=()=>{ const p=document.getElementById('party'); if(!p){ setTimeout(go,300); return; } UI.posToasts(); try{ new ResizeObserver(()=>UI.posToasts()).observe(p); new MutationObserver(()=>UI.posToasts()).observe(p,{childList:true,subtree:true}); const h=document.getElementById('hud'); if(h) new MutationObserver(()=>UI.posToasts()).observe(h,{attributes:true,attributeFilter:['class']}); const a=document.getElementById('actions'); if(a) new ResizeObserver(()=>UI.posToasts()).observe(a); }catch(e){} addEventListener('resize',()=>UI.posToasts()); }; go(); })();

@@ -126,15 +126,16 @@ details{border-bottom:1px solid rgba(90,68,38,.4);padding:4px}summary{cursor:poi
 #toasts{position:absolute;left:50%;transform:translateX(-50%);top:30%;z-index:80;display:flex;flex-direction:column;gap:4px;align-items:center;pointer-events:none}
 .toast{background:rgba(20,12,6,.95);border:1px solid var(--gold);padding:6px 14px;border-radius:16px;font-size:.85rem;transition:opacity .5s;max-width:86vw;text-align:center}.toast.out{opacity:0}
 @media (orientation:portrait){
- #party{flex-direction:row;flex-wrap:wrap;max-width:calc(100% - 8px);max-height:none}
+ #party{flex-direction:row;flex-wrap:wrap;max-width:calc(100% - 8px);max-height:none;top:4px;z-index:90}
  .pcard{width:calc((100vw - 16px) / 3);min-width:0;gap:2px;box-sizing:border-box}.pcard .pp{width:30px!important;height:30px!important}.pcard .pbtns .btn.mini{min-width:32px;min-height:32px}
- #topbar{top:136px;right:4px;max-width:70%}
- #init{top:168px;bottom:auto;max-width:96%;left:50%}
- #actions{flex-wrap:wrap;justify-content:center;overflow-x:visible}
+ /* HUD_LAYOUT_V3: floor bar defaults to bottom; JS fine-tunes above #actions */
+ #topbar{top:auto;bottom:130px;left:50%;right:auto;transform:translateX(-50%);max-width:94%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;z-index:70}
+ #init{top:auto;bottom:auto;max-width:96%;left:50%}
+ #actions{flex-wrap:wrap;justify-content:center;overflow-x:visible;z-index:75}
  .abtn{min-width:52px;height:54px;padding:2px 3px}.al{font-size:.62rem}
- #log{bottom:128px}
+ #log{bottom:168px;right:4px;left:auto;transform:none;max-width:55%;z-index:70}
  #tgthint{bottom:180px}
- .dice{top:206px;max-width:94%}
+ .dice{top:72px;max-width:94%}
  .twocol{grid-template-columns:1fr}
  .abgrid{grid-template-columns:repeat(3,1fr)}
 }
@@ -301,9 +302,7 @@ canvas.big.cport{width:220px;height:220px;border-radius:3px;border:2px solid #12
 .lvl-feat{display:inline-flex;align-items:center;padding:4px 8px;border:1px solid rgba(138,90,26,.5);border-radius:6px;background:rgba(120,70,20,.08)}
 .cinfo-d{white-space:pre-line}
 .cinfo-wrap{z-index:10050}
-/* TOAST_TOP_V1 (positions set by UI.posToasts) */
-#toasts{max-width:96%}
+/* HUD_LAYOUT_V3 (positions set by UI.posToasts) */
+#toasts{max-width:96%;z-index:80}
 #log.ltop #logtoggle{margin-left:0}
-
-/* TOAST_TOP_V2 */
-@media (orientation:portrait){ #toasts{top:auto} #topbar{max-width:94%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis} #log{max-width:94%} }
+@media (orientation:portrait){ #toasts{top:auto} }
