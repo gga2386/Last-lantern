@@ -10,8 +10,9 @@ const UI={ targeting:null, logOpen:false,
   modal(title,body,opts){ opts=opts||{}; return new Promise(res=>{ const wrap=el('div',{class:'modal-wrap'+(opts.wide?' wide':'')}); const close=v=>{ wrap.remove(); res(v); };
       const m=el('div',{class:'modal'},el('div',{class:'mhead'},el('h2',null,title),opts.noClose?null:btn('✕',()=>close(null),'x')),el('div',{class:'mbody'},body),opts.buttons?el('div',{class:'mfoot'},opts.buttons.map(b=>btn(b.t,()=>{ if(b.fn){ const r=b.fn(); if(r===false) return; } close(b.v); },b.cls))):null);
       wrap.appendChild(m); wrap.addEventListener('click',e=>{ if(e.target===wrap&&!opts.noClose) close(null); }); document.getElementById('modals').appendChild(wrap); UI._close=close; if(opts.onOpen) opts.onOpen(m,close); }); },
-  choice(title,text,options,art){ if(G.autoChoice){ const v=typeof G.autoChoice==='function'?G.autoChoice(title,options):options.filter(o=>!o.dis)[0].v; return Promise.resolve(v); } return new Promise(res=>{ const body=el('div',{class:'choice'},art?el('img',{class:'chart',src:'assets/m_'+art+'.jpg'}):null,el('p',{class:'ctext'},text),el('div',{class:'copts'},options.map(o=>btn(o.t,()=>{ wrap.remove(); res(o.v); },'opt'+(o.dis?' dis':''),o.dis?{disabled:true}:null))));
-      const wrap=el('div',{class:'modal-wrap'},el('div',{class:'modal'},el('div',{class:'mhead'},el('h2',null,title)),el('div',{class:'mbody'},body))); document.getElementById('modals').appendChild(wrap); }); },
+  choice(title,text,options,art){ if(G.autoChoice){ const v=typeof G.autoChoice==='function'?G.autoChoice(title,options):options.filter(o=>!o.dis)[0].v; return Promise.resolve(v); } return new Promise(res=>{ const body=el('div',{class:'choice'},art?el('img',{class:'chart',src:'assets/m_'+art+'.jpg'}):null,el('p',{class:'ctext'},text),el('div',{class:'copts'},options.map(o=>btn(o.t,()=>{ wrap.remove(); UI.posToasts&&UI.posToasts(); res(o.v); },'opt'+(o.dis?' dis':''),o.dis?{disabled:true}:null))));
+      /* HUD_COMBAT_V4: small choices dock as sheetlets above the action/floor stack in portrait */
+      const wrap=el('div',{class:'modal-wrap sheetlet'},el('div',{class:'modal'},el('div',{class:'mhead'},el('h2',null,title)),el('div',{class:'mbody'},body))); document.getElementById('modals').appendChild(wrap); UI.posToasts&&UI.posToasts(); }); },
   // ---------- visual-novel dialogue (talk to an NPC) ----------
   // One persistent full-bleed scene per NPC: backdrop + portrait + parchment panel. Reused across dialogue nodes (no flicker); removed by closeVN / showScreen.
   dialogue(id,text,options){ if(G.autoChoice){ const v=typeof G.autoChoice==='function'?G.autoChoice(NPCS[id].n,options):options.filter(o=>!o.dis)[0].v; return Promise.resolve(v); }
@@ -188,23 +189,44 @@ async function combatTap(h,tx,ty){ const map=G.run.map; const foe=map.ents.find(
     document.getElementById('actions').innerHTML=''; await heroAttack(h,foe,p); UI.afterAction(h); return; }
   const ally=activeParty().find(o=>o.x===tx&&o.y===ty); if(ally){ UI.sheet(ally); return; }
   const k=ty*map.w+tx; if(R.hl.reach&&R.hl.reach.has(k)){ const path=UI._reach.path(tx,ty); document.getElementById('actions').innerHTML=''; await moveAlong(h,path); UI.afterAction(h); } }
-// HUD_LAYOUT_V3 — portrait: toasts under party; floor/mission bar above action bar; nothing above party
+// HUD_COMBAT_V4 — portrait: log+toasts under party/init (clear of center); floor above measured action bar; sheetlets dock above that stack
 UI.posToasts=function(){ const p=document.getElementById('party'); if(!p) return; const port=innerHeight>innerWidth;
-  const t=document.getElementById('toasts'), l=document.getElementById('log'), tb=document.getElementById('topbar'), ini=document.getElementById('init'), ac=document.getElementById('actions');
-  const vis=e=>e&&e.offsetParent&&getComputedStyle(e).display!=='none';
+  const t=document.getElementById('toasts'), l=document.getElementById('log'), tb=document.getElementById('topbar'), ini=document.getElementById('init'), ac=document.getElementById('actions'), hint=document.getElementById('tgthint');
+  const vis=e=>e&&e.offsetParent&&getComputedStyle(e).display!=='none'&&!(e.classList&&e.classList.contains('hidden'));
   const place=(e,y)=>{ if(!e||!e.offsetParent) return; const o=e.offsetParent.getBoundingClientRect(); e.style.top=Math.round(y-o.top)+'px'; e.style.bottom='auto'; };
+  const acR=ac&&ac.offsetParent?ac.getBoundingClientRect():{top:innerHeight,bottom:innerHeight,height:0};
+  document.documentElement.style.setProperty('--hud-action-top',Math.round(acR.top)+'px');
+  document.documentElement.style.setProperty('--hud-action-h',Math.round(Math.max(0,innerHeight-acR.top))+'px');
   if(port){ let pb=p.getBoundingClientRect().top; for(const c of p.children){ const r=c.getBoundingClientRect(); if(r.height) pb=Math.max(pb,r.bottom); }
     let y=pb+4;
-    // Initiative (combat) sits just under the party cards
+    // Initiative strip just under the party cards
     if(vis(ini)){ place(ini,y); ini.style.left='50%'; ini.style.right='auto'; ini.style.transform='translateX(-50%)'; y=ini.getBoundingClientRect().bottom+3; }
-    // Drop/loot toasts just below party (and init if shown)
+    // Toasts + log pill under party/init — CLEAR of center and of the action bar
     place(t,y+2); if(t){ t.style.left='50%'; t.style.right='auto'; t.style.transform='translateX(-50%)'; }
-    // Mission/floor bar at the BOTTOM, just above the action bar
-    if(tb){ const acTop=ac&&ac.offsetParent?ac.getBoundingClientRect().top:innerHeight; const th=Math.max(24,tb.getBoundingClientRect().height||28);
-      place(tb,acTop-th-6); tb.style.right='auto'; tb.style.left='50%'; tb.style.transform='translateX(-50%)'; tb.style.bottom='auto'; }
-    // Log pill sits just above the floor bar (right side) so the two never stack on top of each other
-    if(l){ const tbR=tb&&tb.offsetParent?tb.getBoundingClientRect():{top:(ac&&ac.offsetParent?ac.getBoundingClientRect().top:innerHeight)};
-      const lh=Math.max(34,l.getBoundingClientRect().height||34); place(l,tbR.top-lh-4);
-      l.style.left='auto'; l.style.right='4px'; l.style.transform=''; l.style.bottom='auto'; l.classList.remove('ltop'); }
-  } else { place(t,8); for(const e of [l,tb,ini]) if(e){ e.style.top=''; e.style.bottom=''; e.style.left=''; e.style.right=''; e.style.transform=''; } if(l) l.classList.remove('ltop'); } };
-(function(){ const go=()=>{ const p=document.getElementById('party'); if(!p){ setTimeout(go,300); return; } UI.posToasts(); try{ new ResizeObserver(()=>UI.posToasts()).observe(p); new MutationObserver(()=>UI.posToasts()).observe(p,{childList:true,subtree:true}); const h=document.getElementById('hud'); if(h) new MutationObserver(()=>UI.posToasts()).observe(h,{attributes:true,attributeFilter:['class']}); const a=document.getElementById('actions'); if(a) new ResizeObserver(()=>UI.posToasts()).observe(a); }catch(e){} addEventListener('resize',()=>UI.posToasts()); }; go(); })();
+    let topY=y+2; if(t&&t.children&&t.children.length){ const tr=t.getBoundingClientRect(); if(tr.height) topY=Math.max(topY,tr.bottom+3); }
+    if(l){ place(l,topY); l.style.left='auto'; l.style.right='4px'; l.style.transform=''; l.style.bottom='auto'; l.classList.add('ltop'); }
+    // Floor/mission bar directly ABOVE the action bar (real measured height, incl End Turn wrap + safe-area)
+    const sheetOpen=!!document.querySelector('#modals .modal-wrap.sheetlet');
+    let floorTop=acR.top-10;
+    if(tb){ const th=Math.max(24,tb.getBoundingClientRect().height||28);
+      if(sheetOpen){
+        // HUD_COMBAT_V4: tuck mission bar under the top stack while a cast-slot sheet is open so Cancel never fights it
+        let ty=topY; if(l&&l.offsetParent){ const lr=l.getBoundingClientRect(); if(lr.height) ty=Math.max(ty,lr.bottom+4); }
+        place(tb,ty); tb.style.right='auto'; tb.style.left='50%'; tb.style.transform='translateX(-50%)'; tb.style.bottom='auto'; tb.style.opacity='.92';
+        floorTop=acR.top-10; // sheet clears actions only; floor is out of the bottom stack
+      } else {
+        floorTop=acR.top-th-10; place(tb,floorTop); tb.style.right='auto'; tb.style.left='50%'; tb.style.transform='translateX(-50%)'; tb.style.bottom='auto'; tb.style.opacity='';
+      }
+    }
+    // Sheet docks above the action bar (and above floor when floor is in the bottom stack)
+    const sheetPad=Math.round(Math.max(0,innerHeight-(sheetOpen?acR.top:floorTop))+10);
+    document.documentElement.style.setProperty('--hud-floor-top',Math.round(floorTop)+'px');
+    document.documentElement.style.setProperty('--hud-sheet-pad',sheetPad+'px');
+    // Targeting hint sits just above the action/floor stack so it never covers End Turn / weapons
+    if(vis(hint)){ const hh=Math.max(28,hint.getBoundingClientRect().height||28); const hy=(sheetOpen?acR.top:floorTop)-hh-4; place(hint,hy); hint.style.left='50%'; hint.style.right='auto'; hint.style.transform='translateX(-50%)'; hint.style.bottom='auto'; }
+    // Dock open cast-slot / choice sheetlets above the bottom stack
+    document.querySelectorAll('#modals .modal-wrap.sheetlet').forEach(w=>{ w.style.alignItems='flex-end'; w.style.justifyContent='center'; w.style.paddingBottom=sheetPad+'px'; });
+  } else { place(t,8); for(const e of [l,tb,ini,hint]) if(e){ e.style.top=''; e.style.bottom=''; e.style.left=''; e.style.right=''; e.style.transform=''; } if(l) l.classList.remove('ltop');
+    document.querySelectorAll('#modals .modal-wrap.sheetlet').forEach(w=>{ w.style.alignItems=''; w.style.justifyContent=''; w.style.paddingBottom=''; }); }
+};
+(function(){ const go=()=>{ const p=document.getElementById('party'); if(!p){ setTimeout(go,300); return; } UI.posToasts(); try{ new ResizeObserver(()=>UI.posToasts()).observe(p); new MutationObserver(()=>UI.posToasts()).observe(p,{childList:true,subtree:true}); const h=document.getElementById('hud'); if(h) new MutationObserver(()=>UI.posToasts()).observe(h,{attributes:true,attributeFilter:['class']}); const a=document.getElementById('actions'); if(a) new ResizeObserver(()=>UI.posToasts()).observe(a); const m=document.getElementById('modals'); if(m) new MutationObserver(()=>UI.posToasts()).observe(m,{childList:true,subtree:true}); }catch(e){} addEventListener('resize',()=>UI.posToasts()); }; go(); })();
