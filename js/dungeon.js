@@ -3,6 +3,34 @@ const T={WALL:0,FLOOR:1,DOOR:2,DOOROPEN:3,SECRET:4,DOWN:5,UP:6,LOCKED:7,WATER:8,
 function walkable(t){ return t===T.FLOOR||t===T.DOOROPEN||t===T.DOWN||t===T.UP||t===T.WATER||t===T.RUBBLE; }
 function opaque(t){ return t===T.WALL||t===T.DOOR||t===T.SECRET||t===T.LOCKED; }
 function partyLevel(){ const p=activeParty(); if(!p.length) return 1; return p.reduce((a,h)=>a+h.level,0)/p.length; }
+// ENCOUNTER_EASE_V1: regular-encounter adjusted-XP budget is 90% of the previous formula.
+// Party count, the MED-by-level table, the floor multiplier and the 0.50–0.95 roll are unchanged.
+// Applied only while generating a new floor. Saved maps already store their monsters and are not rerolled or trimmed on load.
+const ENCOUNTER_EASE_V1=0.9;
+function encounterEaseOf(opts){ return opts&&opts.encounterEase!=null?opts.encounterEase:ENCOUNTER_EASE_V1; }
+function encounterMult(n){ return n<=1?1:n===2?1.5:n<=6?2:2.5; }
+function encounterXpBudget(pc,lvl,floor,roll,ease){
+  const MED=[50,100,150,250,500,600,750,900,1100,1200,1600,2000];
+  const base=pc*MED[clamp(Math.round(lvl)-1,0,11)]*(0.5+roll*0.45)*(1+((floor||1)-1)*0.1);
+  return base*(ease==null?ENCOUNTER_EASE_V1:ease);
+}
+function encounterAdjustedXp(xpValues){ const n=xpValues.length; if(!n) return 0; let s=0; for(const x of xpValues) s+=x; return s*encounterMult(n); }
+// Historical picker (ease 1). The same roll is reused for the eased budget so a floor's RNG stream does not move.
+function rollRegularEncounter(pool2,pc,lvl,floor,tiles,groupId){
+  const roll=Math.random(); const budget=encounterXpBudget(pc,lvl,floor,roll,1); const mult=encounterMult;
+  let sum=0; const tl=shuffle(tiles); let n=0;
+  const fit=pool2.filter(m=>(CR_XP[m.cr]||10)<=budget); const lead=fit.length?pick(fit):pool2.slice().sort((a,b)=>a.cr-b.cr)[0];
+  if(!lead) return {group:[],roll};
+  const candidates=pool2.filter(m=>m.type===lead.type||Math.random()<0.3); const group=[];
+  while(n<Math.min(7,pc+2)&&tl.length){ const m=n===0?lead:pick(candidates); const xp=CR_XP[m.cr]||10; if(n>0&&(sum+xp)*mult(n+1)>budget) break; const [x,y]=tl.pop(); group.push(mkMon(m,x,y,groupId)); sum+=xp; n++; if(sum*mult(n)>budget) break; }
+  return {group,roll};
+}
+// Longest prefix of an already-rolled group that the encounter loop would have kept at `budget`. The lead is always kept.
+function regularGroupKeep(group,budget){
+  const mult=encounterMult; let sum=0, n=0, keep=0;
+  for(const e of group){ const xp=CR_XP[MONSTERS[e.mid].cr]||10; if(n>0&&(sum+xp)*mult(n+1)>budget) break; sum+=xp; n++; keep++; if(sum*mult(n)>budget) break; }
+  return keep;
+}
 function genDungeon(opts){ let m=null; for(let i=0;i<10;i++){ m=genDungeon0(opts); if(dungeonSolvable(m,opts)) break; } ensurePassable(m); return m; }
 // Furniture, chests and prisoners must never seal off the only route (doors, locks, obstacles and traps can all be dealt with in play).
 function hardBlocker(e){ return (e.type==='obj'&&OBJ_INFO[e.kind]&&OBJ_INFO[e.kind].block&&!e.broken)||e.type==='chest'||(e.type==='prisoner'&&!e.freed); }
@@ -60,7 +88,7 @@ function genDungeon0(opts){
   if(!last) set(end.cx,end.cy,T.DOWN);
   // locked doors: some doors become locked
   const diffDC=10+Math.min(8,Math.floor(opts.lvl/2)+opts.floor);
-  const ents=[];
+  const ents=[]; const easeSwaps=[];
   for(const d of doorTiles){ if(d.kind===T.DOOR&&Math.random()<0.18){ set(d.x,d.y,T.LOCKED); ents.push({type:'lock',x:d.x,y:d.y,dc:diffDC+rnd(3)}); } }
   for(const d of doorTiles){ if(d.kind===T.SECRET) ents.push({type:'secret',x:d.x,y:d.y,dc:12+Math.min(6,opts.floor+Math.floor(opts.lvl/3)),found:false}); }
   const free=(x,y)=>walkable(at(x,y))&&at(x,y)!==T.UP&&at(x,y)!==T.DOWN&&!ents.some(e=>e.x===x&&e.y===y);
@@ -86,12 +114,11 @@ function genDungeon0(opts){
     if(r===start) continue;
     if(r.kind==='vault'||r.kind==='treasure'){ addChest(r,true); continue; }
     if(r.kind==='boss'){ const b=MONSTERS[opts.boss]; const tiles=roomTiles(r,1); const [bx,by]=tiles.length?pick(tiles):[r.cx,r.cy]; ents.push(mkMon(b,bx,by,groupId)); const minions=Math.min(4,Math.max(1,pc-2)); for(let i=0;i<minions;i++){ const m=pick(pool2.filter(m=>m.cr<=Math.max(0.5,maxCR/2)))||pool2[0]; const tl=roomTiles(r,0); if(tl.length){ const [x,y]=pick(tl); ents.push(mkMon(m,x,y,groupId)); } } groupId++; addChest(r,true); continue; }
-    if(Math.random()<0.52){ // encounter
-      const MED=[50,100,150,250,500,600,750,900,1100,1200,1600,2000];
-      const budget=pc*MED[clamp(Math.round(lvl)-1,0,11)]*(0.5+Math.random()*0.45)*(1+(opts.floor-1)*0.1); const mult=n=>n<=1?1:n===2?1.5:n<=6?2:2.5;
-      let sum=0; const tl=shuffle(roomTiles(r,0)); let n=0;
-      const fit=pool2.filter(m=>(CR_XP[m.cr]||10)<=budget); const lead=fit.length?pick(fit):pool2.slice().sort((a,b)=>a.cr-b.cr)[0]; const candidates=pool2.filter(m=>m.type===lead.type||Math.random()<0.3);
-      while(n<Math.min(7,pc+2)&&tl.length){ const m=n===0?lead:pick(candidates); const xp=CR_XP[m.cr]||10; if(n>0&&(sum+xp)*mult(n+1)>budget) break; const [x,y]=tl.pop(); ents.push(mkMon(m,x,y,groupId)); sum+=xp; n++; if(sum*mult(n)>budget) break; }
+    if(Math.random()<0.52){ // regular encounter. Boss rooms do not use this budget.
+      const rolled=rollRegularEncounter(pool2,pc,lvl,opts.floor,roomTiles(r,0),groupId);
+      for(const e of rolled.group) ents.push(e);
+      const ease=encounterEaseOf(opts);
+      if(ease!==1&&rolled.group.length){ const budget=encounterXpBudget(pc,lvl,opts.floor,rolled.roll,ease); const keep=regularGroupKeep(rolled.group,budget); if(keep<rolled.group.length) easeSwaps.push({remove:rolled.group.slice(keep)}); }
       groupId++;
     }
     // room content
@@ -104,6 +131,8 @@ function genDungeon0(opts){
   // quest items / prisoners
   if(opts.questItem){ const rr=pick(order.filter(r=>r!==start)); const tl2=roomTiles(rr,1); if(tl2.length){ const [x,y]=pick(tl2); ents.push({type:'questitem',x,y,qid:opts.questItem.qid,item:opts.questItem.item,n:opts.questItem.n}); } }
   if(opts.rescue||Math.random()<0.18){ const rr=pick(order.filter(r=>r!==start&&r.kind!=='vault')); const tl2=roomTiles(rr,1); if(tl2.length){ const [x,y]=pick(tl2); const p=opts.rescue?{n:'Elsa, the miller\'s daughter',reward:'quest'}:pick(PRISONERS); ents.push({type:'prisoner',x,y,n:p.n,reward:p.reward,qid:opts.rescue||null,freed:false,dc:diffDC}); } }
+  // Drop only the regular-encounter tail that exceeds the eased budget, after chests, traps and the boss are placed.
+  for(const s of easeSwaps){ const gone=new Set(s.remove); for(let i=ents.length-1;i>=0;i--) if(gone.has(ents[i])) ents.splice(i,1); }
   // shrine/altar events
   const map={w:W,h:H,t,rooms,ents,start:{x:start.cx,y:start.cy},down:last?null:{x:end.cx,y:end.cy},theme:opts.theme,floor:opts.floor,floors:opts.floors,lvl,tier,
     explored:new Array(W*H).fill(0),seed:Math.random(),bossRoom:opts.boss?end.id:null};
