@@ -240,6 +240,9 @@ canvas.big.cport{width:220px;height:220px;border-radius:3px;border:2px solid #12
 @keyframes dpop{0%{transform:scale(.4);opacity:0}70%{transform:scale(1.15)}100%{transform:scale(1);opacity:1}}
 @keyframes dshake{0%,100%{transform:translateX(0)}20%{transform:translateX(-8px)}40%{transform:translateX(7px)}60%{transform:translateX(-5px)}80%{transform:translateX(3px)}}
 .dfoot{margin-top:4px;min-height:0}.dfoot .btn{min-width:150px;min-height:44px}
+/* DUNGEON_SETTINGS_V1: tappable setting rows in the parchment menus */
+.modal .col>label.small{display:flex;align-items:flex-start;gap:10px;min-height:44px;padding:6px 2px;line-height:1.35}
+.modal .col>label.small input{width:22px;height:22px;margin-top:1px;flex:none;accent-color:var(--gold)}
 .dquick{position:absolute;right:10px;bottom:8px;font-size:.72rem;color:#b8a480;display:flex;align-items:center;gap:4px}
 .dquick input{width:18px;height:18px}
 @media (orientation:landscape) and (max-height:500px){ .dicepanel{width:min(80vw,620px);padding:6px 12px} .dcanvas{height:44vh} .dtitle{font-size:.95rem} .dsub{font-size:.72rem} .drow{font-size:.85rem} .dfoot .btn{min-height:38px} }

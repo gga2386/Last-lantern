@@ -22,7 +22,7 @@ const HELP_TOPICS=[
   'Combat starts when monsters notice you. Everyone acts in initiative order. On a hero\'s turn the bar shows Move left and the Action (A), Bonus (B) and Reaction pips.',
   'Tap a highlighted tile to move. Tap an enemy to attack it (the hero steps in if needed), or use the attack buttons to pick a weapon and target.',
   '✨ Spells and ⚜ Abilities open lists of what the hero can use. 🧪 Items uses potions and scrolls. 🛡 Dodge, 💨 Dash and ↩ Disengage use your action.',
-  'When a roll is needed, a 3D d20 appears — tap the die to roll. Turn on the quick-rolls box under the die to skip the animation.',
+  'When a roll is needed, a 3D d20 appears — tap the die to roll. Turn on the quick-rolls box under the die to skip the animation. Quick rolls can also be turned off from ☰ Menu in the dungeon (or Save / Load in the tavern), which brings the tap-to-roll dice back on the next roll.',
   '🤖 Auto lets the game play that hero\'s turn; ⏭ End Turn finishes it.',
   'A hero at 0 HP makes death saves. If they survive the battle they get back up at 1 HP — often with a lasting injury.']},
  {id:'party',ic:'🧑‍🤝‍🧑',n:'Party and leader',p:[

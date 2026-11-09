@@ -5,6 +5,7 @@ const $=s=>document.querySelector(s);
 function portraitEl(c,size,cls){ const dpr=Math.min(2,window.devicePixelRatio||1); const px=Math.round(size*(c.isHero?dpr:1)); const cv=el('canvas',{class:cls||'portrait',width:px,height:px,style:c.isHero&&!/\bbig\b/.test(cls||'')?{width:size+'px',height:size+'px'}:null}); const fr=/\bbig\b/.test(cls||''); const src=c.isHero?heroPortrait(c,px,fr):monsterPortrait(MONSTERS[c.mid]||c,size); if(src) cv.getContext('2d').drawImage(src,0,0,px,px); if(c.isHero){ const pid=heroPortraitId(c); if(!portraitReady(pid)) portraitImg(pid).addEventListener('load',()=>{ const s2=heroPortrait(c,px,fr); const g=cv.getContext('2d'); g.clearRect(0,0,px,px); g.drawImage(s2,0,0,px,px); },{once:true}); return cv; } else { const im=R.imgs[(MONSTERS[c.mid]||{}).art]; if(im) im.addEventListener('load',()=>{ const s2=monsterPortrait(MONSTERS[c.mid],size); if(s2) cv.getContext('2d').drawImage(s2,0,0); },{once:true}); } return cv; }
 function btn(label,fn,cls,attrs){ return el('button',Object.assign({class:'btn '+(cls||''),onclick:e=>{ e.stopPropagation(); fn&&fn(e); }},attrs||{}),label); }
 function rarSpan(it){ return el('span',{class:'iname',style:{color:RARITY[it.rar||'common'].c}},itemName(it)+((it.qty||1)>1?' ×'+it.qty:'')); }
+const DUNGEON_SETTINGS_V1=1; // Quick rolls, fast animations, and auto-end turn live on the dungeon Menu.
 const UI={ targeting:null, logOpen:false,
   // ---------- modals ----------
   modal(title,body,opts){ opts=opts||{}; return new Promise(res=>{ const wrap=el('div',{class:'modal-wrap'+(opts.wide?' wide':'')}); const close=v=>{ wrap.remove(); res(v); };
@@ -74,6 +75,10 @@ const UI={ targeting:null, logOpen:false,
       btn('🔍 Zoom in',()=>{ R.cam.z=clamp(R.cam.z*1.25,0.45,2.6); R.dirty=true; }),btn('🔎 Zoom out',()=>{ R.cam.z=clamp(R.cam.z/1.25,0.45,2.6); R.dirty=true; }),
       btn('🎯 Center on party',()=>{ const L=leader(); if(L) centerOn(L.x,L.y); }),
       btn('❓ Help',()=>{ UI.closeAll(); UI.help(); },'',{id:'b-help'}),btn('📜 Credits & License',()=>UI.credits()),
+      // DUNGEON_SETTINGS_V1: same three settings as the tavern Save / Load menu.
+      el('label',{class:'small'},el('input',{type:'checkbox',checked:G.settings.autoEnd,onchange:e=>G.settings.autoEnd=e.target.checked}),' Auto-end turn when out of actions'),
+      el('label',{class:'small'},el('input',{type:'checkbox',checked:G.settings.fastAnim,onchange:e=>G.settings.fastAnim=e.target.checked}),' Fast animations'),
+      el('label',{class:'small'},el('input',{type:'checkbox',id:'set-quickrolls',checked:!!G.settings.quickRolls,onchange:e=>G.settings.quickRolls=e.target.checked}),' Quick rolls (skip the tap-to-roll dice animation)'),
       btn('🏚 Abandon expedition (return to tavern)',async()=>{ UI.closeAll(); const ok=await UI.choice('Abandon?','Flee back to the Last Lantern? You keep what you carry.',[{t:'Flee home',v:'y'},{t:'Stay',v:'n'}]); if(ok==='y'){ if(G.combat){ toast('You cannot flee mid-combat without a Writ of Return.'); return; } returnToTavern(false); } },'danger')),{}); },
   exploreSpells(){ const party=activeParty().filter(h=>alive(h)&&h.x!=null); const rows=[];
     for(const h of party){ const list=[...heroCantrips(h),...heroSpells(h)].filter(s=>SPELLS[s]&&(SPELLS[s].ooc||SPELLS[s].heal||['findtraps','knock','light','detectmagic','identify','longstrider','magearmor','aid','passtrace','guidance','lesserrest','greaterrest','removecurse','revivify','daylight','falselife','invis','enhance','freedom','deathward','teleport','stabilize'].includes(SPELLS[s].fx)));
