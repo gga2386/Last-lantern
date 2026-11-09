@@ -59,6 +59,7 @@ button{font-family:inherit}
 img.prof-ico{width:22px;height:22px;border-radius:50%;object-fit:cover;border:1px solid var(--gold);background:#120c08;flex:none}
 .prof-none{font-size:.72rem;font-style:italic;opacity:.55;letter-spacing:.02em}
 .prof-more{font-size:.72rem;color:var(--gold);border:1px solid var(--edge);border-radius:999px;padding:1px 6px;min-height:22px;display:inline-flex;align-items:center}
+.b-autoequip{width:100%;margin:4px 0 8px}
 @media (max-width:460px),(max-height:460px){
   .gear-row{flex-direction:column}
   .gear-acts{width:100%;justify-content:flex-start}
@@ -148,7 +149,7 @@ details{border-bottom:1px solid rgba(90,68,38,.4);padding:4px}summary{cursor:poi
 .dice{position:absolute;left:50%;top:46px;transform:translate(-50%,-10px);background:rgba(20,10,5,.95);border:2px solid var(--gold);border-radius:10px;padding:6px 12px;font-size:.85rem;opacity:0;transition:opacity .25s,transform .25s;pointer-events:none!important;max-width:80%;display:flex;gap:6px;align-items:center}
 .dice.show{opacity:1;transform:translate(-50%,0)}.dice.good{border-color:#5a9a3a}.dice.bad{border-color:#a32020}.dice.crit{border-color:#fff;box-shadow:0 0 14px #f0c860}
 #tgthint{position:absolute;left:50%;transform:translateX(-50%);bottom:72px;background:rgba(60,20,10,.95);border:1px solid var(--gold);border-radius:8px;padding:4px 10px;font-size:.85rem;display:flex;gap:6px;align-items:center;max-width:94%}
-#toasts{position:absolute;left:50%;transform:translateX(-50%);top:30%;z-index:80;display:flex;flex-direction:column;gap:4px;align-items:center;pointer-events:none}
+#toasts{position:absolute;left:50%;transform:translateX(-50%);top:30%;z-index:400;display:flex;flex-direction:column;gap:4px;align-items:center;pointer-events:none}
 .toast{background:rgba(20,12,6,.95);border:1px solid var(--gold);padding:6px 14px;border-radius:16px;font-size:.85rem;transition:opacity .5s;max-width:86vw;text-align:center}.toast.out{opacity:0}
 @media (orientation:portrait){
  #party{flex-direction:row;flex-wrap:wrap;max-width:calc(100% - 8px);max-height:none;top:4px;z-index:90}

@@ -31,7 +31,7 @@ const UI={ targeting:null, logOpen:false,
   closeVN(){ const w=document.getElementById('vn'); if(w) w.remove(); },
   closeAll(){ document.getElementById('modals').innerHTML=''; },
   story(title,text){ return UI.modal(title,el('div',{class:'story'},String(text).split('\n').map(p=>el('p',null,p))),{buttons:[{t:'Continue',v:1}]}); },
-  toast(msg){ const t=el('div',{class:'toast'},msg); document.getElementById('toasts').appendChild(t); UI.posToasts&&UI.posToasts(); setTimeout(()=>t.classList.add('out'),G.fast?50:2600); setTimeout(()=>t.remove(),G.fast?100:3200); },
+  toast(msg){ const t=el('div',{class:'toast'},msg); const host=document.getElementById('toasts'); host.appendChild(t); const hud=document.getElementById('hud'); if(hud&&hud.classList.contains('hidden')){ host.style.top='16%'; host.style.bottom='auto'; host.style.zIndex='400'; } else if(UI.posToasts) UI.posToasts(); setTimeout(()=>t.classList.add('out'),G.fast?50:2600); setTimeout(()=>t.remove(),G.fast?100:3200); },
   roll(txt,kind){ const d=document.getElementById('dice'); if(!d) return; d.className='dice show '+(kind||''); d.innerHTML=''; d.appendChild(el('span',{class:'d20'},'🎲')); d.appendChild(el('span',null,txt)); clearTimeout(UI._rt); UI._rt=setTimeout(()=>d.className='dice',G.fast?200:2600); },
   addLog(msg,cls){ const L=document.getElementById('logbody'); if(!L) return; L.appendChild(el('div',{class:'ll '+(cls||'')},msg)); while(L.childNodes.length>120) L.removeChild(L.firstChild); L.scrollTop=L.scrollHeight; const last=document.getElementById('loglast'); if(last) last.textContent=msg; },
   // ---------- dungeon HUD ----------
@@ -190,7 +190,7 @@ async function combatTap(h,tx,ty){ const map=G.run.map; const foe=map.ents.find(
   const ally=activeParty().find(o=>o.x===tx&&o.y===ty); if(ally){ UI.sheet(ally); return; }
   const k=ty*map.w+tx; if(R.hl.reach&&R.hl.reach.has(k)){ const path=UI._reach.path(tx,ty); document.getElementById('actions').innerHTML=''; await moveAlong(h,path); UI.afterAction(h); } }
 // HUD_COMBAT_V4 — portrait: log+toasts under party/init (clear of center); floor above measured action bar; sheetlets dock above that stack
-UI.posToasts=function(){ const p=document.getElementById('party'); if(!p) return; const port=innerHeight>innerWidth;
+UI.posToasts=function(){ const hud=document.getElementById('hud'); if(hud&&hud.classList.contains('hidden')) return; const p=document.getElementById('party'); if(!p) return; const port=innerHeight>innerWidth;
   const t=document.getElementById('toasts'), l=document.getElementById('log'), tb=document.getElementById('topbar'), ini=document.getElementById('init'), ac=document.getElementById('actions'), hint=document.getElementById('tgthint');
   const vis=e=>e&&e.offsetParent&&getComputedStyle(e).display!=='none'&&!(e.classList&&e.classList.contains('hidden'));
   const place=(e,y)=>{ if(!e||!e.offsetParent) return; const o=e.offsetParent.getBoundingClientRect(); e.style.top=Math.round(y-o.top)+'px'; e.style.bottom='auto'; };
@@ -202,7 +202,8 @@ UI.posToasts=function(){ const p=document.getElementById('party'); if(!p) return
     // Initiative strip just under the party cards
     if(vis(ini)){ place(ini,y); ini.style.left='50%'; ini.style.right='auto'; ini.style.transform='translateX(-50%)'; y=ini.getBoundingClientRect().bottom+3; }
     // Toasts + log pill under party/init — CLEAR of center and of the action bar
-    place(t,y+2); if(t){ t.style.left='50%'; t.style.right='auto'; t.style.transform='translateX(-50%)'; }
+    if(document.querySelector('#modals .modal-wrap')){ if(t){ t.style.top='12%'; t.style.bottom='auto'; t.style.zIndex='400'; t.style.left='50%'; t.style.right='auto'; t.style.transform='translateX(-50%)'; } }
+    else { place(t,y+2); if(t){ t.style.left='50%'; t.style.right='auto'; t.style.transform='translateX(-50%)'; } }
     let topY=y+2; if(t&&t.children&&t.children.length){ const tr=t.getBoundingClientRect(); if(tr.height) topY=Math.max(topY,tr.bottom+3); }
     if(l){ place(l,topY); l.style.left='auto'; l.style.right='4px'; l.style.transform=''; l.style.bottom='auto'; l.classList.add('ltop'); }
     // Floor/mission bar directly ABOVE the action bar (real measured height, incl End Turn wrap + safe-area)

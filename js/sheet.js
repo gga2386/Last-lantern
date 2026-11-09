@@ -8,8 +8,9 @@ function equipItem(h,it,src,slot){ const slots=slotsFor(h,it); slot=slot||(slots
   if(h.eq[slot]) stackAdd(src,h.eq[slot]); h.eq[slot]=it;
   if(slot==='main'&&WEAPONS[it.base]&&WEAPONS[it.base].p.includes('two')&&h.eq.off){ stackAdd(src,h.eq.off); h.eq.off=null; }
   if(slot==='off'&&h.eq.main&&WEAPONS[h.eq.main.base]&&WEAPONS[h.eq.main.base].p.includes('two')){ stackAdd(src,h.eq.main); h.eq.main=null; }
-  if(it.kind==='weapon'&&!weaponProf(h,it.base)) toast(h.name+' is not proficient with '+WEAPONS[it.base].n+'.');
-  if(it.kind==='armor'&&!armorProf(h,ARMORS[it.base].type)) toast(h.name+' is not proficient in '+ARMORS[it.base].type+' armor (disadvantage, no spells).');
+  if(it.kind==='weapon'&&!heroProficientWith(h,it)) toast(h.name+' is not proficient with '+WEAPONS[it.base].n+'.');
+  if(it.kind==='armor'&&!heroProficientWith(h,it)) toast(h.name+' is not proficient in '+ARMORS[it.base].type+' armor (disadvantage, no spells).');
+  if(it.kind==='shield'&&!heroProficientWith(h,it)) toast(h.name+' is not proficient with shields.');
   h._fcache=null; h.hp=Math.min(h.hp,heroMaxHP(h)); }
 function unequip(h,slot,dst){ if(!h.eq[slot]) return; stackAdd(dst,h.eq[slot]); h.eq[slot]=null; h.hp=Math.min(h.hp,heroMaxHP(h)); }
 // GEAR_OVERHAUL_V1 — collapsible gear sections and party proficiency portraits.
@@ -44,6 +45,109 @@ function gearSections(items,rowFn,key,getIt){
   if(!n) wrap.appendChild(el('p',{class:'small gear-empty'},'Nothing here.'));
   return wrap;
 }
+// AUTO_EQUIP_V1 — best proficient gear from pack/stash. Never takes another hero's equipped item.
+const AUTO_EQUIP_V1=1;
+function weaponHands(it){ const w=WEAPONS[it.base]; const p=w.p||[]; return {ranged:p.includes('ranged'),two:p.includes('two'),light:p.includes('light'),finesse:p.includes('finesse'),vd:!!w.vd}; }
+function weaponExpected(h,it,twoHand){
+  const w=WEAPONS[it.base], fx=itemFx(it), hands=weaponHands(it);
+  let ab=hands.ranged?'dex':'str';
+  if(!hands.ranged&&hands.finesse&&abilMod(h,'dex')>=abilMod(h,'str')) ab='dex';
+  const F=heroFeatures(h);
+  if(F.has('martialArts')&&typeof isMonkWeapon==='function'&&isMonkWeapon(it.base)&&abilMod(h,'dex')>abilMod(h,ab)) ab='dex';
+  let die=w.d; if(twoHand&&w.vd&&!hands.ranged) die=w.vd;
+  let extra=0; if(fx.extra) extra+=avgDice(fx.extra);
+  return avgDice(die)+abilMod(h,ab)+(it.plus||0)+(fx.dmg||0)+extra;
+}
+function armorAllowed(h,it){
+  if(!it||it.kind!=='armor'||!ARMORS[it.base]) return false;
+  if(!heroProficientWith(h,it)) return false; // non-proficient armor: disadvantage and no spells
+  const a=ARMORS[it.base];
+  if(a.str&&abilScore(h,'str')<a.str) return false;
+  if(a.stealthDis&&!(itemFx(it).noStealthDis)&&skillProf(h,'stealth')) return false;
+  return true;
+}
+function previewAC(h,gear){
+  const saved=h.eq; const next=Object.assign({},saved);
+  for(const k in gear){ if(gear[k]) next[k]=gear[k]; else delete next[k]; }
+  h.eq=next; let ac; try{ ac=heroAC(h); } finally{ h.eq=saved; } return ac;
+}
+function accScore(it,armored){
+  const fx=itemFx(it); let s=(it.plus||0)*3;
+  s+=(fx.ac||0)*4; s+=(fx.saves||0)*3; s+=(fx.checks||0)*2; s+=(fx.speed||0); s+=(fx.hp||0)/2; s+=(fx.init||0)*2; s+=(fx.light||0); s+=(fx.hpPerLvl||0)*3;
+  if(fx.skill) for(const k in fx.skill) s+=fx.skill[k]*2;
+  if(fx.saveB) for(const k in fx.saveB) s+=fx.saveB[k]*2;
+  if(fx.resist) s+=fx.resist.length*3;
+  if(fx.advSkill) s+=4; if(fx.setStr||fx.setCon||fx.setInt) s+=6; if(fx.autoStable) s+=3; if(fx.seeInvis) s+=3;
+  if(fx.acUnarmored) s+=armored?0:8;
+  if(it.charges) s+=Math.min(5,it.charges);
+  return s;
+}
+function pickBetter(list,score,current){
+  let best=null, bestS=-1e9;
+  if(current&&list.includes(current)){ best=current; bestS=score(current); }
+  for(const it of list){ if(it===best) continue; const s=score(it); if(s>bestS+1e-6){ best=it; bestS=s; } }
+  return best;
+}
+function autoEquipHero(h,pool){
+  pool=pool||[];
+  const mine=Object.values(h.eq||{}).filter(Boolean);
+  const seen=new Set(), cands=[];
+  for(const it of pool.concat(mine)){ if(!it||seen.has(it)) continue; seen.add(it); if(canEquipAny(it)||it.kind==='wand') cands.push(it); }
+  const weapons=cands.filter(it=>it.kind==='weapon'&&WEAPONS[it.base]&&weaponProf(h,it.base));
+  const armors=cands.filter(it=>armorAllowed(h,it));
+  const shields=cands.filter(it=>it.kind==='shield'&&heroProficientWith(h,it));
+  const melee=weapons.filter(it=>!weaponHands(it).ranged);
+  const ranged=weapons.filter(it=>weaponHands(it).ranged);
+  let bestArmor=null, bestArmAC=previewAC(h,{armor:null,off:null});
+  const curArm=h.eq.armor&&armors.includes(h.eq.armor)?h.eq.armor:null;
+  if(curArm){ const ac=previewAC(h,{armor:curArm,off:null}); if(ac>=bestArmAC-1e-6){ bestArmor=curArm; bestArmAC=ac; } }
+  for(const it of armors){ const ac=previewAC(h,{armor:it,off:null}); if(ac>bestArmAC+1e-6){ bestArmAC=ac; bestArmor=it; } }
+  let bestMelee=null, bestMeleeS=-1e9, meleeTwo=false;
+  for(const it of melee){
+    const hands=weaponHands(it); const modes=hands.two?[true]:(hands.vd?[false,true]:[false]);
+    for(const two of modes){ const s=weaponExpected(h,it,two); if(s>bestMeleeS+1e-6||(Math.abs(s-bestMeleeS)<=1e-6&&it===h.eq.main&&!two)){ bestMeleeS=s; bestMelee=it; meleeTwo=two; } }
+  }
+  const bestRanged=pickBetter(ranged,it=>weaponExpected(h,it,false),h.eq.ranged&&ranged.includes(h.eq.ranged)?h.eq.ranged:null);
+  let bestShield=null;
+  if(!meleeTwo&&shields.length){
+    let shAC=previewAC(h,{armor:bestArmor,off:null,main:bestMelee});
+    const curSh=h.eq.off&&h.eq.off.kind==='shield'&&shields.includes(h.eq.off)?h.eq.off:null;
+    if(curSh){ const ac=previewAC(h,{armor:bestArmor,off:curSh,main:bestMelee}); if(ac>shAC+1e-6){ shAC=ac; bestShield=curSh; } }
+    for(const it of shields){ const ac=previewAC(h,{armor:bestArmor,off:it,main:bestMelee}); if(ac>shAC+1e-6){ shAC=ac; bestShield=it; } }
+  }
+  const desired={armor:bestArmor,main:bestMelee,off:meleeTwo?null:bestShield,ranged:bestRanged};
+  if(!desired.off&&bestMelee&&weaponHands(bestMelee).light&&!weaponHands(bestMelee).two){
+    const offs=melee.filter(it=>it!==bestMelee&&weaponHands(it).light&&!weaponHands(it).two);
+    desired.off=pickBetter(offs,it=>weaponExpected(h,it,false),h.eq.off&&offs.includes(h.eq.off)?h.eq.off:null);
+  }
+  const armored=!!desired.armor;
+  const acc=cands.filter(it=>(it.kind==='acc'||it.kind==='wand')&&!Object.values(desired).includes(it));
+  const used=new Set(Object.values(desired).filter(Boolean));
+  const rings=acc.filter(it=>it.slot==='ring'&&!used.has(it)).slice().sort((a,b)=>accScore(b,armored)-accScore(a,armored));
+  desired.ring1=rings[0]||null; if(desired.ring1) used.add(desired.ring1);
+  desired.ring2=rings[1]||null; if(desired.ring2) used.add(desired.ring2);
+  for(const sl of ['amulet','cloak','belt','boots','gloves','head','trinket']){
+    const opts=acc.filter(it=>(it.kind==='wand'?sl==='trinket':(it.slot||'trinket')===sl)&&!used.has(it));
+    const cur=h.eq[sl]&&opts.includes(h.eq[sl])?h.eq[sl]:null;
+    desired[sl]=pickBetter(opts,it=>accScore(it,armored),cur);
+    if(desired[sl]) used.add(desired[sl]);
+  }
+  const before={}; for(const sl of ['main','off','ranged','armor',...ACC_SLOTS]) before[sl]=h.eq[sl]||null;
+  for(const sl of Object.keys(before)){ if(before[sl]&&before[sl]!==desired[sl]) unequip(h,sl,pool); }
+  for(const sl of Object.keys(before)){ if(desired[sl]&&h.eq[sl]!==desired[sl]) equipItem(h,desired[sl],pool,sl); }
+  const added=[], removed=[];
+  for(const sl of Object.keys(before)){
+    const now=h.eq[sl]||null;
+    if(now===before[sl]) continue;
+    if(now) added.push(itemName(now)); else removed.push(SLOT_NAME[sl]);
+  }
+  let msg;
+  if(!added.length&&!removed.length) msg='Already best gear.';
+  else if(added.length) msg='Equipped '+added.slice(0,4).join(', ')+(added.length>4?'…':'')+'.';
+  else msg='Cleared '+removed.slice(0,3).join(', ')+'.';
+  if(typeof toast==='function') toast(msg);
+  return msg;
+}
 UI.sheet=function(h,back,readonly){ let tab='stats'; const inDungeon=!!G.run; const src=()=>inDungeon?G.run.pack:G.stash;
   const body=el('div',{class:'sheet'}); const tabs=['stats','gear','spells','features','look'];
   const draw=()=>{ body.innerHTML=''; const c=getClass(h.cls), s=getSub(h);
@@ -60,6 +164,7 @@ UI.sheet=function(h,back,readonly){ let tab='stats'; const inDungeon=!!G.run; co
       body.appendChild(el('div',{class:'small'},'Resources: '+Object.keys(h.res||{}).map(k=>k+' '+h.res[k]).join(' · ')+' · Hit dice '+(h.hd||0)+'/'+h.level+' · Kills '+(h.kills||0)));
       if(h.bio) body.appendChild(el('p',{class:'small'},h.bio)); }
     if(tab==='gear'){ const all=['main','off','ranged','armor',...ACC_SLOTS];
+      if(!readonly&&!G.combat) body.appendChild(btn('Auto-equip',()=>{ autoEquipHero(h,src()); draw(); if(G.run) UI.refreshParty&&UI.refreshParty(); },'big b-autoequip',{id:'b-autoequip'}));
       body.appendChild(el('div',{class:'col'},all.map(sl=>{ const it=h.eq[sl]; return el('div',{class:'lrow gear-row'},el('span',{class:'slot'},SLOT_NAME[sl]),it?el('div',{class:'gear-main'},rarSpan(it),el('span',{class:'small gear-desc'},itemDesc(it).split('\n')[0]),profIcons(it)):el('span',{class:'small'},'— empty'),it&&!readonly&&!G.combat?el('div',{class:'gear-acts'},btn('Remove',()=>{ unequip(h,sl,src()); draw(); },'mini')):null); })));
       if(!readonly&&!G.combat){ const cand=src().filter(canEquipAny); body.appendChild(el('h3',null,(inDungeon?'Pack':'Stash')+' — equip'));
         body.appendChild(cand.length?gearSections(cand,it=>gearRow(it,slotsFor(h,it).map(sl=>btn(SLOT_NAME[sl],()=>{ equipItem(h,it,src(),sl); draw(); UI.refreshParty&&G.run&&UI.refreshParty(); },'mini'))),'sheet-'+h.id):el('p',{class:'small'},'Nothing to equip.')); } }
