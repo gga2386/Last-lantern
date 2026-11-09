@@ -166,14 +166,14 @@ const UI={ targeting:null, logOpen:false,
   beginFeat(h,f){ const go=async(t,x,y)=>{ await useFeat(h,f.id,t,x,y); }; if(f.tg==='self'||f.tg==='none'){ document.getElementById('actions').innerHTML=''; (async()=>{ await go(h); UI.afterAction(h); })(); return; }
     UI.targeting={kind:'feat',h,tg:f.tg,range:f.range,area:f.id==='breath'?{sh:'cone',sz:3}:null,label:f.n,go}; UI.hint('Choose a target for '+f.n+'.'); },
   itemMenu(h){ const items=G.run.pack.filter(i=>GEAR[i.base]&&GEAR[i.base].use||i.kind==='scroll'&&i.spell); if(!items.length){ toast('Nothing usable in the pack.'); return; }
-    UI.modal('Use an item',el('div',{class:'slist'},items.map(it=>el('div',{class:'srow'},btn(itemName(it)+((it.qty||1)>1?' ×'+it.qty:''),()=>{ UI.closeAll(); UI.beginItem(h,it); },'opt'),el('div',{class:'sd'},itemDesc(it)))))); },
+    UI.modal('Use an item',gearSections(items,it=>gearRow(it,[btn('Use',()=>{ UI.closeAll(); UI.beginItem(h,it); },'mini')]),'use')); },
   beginItem(h,it){ if(it.kind==='scroll'&&it.spell){ const sp=SPELLS[it.spell]; const cls=getClass(h.cls); const L=cls.list; if(!(L&&sp.c.includes(L))&&!heroFeatures(h).has('magicSecrets')){ const r=skillCheck(h,'arcana',10+sp.l); log(r.txt); if(!r.ok){ consumeItem(it); G.combat.ts.action--; log('The scroll crumbles uselessly.','bad'); UI.afterAction(h); return; } }
       h._freeCast=true; consumeItem(it); UI.beginSpell(h,it.spell,sp.l); return; }
     const u=GEAR[it.base].use; if(u.throwDmg){ UI.targeting={kind:'item',h,tg:'enemy',range:4,go:async t=>{ await useItemCombat(h,it,t); }}; UI.hint('Tap an enemy to throw '+GEAR[it.base].n+'.'); return; }
     if(u.fx==='return'||u.fx==='torch'){ (async()=>{ await useItemCombat(h,it,h); UI.afterAction(h); })(); return; }
     UI.targeting={kind:'item',h,tg:'ally',range:1,go:async t=>{ await useItemCombat(h,it,t); }}; R.hl.targets=new Set(allies(h).filter(a=>dist(a,h)<=1)); R.dirty=true; UI.hint('Tap yourself or an adjacent ally.'); },
   // ---------- results ----------
-  lootPopup(title,items,gold){ if(G.fast) return; const body=el('div',{class:'loot'},gold?el('div',{class:'gold'},'💰 '+gold+' gold'):null,items.map(it=>el('div',{class:'lrow'},rarSpan(it),el('div',{class:'sd'},itemDesc(it).split('\n')[0]))));
+  lootPopup(title,items,gold){ if(G.fast) return; const body=el('div',{class:'loot'},gold?el('div',{class:'gold'},'💰 '+gold+' gold'):null,gearSections(items,it=>gearRow(it,[]),'loot'));
     UI.modal(title,body,{buttons:[{t:'Take all',v:1}]}); },
   bossVictory(){ const r=G.run; if(!r) return; const ch=r.kind==='story'?STORY[r.ref]:null; UI.story('Victory',ch?ch.outro+'\n\nReturn to the stairs up (or burn a Writ of Return) to bring word to the Last Lantern.':'The master of this place is slain.'); },
   tpkScreen(){ UI.modal('The Lantern Gutters',el('div',{class:'story'},el('p',null,'Darkness closes over the party. But the Wardens of the Last Lantern do not abandon their own: cloaked figures drag your broken bodies back to the tavern.'),el('p',null,'No one is lost forever — but every hero will carry scars, and half your gold and your pack are gone.')),{noClose:true,buttons:[{t:'Return to the tavern',v:1,fn:()=>{ returnToTavern(false); }}]}); },

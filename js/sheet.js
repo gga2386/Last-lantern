@@ -12,6 +12,38 @@ function equipItem(h,it,src,slot){ const slots=slotsFor(h,it); slot=slot||(slots
   if(it.kind==='armor'&&!armorProf(h,ARMORS[it.base].type)) toast(h.name+' is not proficient in '+ARMORS[it.base].type+' armor (disadvantage, no spells).');
   h._fcache=null; h.hp=Math.min(h.hp,heroMaxHP(h)); }
 function unequip(h,slot,dst){ if(!h.eq[slot]) return; stackAdd(dst,h.eq[slot]); h.eq[slot]=null; h.hp=Math.min(h.hp,heroMaxHP(h)); }
+// GEAR_OVERHAUL_V1 — collapsible gear sections and party proficiency portraits.
+const PROF_ICON_CAP=4;
+const GEAR_OPEN={};
+function proficiencyParty(){ if(typeof activeParty!=='function') return []; try{ return activeParty().filter(h=>h&&h.isHero); }catch(e){ return []; } }
+function profIcons(it){
+  if(!itemProfKind(it)) return null;
+  const heroes=proficiencyParty().filter(h=>heroProficientWith(h,it));
+  const row=el('div',{class:'profs','data-prof':heroes.map(h=>h.id).join(',')});
+  if(!heroes.length){ row.appendChild(el('span',{class:'prof-none'},'no one proficient')); return row; }
+  heroes.slice(0,PROF_ICON_CAP).forEach(h=>{
+    let src=''; try{ if(typeof heroPortraitId==='function'&&typeof portraitSrc==='function') src=portraitSrc(heroPortraitId(h)); }catch(e){ src=''; }
+    row.appendChild(el('img',{class:'prof-ico',src:src,alt:h.name,title:h.name,'data-hid':h.id}));
+  });
+  if(heroes.length>PROF_ICON_CAP) row.appendChild(el('span',{class:'prof-more'},'+'+(heroes.length-PROF_ICON_CAP)));
+  return row;
+}
+function gearRow(it,actions,extra){
+  const acts=[].concat(actions||[]).flat(2).filter(x=>x!=null&&x!==false);
+  return el('div',{class:'lrow gear-row'},el('div',{class:'gear-main'},rarSpan(it),el('span',{class:'small gear-desc'},itemDesc(it).split('\n')[0]||''),extra||null,profIcons(it)),acts.length?el('div',{class:'gear-acts'},acts):null);
+}
+function gearSections(items,rowFn,key,getIt){
+  getIt=getIt||(x=>x); const buckets={};
+  for(const entry of items||[]){ const it=getIt(entry); if(!it) continue; const id=gearSectionId(it); (buckets[id]=buckets[id]||[]).push(entry); }
+  const wrap=el('div',{class:'gearsecs'}); let n=0;
+  for(const sec of GEAR_SECTIONS){ const list=buckets[sec.id]; if(!list||!list.length) continue; n+=list.length;
+    const ok=(key||'gear')+':'+sec.id; const det=el('details',{class:'gearsec',open:GEAR_OPEN[ok]!==false});
+    det.addEventListener('toggle',()=>{ GEAR_OPEN[ok]=det.open; });
+    det.appendChild(el('summary',null,el('span',{class:'gs-n'},sec.n),el('span',{class:'gs-c'},String(list.length))));
+    const body=el('div',{class:'gearsec-body'}); for(const entry of list){ const row=rowFn(entry); if(row) body.appendChild(row); } det.appendChild(body); wrap.appendChild(det); }
+  if(!n) wrap.appendChild(el('p',{class:'small gear-empty'},'Nothing here.'));
+  return wrap;
+}
 UI.sheet=function(h,back,readonly){ let tab='stats'; const inDungeon=!!G.run; const src=()=>inDungeon?G.run.pack:G.stash;
   const body=el('div',{class:'sheet'}); const tabs=['stats','gear','spells','features','look'];
   const draw=()=>{ body.innerHTML=''; const c=getClass(h.cls), s=getSub(h);
@@ -28,9 +60,9 @@ UI.sheet=function(h,back,readonly){ let tab='stats'; const inDungeon=!!G.run; co
       body.appendChild(el('div',{class:'small'},'Resources: '+Object.keys(h.res||{}).map(k=>k+' '+h.res[k]).join(' · ')+' · Hit dice '+(h.hd||0)+'/'+h.level+' · Kills '+(h.kills||0)));
       if(h.bio) body.appendChild(el('p',{class:'small'},h.bio)); }
     if(tab==='gear'){ const all=['main','off','ranged','armor',...ACC_SLOTS];
-      body.appendChild(el('div',{class:'col'},all.map(sl=>{ const it=h.eq[sl]; return el('div',{class:'lrow'},el('span',{class:'slot'},SLOT_NAME[sl]),it?rarSpan(it):el('span',{class:'small'},'—'),el('span',{class:'small grow'},it?itemDesc(it).split('\n')[0]:''),it&&!readonly&&!G.combat?btn('Remove',()=>{ unequip(h,sl,src()); draw(); },'mini'):null); })));
+      body.appendChild(el('div',{class:'col'},all.map(sl=>{ const it=h.eq[sl]; return el('div',{class:'lrow gear-row'},el('span',{class:'slot'},SLOT_NAME[sl]),it?el('div',{class:'gear-main'},rarSpan(it),el('span',{class:'small gear-desc'},itemDesc(it).split('\n')[0]),profIcons(it)):el('span',{class:'small'},'— empty'),it&&!readonly&&!G.combat?el('div',{class:'gear-acts'},btn('Remove',()=>{ unequip(h,sl,src()); draw(); },'mini')):null); })));
       if(!readonly&&!G.combat){ const cand=src().filter(canEquipAny); body.appendChild(el('h3',null,(inDungeon?'Pack':'Stash')+' — equip'));
-        body.appendChild(el('div',{class:'col'},cand.length?cand.map(it=>el('div',{class:'lrow'},rarSpan(it),el('span',{class:'small grow'},itemDesc(it).split('\n')[0]),slotsFor(h,it).map(sl=>btn(SLOT_NAME[sl],()=>{ equipItem(h,it,src(),sl); draw(); UI.refreshParty&&G.run&&UI.refreshParty(); },'mini',{class:'btn mini eqb'})))):el('p',{class:'small'},'Nothing to equip.'))); } }
+        body.appendChild(cand.length?gearSections(cand,it=>gearRow(it,slotsFor(h,it).map(sl=>btn(SLOT_NAME[sl],()=>{ equipItem(h,it,src(),sl); draw(); UI.refreshParty&&G.run&&UI.refreshParty(); },'mini'))),'sheet-'+h.id):el('p',{class:'small'},'Nothing to equip.')); } }
     if(tab==='spells'){ const all=[...heroCantrips(h),...heroSpells(h)].filter(x=>SPELLS[x]); if(!all.length) body.appendChild(el('p',null,'No spells.'));
       else { body.appendChild(el('div',{class:'small'},'Spell DC '+spellDC(h)+' · attack '+fmtMod(spellAtk(h))+' · slots '+slotTxt(h)));
         body.appendChild(el('div',{class:'slist'},all.sort((a,b)=>SPELLS[a].l-SPELLS[b].l).map(x=>{ const sp=SPELLS[x]; return el('div',{class:'srow'},el('b',null,(sp.l?'L'+sp.l+' ':'◦ ')+sp.n),el('div',{class:'sd'},(sp.r?'Range '+(sp.r*5)+' ft · ':'')+(sp.conc?'Concentration · ':'')+sp.d)); }))); } }
@@ -54,11 +86,12 @@ function spellPrompt(h){ toast('New spells were chosen automatically — change 
 UI.levelUp=levelUpModal;
 // ---------- inventory (dungeon pack) ----------
 UI.inventory=function(){ const body=el('div'); const draw=()=>{ body.innerHTML=''; const P=G.run.pack; body.appendChild(el('div',{class:'small'},'Gold carried: '+G.run.gold+' · '+P.length+' stacks'));
-    body.appendChild(el('div',{class:'col'},P.length?P.map(it=>el('div',{class:'lrow'},rarSpan(it),el('span',{class:'small grow'},itemDesc(it).split('\n')[0]),
+    body.appendChild(gearSections(P,it=>gearRow(it,[
       (GEAR[it.base]&&GEAR[it.base].use&&!GEAR[it.base].use.throwDmg&&!G.combat)?btn('Use',async()=>{ const h=await UI.pickHero('Use on whom?',activeParty().filter(x=>x.status!=='fallen')); if(h){ await useConsumable(h,it,h); UI.refreshParty(); draw(); } },'mini'):null,
       it.kind==='scroll'&&!G.combat?btn('Read',async()=>{ const h=await UI.pickHero('Who reads it?',activeParty().filter(alive)); if(h){ UI.closeAll(); h._freeCast=true; consumeItem(it); await UI.castOutOfCombat(h,it.spell); } },'mini'):null,
       canEquipAny(it)&&!G.combat?btn('Equip',async()=>{ const h=await UI.pickHero('Equip on whom?',activeParty()); if(h){ equipItem(h,it,P); UI.refreshParty(); draw(); } },'mini'):null,
-      it.kind!=='quest'?btn('Drop',()=>{ P.splice(P.indexOf(it),1); draw(); },'mini danger'):null)):el('p',null,'The pack is empty.'))); };
+      it.kind!=='quest'?btn('Drop',()=>{ P.splice(P.indexOf(it),1); draw(); },'mini danger'):null
+    ]),'pack')); };
   draw(); UI.modal('Expedition Pack',body,{wide:true}); };
 // ---------- journal / codex / factions ----------
 UI.journal=function(start){ let tab=start||'quests'; const body=el('div'); const draw=()=>{ body.innerHTML='';

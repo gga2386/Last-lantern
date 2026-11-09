@@ -229,6 +229,47 @@ function weaponProf(h,base){
   return false;
 }
 function armorProf(h,type){ const c=getClass(h.cls); if(type==='heavy'&&heroFeatures(h).has('heavyArmor')) return true; return c.armor.includes(type); }
+// GEAR_OVERHAUL_V1 — section ids and real proficiency (class, race, background, feat, thieves' tools, Elven Chain).
+const GEAR_OVERHAUL_V1=1;
+const GEAR_SECTIONS=[
+  {id:'melee',n:'Melee Weapons'},
+  {id:'ranged',n:'Ranged Weapons'},
+  {id:'armor',n:'Armor and Shields'},
+  {id:'consume',n:'Consumables'},
+  {id:'worn',n:'Wondrous and Worn'},
+  {id:'tools',n:'Tools and Misc'},
+  {id:'quest',n:'Quest and Unidentified'}
+];
+function gearSectionId(it){
+  if(!it) return 'tools';
+  if(it.ident===false||it.kind==='quest') return 'quest';
+  if(it.kind==='weapon'){ const w=WEAPONS[it.base]; return (w&&(w.p||[]).includes('ranged'))?'ranged':'melee'; }
+  if(it.kind==='armor'||it.kind==='shield') return 'armor';
+  if(it.kind==='potion'||it.kind==='throw'||it.kind==='scroll') return 'consume';
+  if(it.kind==='acc'||it.kind==='wand') return 'worn';
+  return 'tools';
+}
+function itemProfKind(it){
+  if(!it) return null;
+  if(it.kind==='weapon'&&WEAPONS[it.base]) return 'weapon';
+  if(it.kind==='armor'&&ARMORS[it.base]) return 'armor';
+  if(it.kind==='shield') return 'shield';
+  if(it.base==='thievestools') return 'tools';
+  return null;
+}
+function heroProficientWith(h,it){
+  const k=itemProfKind(it); if(!k||!h) return false;
+  if(k==='weapon') return !!weaponProf(h,it.base);
+  if(k==='armor'){ if(itemFx(it).noProf) return true; return !!armorProf(h,ARMORS[it.base].type); }
+  if(k==='shield') return !!armorProf(h,'shield');
+  if(k==='tools') return !!h.tools;
+  return false;
+}
+function gearSectionCounts(items,getIt){
+  getIt=getIt||(x=>x); const c={}; for(const s of GEAR_SECTIONS) c[s.id]=0;
+  for(const entry of items||[]){ const it=getIt(entry); if(!it) continue; c[gearSectionId(it)]++; }
+  return c;
+}
 function repTier(v){ let t='Neutral'; for(const [th,n] of REP_TIERS) if(v>=th) t=n; return t; }
 function xpForNext(l){ return XP_LEVELS[Math.min(XP_LEVELS.length-1,l)]; }
 function canLevel(h){ return h.level<MAX_LEVEL && h.xp>=XP_LEVELS[h.level]; }
