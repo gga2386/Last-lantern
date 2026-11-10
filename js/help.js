@@ -36,7 +36,7 @@ const HELP_TOPICS=[
   'The 🩹 Infirmary treats injuries for gold; upgrading it makes healing faster and cheaper. The 🕯 Shrine offers blessings and cleanses curses and disease.']},
  {id:'town',ic:'🏮',n:'The tavern (town)',p:[
   'The Last Lantern is your base between expeditions. 🗺 World Map starts an expedition. 🍺 Patrons and 📋 Quest Board give stories and side quests.',
-  '⚖ Market buys and sells gear. ⚒ Forge (once built) upgrades and enchants items. 📦 Stash holds items you brought home.',
+  '⚖ Market buys and sells gear. ⚒ Forge (once built) has three benches: Disassemble breaks down stash gear into scrap, Craft is where new recipes would be made, and Upgrade reforges (+1) and enchants — the only bench that also lists gear a hero is wearing. 📦 Stash holds items you brought home.',
   '📚 Library: identify items and change your casters\' spells. 🏗 Upgrades improves the buildings with gold and renown.']},
  {id:'save',ic:'💾',n:'Saving and continuing',p:[
   'The game saves itself after battles, rests and most tavern actions, and whenever you switch away from the browser. It cannot save in the middle of combat.',

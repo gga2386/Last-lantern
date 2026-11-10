@@ -125,19 +125,39 @@ function marketScreen(black){ if(!G.market||!G.market.items) refreshMarket(); le
       tab==='buy'?el('div',{class:'col'},black?null:el('h3',null,'Staples'),black?null:gearSections(staples,it=>rowB(it,true),'mk-staple'),el('h3',null,black?'Rare wares':'Today\'s stock'),gearSections(stock,it=>rowB(it,false),'mk-stock')):gearSections(G.stash.filter(i=>i.kind!=='quest'),rowS,'mk-sell'))); };
   draw(); }
 // ---------- forge ----------
+const FORGE_TABS_V1=1;
+let forgeTab='upgrade';
 function matCount(b){ return G.stash.filter(i=>i.base===b).reduce((a,i)=>a+(i.qty||1),0); }
 function takeMat(b,n){ while(n>0){ const it=G.stash.find(i=>i.base===b); if(!it) return; const t=Math.min(n,it.qty||1); it.qty=(it.qty||1)-t; n-=t; if(it.qty<=0) G.stash.splice(G.stash.indexOf(it),1); } }
-function allGear(){ const out=[]; for(const it of G.stash) if(['weapon','armor','shield'].includes(it.kind)) out.push({it,where:'Stash'}); for(const h of G.roster) for(const k in h.eq) if(h.eq[k]&&['weapon','armor','shield'].includes(h.eq[k].kind)) out.push({it:h.eq[k],where:h.name.split(' ')[0]}); return out; }
+function forgeGear(it){ return !!(it&&['weapon','armor','shield'].includes(it.kind)); }
+function forgeLoose(){ const out=[]; const take=list=>{ if(!list) return; for(const it of list) if(forgeGear(it)) out.push(it); }; take(G.stash); if(G.run) take(G.run.pack); return out; }
+function forgeWorn(){ const out=[]; for(const h of (G.roster||[])) for(const k in (h.eq||{})) if(forgeGear(h.eq[k])) out.push({it:h.eq[k],hero:h,slot:k}); return out; }
+function allGear(){ return forgeLoose().map(it=>({it,where:'Stash'})).concat(forgeWorn().map(w=>({it:w.it,where:w.hero.name.split(' ')[0]}))); }
 function upCost(it){ const p=(it.plus||0)+1; return {gold:120*p*p,mats:{iron:2*p,...(p>=2?{arcane:p-1}:{}),...(p>=3?{essence:2}:{})}}; }
-function forgeScreen(){ const L=G.tavern.forge; const costTxt=c=>c.gold+'g + '+Object.keys(c.mats).map(m=>c.mats[m]+' '+MATERIALS[m].n).join(', ');
+function salvageGear(it){ const n=1+(it.plus||0)+((it.affixes||[]).length); stackAdd(G.stash,makeItem('iron',{qty:1+n})); if(it.plus||(it.affixes&&it.affixes.length)||it.magic) stackAdd(G.stash,makeItem('arcane',{qty:n}));
+  let i=G.stash.indexOf(it); if(i>=0){ G.stash.splice(i,1); return true; } if(G.run&&G.run.pack){ i=G.run.pack.indexOf(it); if(i>=0){ G.run.pack.splice(i,1); return true; } } return false; }
+function forgeUpgrade(it){ const L=G.tavern.forge||0; if((it.plus||0)>=L) return false; const free=!!(G.perks&&G.perks.forgeOnce); const uc=upCost(it);
+  if(!free){ if(G.gold<uc.gold||!Object.keys(uc.mats).every(m=>matCount(m)>=uc.mats[m])) return false; G.gold-=uc.gold; for(const m in uc.mats) takeMat(m,uc.mats[m]); } else G.perks.forgeOnce=false;
+  it.plus=(it.plus||0)+1; if(it.rar==='common') it.rar='uncommon'; else if(it.plus>=2&&it.rar==='uncommon') it.rar='rare'; return true; }
+function wearerMark(h){ return el('span',{class:'wearer','data-wearer':h.id},portraitEl(h,22,'prof-ico'),el('span',null,h.name)); }
+function forgeScreen(){ const L=G.tavern.forge||0; if(!['disassemble','craft','upgrade'].includes(forgeTab)) forgeTab='upgrade';
+  const costTxt=c=>c.gold+'g + '+Object.keys(c.mats).map(m=>c.mats[m]+' '+MATERIALS[m].n).join(', ');
   const canPay=c=>G.gold>=c.gold&&Object.keys(c.mats).every(m=>matCount(m)>=c.mats[m]); const pay=c=>{ G.gold-=c.gold; for(const m in c.mats) takeMat(m,c.mats[m]); };
-  const entries=allGear(); const rows=entries.map(({it,where})=>{ const uc=upCost(it); const free=G.perks.forgeOnce; const canUp=(it.plus||0)<L; const ec={gold:250,mats:{arcane:2,essence:1}}; const maxAff=L>=3?3:2;
-    const row=el('div',{class:'card gear-card'},rarSpan(it),el('span',{class:'small'},' ('+where+')'),el('div',{class:'small'},itemDesc(it).split('\n').slice(0,2).join(' · ')),profIcons(it),
-      canUp?btn('Upgrade to +'+((it.plus||0)+1)+' — '+(free?'FREE (Hrolf)':costTxt(uc)),()=>{ if(!free&&!canPay(uc)){ toast('Missing gold or materials.'); return; } if(free) G.perks.forgeOnce=false; else pay(uc); it.plus=(it.plus||0)+1; if(it.rar==='common') it.rar='uncommon'; else if(it.plus>=2&&it.rar==='uncommon') it.rar='rare'; toast(itemName(it)+' reforged.'); saveGame(); forgeScreen(); },'mini'):null,
-      L>=2&&(it.affixes||[]).length<maxAff&&!it.magic?btn('Enchant affix — '+costTxt(ec),async()=>{ if(!canPay(ec)){ toast('Missing gold or materials.'); return; } const on=it.kind==='weapon'?'weapon':'armor'; const opts=randomAffixesSafe(3,on,L>=3?3:2).filter(a=>!(it.affixes||[]).includes(a)); if(!opts.length){ toast('No affixes fit.'); return; } const a=await UI.choice('Runeforge','The runes offer three bindings. Choose one.',[...opts.map(a=>({t:AFFIXES[a].n+' — '+AFFIXES[a].d,v:a})),{t:'Cancel',v:null}]); if(!a) return; pay(ec); it.affixes=(it.affixes||[]).concat(a); if(it.rar==='common') it.rar='uncommon'; saveGame(); forgeScreen(); },'mini'):null,
-      where==='Stash'?btn('Salvage',()=>{ const n=1+(it.plus||0)+(it.affixes||[]).length; stackAdd(G.stash,makeItem('iron',{qty:1+n})); if(it.plus||it.affixes.length||it.magic) stackAdd(G.stash,makeItem('arcane',{qty:n})); G.stash.splice(G.stash.indexOf(it),1); toast('Salvaged into materials.'); forgeScreen(); },'mini danger'):null); row._it=it; return row; });
-  showScreen('tavern',el('div',{class:'tav'},el('div',{class:'tavhead'},el('h2',null,'The Forge — '+TAVERN_UPGRADES.forge.d[L]),btn('Back',showTavern,'',{id:'b-back'})),
-    el('div',{class:'mats'},Object.keys(MATERIALS).map(m=>el('span',{class:'mat',style:{borderColor:MATERIALS[m].c}},MATERIALS[m].n+': '+matCount(m))),el('span',null,'💰 '+G.gold)),rows.length?gearSections(entries,({it})=>rows.find(r=>r._it===it),'forge',e=>e.it):el('p',null,'No weapons or armor to work.'))); }
+  const loose=forgeLoose(), worn=forgeWorn();
+  const upBtns=it=>{ const uc=upCost(it); const free=G.perks&&G.perks.forgeOnce; const canUp=(it.plus||0)<L; const ec={gold:250,mats:{arcane:2,essence:1}}; const maxAff=L>=3?3:2;
+    return [canUp?btn('Upgrade to +'+((it.plus||0)+1)+' — '+(free?'FREE (Hrolf)':costTxt(uc)),()=>{ if(!forgeUpgrade(it)){ toast('Missing gold or materials.'); return; } toast(itemName(it)+' reforged.'); saveGame(); forgeScreen(); },'mini'):null,
+      L>=2&&(it.affixes||[]).length<maxAff&&!it.magic?btn('Enchant affix — '+costTxt(ec),async()=>{ if(!canPay(ec)){ toast('Missing gold or materials.'); return; } const on=it.kind==='weapon'?'weapon':'armor'; const opts=randomAffixesSafe(3,on,L>=3?3:2).filter(a=>!(it.affixes||[]).includes(a)); if(!opts.length){ toast('No affixes fit.'); return; } const a=await UI.choice('Runeforge','The runes offer three bindings. Choose one.',[...opts.map(a=>({t:AFFIXES[a].n+' — '+AFFIXES[a].d,v:a})),{t:'Cancel',v:null}]); if(!a) return; pay(ec); it.affixes=(it.affixes||[]).concat(a); if(it.rar==='common') it.rar='uncommon'; saveGame(); forgeScreen(); },'mini'):null]; };
+  const tabBtn=(id,n)=>el('button',{class:'chip'+(forgeTab===id?' on':''),id:'forge-'+id,onclick:()=>{ forgeTab=id; forgeScreen(); }},n);
+  let body;
+  if(forgeTab==='disassemble') body=loose.length?gearSections(loose,it=>gearRow(it,[btn('Salvage',()=>{ if(!salvageGear(it)){ toast('That piece is not in the stash.'); return; } toast('Salvaged into materials.'); saveGame(); forgeScreen(); },'mini danger')]),'forge-dis'):el('p',{class:'small',id:'forge-empty'},'Nothing in the stash to break down. Gear a hero is wearing stays put.');
+  else if(forgeTab==='craft') body=el('div',{class:'card',id:'forge-craft-empty'},el('b',null,'No recipes'),el('p',{class:'small'},'Hrolf does not hammer new weapons out of scrap. Disassemble what you do not need, or upgrade what you already carry.'));
+  else { const eq=worn.length?el('details',{class:'gearsec',id:'forge-equipped',open:true},el('summary',null,el('span',{class:'gs-n'},'Equipped'),el('span',{class:'gs-c'},String(worn.length))),el('div',{class:'gearsec-body'},worn.map(w=>gearRow(w.it,upBtns(w.it),wearerMark(w.hero))))):null;
+    const stash=loose.length?gearSections(loose,it=>gearRow(it,upBtns(it)),'forge-up'):el('p',{class:'small'},worn.length?'Nothing waiting in the stash.':'No weapons or armor to work.');
+    body=el('div',{class:'col',id:'forge-upgrade'},eq,stash); }
+  showScreen('tavern',el('div',{class:'tav',id:'forge-screen'},el('div',{class:'tavhead'},el('h2',null,'The Forge — '+TAVERN_UPGRADES.forge.d[L]),btn('Back',showTavern,'',{id:'b-back'})),
+    el('div',{class:'mats',id:'forge-mats'},Object.keys(MATERIALS).map(m=>el('span',{class:'mat',style:{borderColor:MATERIALS[m].c}},MATERIALS[m].n+': '+matCount(m))),el('span',{id:'forge-gold'},'💰 '+G.gold)),
+    el('div',{class:'chips forge-tabs'},tabBtn('disassemble','Disassemble'),tabBtn('craft','Craft'),tabBtn('upgrade','Upgrade')),
+    body)); }
 function randomAffixesSafe(n,on,t){ return shuffle(Object.keys(AFFIXES).filter(a=>(AFFIXES[a].on==='any'||AFFIXES[a].on===on)&&AFFIXES[a].tier<=t+1)).slice(0,n); }
 // ---------- infirmary ----------
 function treatCost(inj){ const d=INJURIES.find(x=>x.id===inj.id); return Math.round(d.cost*(1-[0,0.2,0.4,0.6][G.tavern.infirmary])*(1-repDisc('rose'))); }

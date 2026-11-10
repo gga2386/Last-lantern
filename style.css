@@ -59,6 +59,9 @@ button{font-family:inherit}
 img.prof-ico{width:22px;height:22px;border-radius:50%;object-fit:cover;border:1px solid var(--gold);background:#120c08;flex:none}
 .prof-none{font-size:.72rem;font-style:italic;opacity:.55;letter-spacing:.02em}
 .prof-more{font-size:.72rem;color:var(--gold);border:1px solid var(--edge);border-radius:999px;padding:1px 6px;min-height:22px;display:inline-flex;align-items:center}
+.forge-tabs{margin:8px 0}
+.wearer{display:flex;align-items:center;gap:6px;font-size:.82rem;color:var(--gold)}
+.wearer canvas.prof-ico,.wearer img.prof-ico{width:22px;height:22px;border-radius:50%;border:1px solid var(--gold);background:#120c08;flex:none}
 .b-autoequip{width:100%;margin:4px 0 8px}
 @media (max-width:460px),(max-height:460px){
   .gear-row{flex-direction:column}
