@@ -80,8 +80,8 @@ const result = vm.runInContext(`
   if (!G.stash.some(it=>it.base==='iron' && (it.qty||1)>=11)) fail('salvage did not return iron');
   forgeTab = 'craft'; forgeScreen();
   text = walkText(SCREEN, []).join('\\n');
-  if (/Tor Greaves/.test(text) || /Longsword/.test(text) || /Plate Armor/.test(text)) fail('craft showed gear');
-  if (!/No recipes/.test(text)) fail('craft tab missing empty state');
+  if (/Tor Greaves/.test(text) || /Plate Armor/.test(text) || /Salvage/.test(text) || /Upgrade to/.test(text)) fail('craft showed equipped gear or other benches');
+  if (!/Dagger/.test(text) || !/Craft/.test(text)) fail('craft tab missing recipes');
   forgeTab = 'upgrade'; forgeScreen();
   text = walkText(SCREEN, []).join('\\n');
   if (!/Equipped/.test(text) || !/Tor Greaves/.test(text) || !/Longsword/.test(text)) fail('upgrade missing equipped group');

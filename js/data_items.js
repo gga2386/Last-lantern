@@ -169,3 +169,28 @@ const AFFIXES = {
  sage:{n:'of the Sage',pre:0,on:'any',fx:{skill:{arcana:2,history:2,religion:2}},d:'+2 Arcana, History and Religion.',tier:1},
  silver:{n:'Silvered',pre:1,on:'weapon',fx:{magical:1},d:'Counts as magical (overcomes resistance).',tier:1}
 };
+// FORGE_CRAFT_V1 — every material is spent by at least one recipe. forge is the minimum Forge level.
+const FORGE_CRAFT_SECTIONS=[
+  {id:'weapons',n:'Weapons'},
+  {id:'armor',n:'Armor & Shields'},
+  {id:'consume',n:'Consumables'}
+];
+const FORGE_RANK=['','Smithy','Runeforge','Masterforge'];
+const FORGE_RECIPES=[
+  {id:'dagger',sec:'weapons',forge:1,gold:2,mats:{iron:1},base:'dagger'},
+  {id:'shortbow',sec:'weapons',forge:1,gold:12,mats:{iron:2,hide:1},base:'shortbow'},
+  {id:'silver-short',sec:'weapons',forge:2,gold:20,mats:{silver:2,iron:1},base:'shortsword',silvered:true},
+  {id:'silver-long',sec:'weapons',forge:2,gold:35,mats:{silver:2,iron:2},base:'longsword',silvered:true},
+  {id:'hide',sec:'armor',forge:1,gold:4,mats:{hide:3},base:'hide'},
+  {id:'leather',sec:'armor',forge:1,gold:6,mats:{hide:2},base:'leather'},
+  {id:'shield',sec:'armor',forge:1,gold:4,mats:{iron:3},base:'shield'},
+  {id:'studded',sec:'armor',forge:2,gold:18,mats:{hide:3,iron:2},base:'studded'},
+  {id:'boots',sec:'armor',forge:2,gold:40,mats:{hide:4},magic:'bootselven'},
+  {id:'drakemail',sec:'armor',forge:3,gold:160,mats:{scale:3,hide:1},magic:'dragonscale'},
+  {id:'potheal',sec:'consume',forge:1,gold:12,mats:{bone:3},base:'potheal'},
+  {id:'holywater',sec:'consume',forge:1,gold:6,mats:{ash:1,bone:1},base:'holywater'},
+  {id:'antitoxin',sec:'consume',forge:1,gold:12,mats:{ichor:1},base:'antitoxin'},
+  {id:'potgreater',sec:'consume',forge:2,gold:28,mats:{bone:2,ash:1},base:'potgreater'},
+  {id:'alchfire',sec:'consume',forge:2,gold:12,mats:{ichor:2,iron:1},base:'alchfire'},
+  {id:'scroll-mm',sec:'consume',forge:2,gold:25,mats:{arcane:2,essence:1},scroll:'magicmissile'}
+];

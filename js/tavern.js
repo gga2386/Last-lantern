@@ -126,9 +126,10 @@ function marketScreen(black){ if(!G.market||!G.market.items) refreshMarket(); le
   draw(); }
 // ---------- forge ----------
 const FORGE_TABS_V1=1;
+const FORGE_CRAFT_V1=1;
 let forgeTab='upgrade';
-function matCount(b){ return G.stash.filter(i=>i.base===b).reduce((a,i)=>a+(i.qty||1),0); }
-function takeMat(b,n){ while(n>0){ const it=G.stash.find(i=>i.base===b); if(!it) return; const t=Math.min(n,it.qty||1); it.qty=(it.qty||1)-t; n-=t; if(it.qty<=0) G.stash.splice(G.stash.indexOf(it),1); } }
+function matCount(b){ return G.stash.filter(i=>i.kind==='material'&&i.base===b).reduce((a,i)=>a+(i.qty||1),0); }
+function takeMat(b,n){ while(n>0){ const it=G.stash.find(i=>i.kind==='material'&&i.base===b); if(!it) return; const t=Math.min(n,it.qty||1); it.qty=(it.qty||1)-t; n-=t; if(it.qty<=0) G.stash.splice(G.stash.indexOf(it),1); } }
 function forgeGear(it){ return !!(it&&['weapon','armor','shield'].includes(it.kind)); }
 function forgeLoose(){ const out=[]; const take=list=>{ if(!list) return; for(const it of list) if(forgeGear(it)) out.push(it); }; take(G.stash); if(G.run) take(G.run.pack); return out; }
 function forgeWorn(){ const out=[]; for(const h of (G.roster||[])) for(const k in (h.eq||{})) if(forgeGear(h.eq[k])) out.push({it:h.eq[k],hero:h,slot:k}); return out; }
@@ -140,6 +141,20 @@ function forgeUpgrade(it){ const L=G.tavern.forge||0; if((it.plus||0)>=L) return
   if(!free){ if(G.gold<uc.gold||!Object.keys(uc.mats).every(m=>matCount(m)>=uc.mats[m])) return false; G.gold-=uc.gold; for(const m in uc.mats) takeMat(m,uc.mats[m]); } else G.perks.forgeOnce=false;
   it.plus=(it.plus||0)+1; if(it.rar==='common') it.rar='uncommon'; else if(it.plus>=2&&it.rar==='uncommon') it.rar='rare'; return true; }
 function wearerMark(h){ return el('span',{class:'wearer','data-wearer':h.id},portraitEl(h,22,'prof-ico'),el('span',null,h.name)); }
+function forgeMake(rec){ let it; if(rec.magic) it=makeMagic(rec.magic,true); else if(rec.scroll) it=makeItem('scroll',{spell:rec.scroll}); else it=makeItem(rec.base); if(rec.silvered) it.silvered=true; it.ident=true; return it; }
+function canCraft(rec){ if(!rec||(G.tavern.forge||0)<rec.forge||G.gold<rec.gold) return false; return Object.keys(rec.mats).every(m=>matCount(m)>=rec.mats[m]); }
+function doCraft(rec){ if(!canCraft(rec)) return null; G.gold-=rec.gold; for(const m in rec.mats) takeMat(m,rec.mats[m]); const it=forgeMake(rec); stackAdd(G.stash,it); return it; }
+function craftCostLine(rec){ const parts=[el('span',{class:G.gold<rec.gold?'craft-short':''},rec.gold+'g (have '+G.gold+')')]; Object.keys(rec.mats).forEach(m=>{ const have=matCount(m), need=rec.mats[m]; parts.push(' · ',el('span',{class:have<need?'craft-short':''},MATERIALS[m].n+' '+have+'/'+need)); }); return el('div',{class:'small craft-cost'},parts); }
+function craftBody(){ const wrap=el('div',{class:'gearsecs',id:'forge-craft-list'});
+  for(const sec of FORGE_CRAFT_SECTIONS){ const list=FORGE_RECIPES.filter(r=>r.sec===sec.id); if(!list.length) continue;
+    const det=el('details',{class:'gearsec',id:'forge-sec-'+sec.id,open:true},el('summary',null,el('span',{class:'gs-n'},sec.n),el('span',{class:'gs-c'},String(list.length))));
+    const body=el('div',{class:'gearsec-body'});
+    for(const rec of list){ const sample=forgeMake(rec); const locked=(G.tavern.forge||0)<rec.forge; const lines=itemDesc(sample).split('\n').filter(Boolean);
+      const rest=lines.slice(1).join(' '); const lock=locked?el('span',{class:'small craft-lock'},'Requires '+(FORGE_RANK[rec.forge]||'Forge')+' (Forge '+rec.forge+')'):null;
+      const button=btn('Craft',()=>{ const made=doCraft(rec); if(!made){ toast(locked?'The forge is not built high enough.':'Missing gold or materials.'); return; } toast('Crafted '+itemName(made)+'.'); saveGame(); forgeScreen(); },'mini',{id:'craft-'+rec.id,disabled:!canCraft(rec)});
+      body.appendChild(gearRow(sample,[button,lock],el('div',{class:'craft-extra'},rest?el('span',{class:'small gear-desc'},rest):null,craftCostLine(rec)))); }
+    det.appendChild(body); wrap.appendChild(det); }
+  return wrap; }
 function forgeScreen(){ const L=G.tavern.forge||0; if(!['disassemble','craft','upgrade'].includes(forgeTab)) forgeTab='upgrade';
   const costTxt=c=>c.gold+'g + '+Object.keys(c.mats).map(m=>c.mats[m]+' '+MATERIALS[m].n).join(', ');
   const canPay=c=>G.gold>=c.gold&&Object.keys(c.mats).every(m=>matCount(m)>=c.mats[m]); const pay=c=>{ G.gold-=c.gold; for(const m in c.mats) takeMat(m,c.mats[m]); };
@@ -150,7 +165,7 @@ function forgeScreen(){ const L=G.tavern.forge||0; if(!['disassemble','craft','u
   const tabBtn=(id,n)=>el('button',{class:'chip'+(forgeTab===id?' on':''),id:'forge-'+id,onclick:()=>{ forgeTab=id; forgeScreen(); }},n);
   let body;
   if(forgeTab==='disassemble') body=loose.length?gearSections(loose,it=>gearRow(it,[btn('Salvage',()=>{ if(!salvageGear(it)){ toast('That piece is not in the stash.'); return; } toast('Salvaged into materials.'); saveGame(); forgeScreen(); },'mini danger')]),'forge-dis'):el('p',{class:'small',id:'forge-empty'},'Nothing in the stash to break down. Gear a hero is wearing stays put.');
-  else if(forgeTab==='craft') body=el('div',{class:'card',id:'forge-craft-empty'},el('b',null,'No recipes'),el('p',{class:'small'},'Hrolf does not hammer new weapons out of scrap. Disassemble what you do not need, or upgrade what you already carry.'));
+  else if(forgeTab==='craft') body=craftBody();
   else { const eq=worn.length?el('details',{class:'gearsec',id:'forge-equipped',open:true},el('summary',null,el('span',{class:'gs-n'},'Equipped'),el('span',{class:'gs-c'},String(worn.length))),el('div',{class:'gearsec-body'},worn.map(w=>gearRow(w.it,upBtns(w.it),wearerMark(w.hero))))):null;
     const stash=loose.length?gearSections(loose,it=>gearRow(it,upBtns(it)),'forge-up'):el('p',{class:'small'},worn.length?'Nothing waiting in the stash.':'No weapons or armor to work.');
     body=el('div',{class:'col',id:'forge-upgrade'},eq,stash); }

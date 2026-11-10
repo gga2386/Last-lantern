@@ -34,7 +34,7 @@ function weaponProfile(h,it,mode){
   if(power){ hit-=5; dmgB+=10; }
   let crit=20; if(F.has('improvedCrit')) crit=19; if(fx.crit) crit=Math.min(crit,fx.crit);
   const reach=w.p.includes('reach')?2:1;
-  return {id:it.uid,item:it,n:itemName(it),ab,hit,dmg:d,dmgB,dt:fx.dtOverride||w.dt,reach,melee:!(ranged||thrown),ranged:ranged||thrown,r:w.r||0,lr:w.lr||0,magical:!!(it.plus||it.magic||fx.magical||h.pactBlade||hasFx(h,'magicweapon')||ew),crit,extra,vs:fx.vs||null,finesse:w.p.includes('finesse'),heavy:w.p.includes('heavy'),light:w.p.includes('light'),gwf:style('gwf')&&w.p.includes('two')&&!ranged,critBonus:fx.critBonus||0,lifesteal:fx.lifesteal||0,vorpal:fx.vorpal,power,thrown,mode};
+  return {id:it.uid,item:it,n:itemName(it),ab,hit,dmg:d,dmgB,dt:fx.dtOverride||w.dt,reach,melee:!(ranged||thrown),ranged:ranged||thrown,r:w.r||0,lr:w.lr||0,magical:!!(it.plus||it.magic||fx.magical||h.pactBlade||hasFx(h,'magicweapon')||ew),silvered:!!it.silvered,crit,extra,vs:fx.vs||null,finesse:w.p.includes('finesse'),heavy:w.p.includes('heavy'),light:w.p.includes('light'),gwf:style('gwf')&&w.p.includes('two')&&!ranged,critBonus:fx.critBonus||0,lifesteal:fx.lifesteal||0,vorpal:fx.vorpal,power,thrown,mode};
 }
 function rageBonus(h){ return h.level>=9?3:2; }
 function heroAttackOptions(h){
@@ -141,7 +141,7 @@ async function doAttack(att,tgt,p,opts){
     if(tr.includes('sneak4')&&ts&&!ts.sneak&&A.net>0){ ts.sneak=true; parts.push([rollDice('4d6',{crit}).total,p.dt]); }
     if(tr.includes('surpriseAttack')&&G.combat&&G.combat.round===1&&ts&&!ts.sa){ ts.sa=true; parts.push([rollDice('2d6').total,p.dt]); }
   }
-  let total2=0; for(const [d,dt] of parts){ total2+=dealDamage(tgt,d,dt,att,{magical:p.magical,crit,attack:true,ranged:p.ranged,melee:p.melee,dt,spell:opts.spell}); if(!alive(tgt)&&!downed(tgt)) break; }
+  let total2=0; for(const [d,dt] of parts){ total2+=dealDamage(tgt,d,dt,att,{magical:p.magical,silvered:!!p.silvered,crit,attack:true,ranged:p.ranged,melee:p.melee,dt,spell:opts.spell}); if(!alive(tgt)&&!downed(tgt)) break; }
   if(p.lifesteal&&att.isHero) healC(att,p.lifesteal);
   if(att.isHero&&heroFeatures(att).has('vampiric')&&p.melee&&G.combat&&!G.combat.ts.vamp){ G.combat.ts.vamp=true; healC(att,Math.min(att.level,Math.floor(total2/2))); }
   // monster on-hit riders

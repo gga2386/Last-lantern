@@ -102,7 +102,7 @@ function doSave(c,a,dc,opts){
   return {ok,total,txt:cName(c)+' '+a.toUpperCase()+' save: '+diceTxt(r)+' '+fmtMod(bonus)+' = '+total+' vs DC '+dc+(ok?' ✔':' ✖')+note};
 }
 // resistances
-function resistMult(c,dt,magical){
+function resistMult(c,dt,magical,silvered){
   if(dt==='none') return 0;
   if(c.isHero){ const F=heroFeatures(c), r=RACES[c.race]; const g=gearFx(c); let res=(r.resist||[]).concat(g.resist||[]);
     if(c.race==='dragonborn') res.push(DRAGON_ANCESTRY[c.dragon]);
@@ -121,15 +121,16 @@ function resistMult(c,dt,magical){
     return res.includes(dt)?0.5:1;
   }
   const m=mdef(c); const bps=['bludgeoning','piercing','slashing'].includes(dt);
-  if((m.immune||[]).includes(dt)) return 0; if(bps&&!magical&&(m.immune||[]).includes('bps')) return 0;
-  let mult=1; if((m.resist||[]).includes(dt)||(bps&&!magical&&(m.resist||[]).includes('bps'))) mult=0.5;
+  const plainBps=bps&&!magical&&!silvered; // silvered bypasses nonmagical weapon resistance, not stoneskin or typed resists
+  if((m.immune||[]).includes(dt)) return 0; if(plainBps&&(m.immune||[]).includes('bps')) return 0;
+  let mult=1; if((m.resist||[]).includes(dt)||(plainBps&&(m.resist||[]).includes('bps'))) mult=0.5;
   if((m.vuln||[]).includes(dt)) mult*=2; if(hasFx(c,'stoneskin')&&bps&&!magical) mult*=0.5;
   return mult;
 }
 // apply damage. src may be null. opts: {magical, crit, attack:true, melee}
 function dealDamage(target,amt,dt,src,opts){
   opts=opts||{}; if(!alive(target)&&!downed(target)) return 0;
-  let mult=resistMult(target,dt,opts.magical); if(opts.ignoreRes&&mult===0.5) mult=1;
+  let mult=resistMult(target,dt,opts.magical,opts.silvered); if(opts.ignoreRes&&mult===0.5) mult=1;
   if(!target.isHero&&(mdef(target).traits||[]).includes('lightningAbsorb')&&dt==='lightning'){ healC(target,Math.floor(amt)); log(cName(target)+' absorbs the lightning!','m'); return 0; }
   if(!target.isHero&&(mdef(target).traits||[]).includes('acidAbsorb')&&dt==='acid'){ healC(target,Math.floor(amt)); return 0; }
   let d=Math.floor(amt*mult);

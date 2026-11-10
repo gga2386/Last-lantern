@@ -139,7 +139,7 @@ function infusionBonus(h){ const F=heroFeatures(h); return F.has('arcaneArmory')
   const _lr=lightRadius; lightRadius=function(h){ let r=_lr(h); if(heroFeatures(h).has('lanternCraft')) r+=2; return r; };
   const _hc=heroCantrips; heroCantrips=function(h){ const o=_hc(h); if(heroFeatures(h).has('rivenWhisper')&&!o.includes('thoughtneedle')) o.push('thoughtneedle'); return o; };
   const _hs=heroSpells; heroSpells=function(h){ const o=_hs(h); if(heroFeatures(h).has('rivenWhisper')&&!o.includes('mindlash')) o.push('mindlash'); return o; };
-  const _res=resistMult; resistMult=function(c,dt,magical){ const m=_res(c,dt,magical); if(m===1&&c.isHero&&dt==='psychic'){ const F=heroFeatures(c); if(F.has('thoughtShield')||F.has('rivenWard')) return 0.5; } return m; };
+  const _res=resistMult; resistMult=function(c,dt,magical,silvered){ const m=_res(c,dt,magical,silvered); if(m===1&&c.isHero&&dt==='psychic'){ const F=heroFeatures(c); if(F.has('thoughtShield')||F.has('rivenWard')) return 0.5; } return m; };
   const _ds=doSave; doSave=function(c,a,dc,opts){ if(c&&c.isHero&&opts&&(opts.cond==='charmed'||opts.cond==='frightened')&&heroFeatures(c).has('thoughtShield')) opts=Object.assign({},opts,{adv:1}); return _ds(c,a,dc,opts); };
   const _wp=weaponProfile; weaponProfile=function(h,it,mode){ const p=_wp(h,it,mode); if(it){ const b=infusionBonus(h); if(b){ p.hit+=b; p.dmgB+=b; p.magical=true; } } return p; };
   const _sdb=spellDmgBonus; spellDmgBonus=function(c,sp,dt){ let b=_sdb(c,sp,dt); if(!c.isHero) return b; const F=heroFeatures(c);

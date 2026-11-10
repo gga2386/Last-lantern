@@ -102,7 +102,8 @@ function makeMagic(id,ident){
   else { it={uid:uid('i'),base:id,kind:M.slot==='wondrous'?(M.cast?'wand':'acc'):'acc',slot:M.slot==='wondrous'?'trinket':M.slot,plus:0,affixes:[],qty:1}; }
   it.magic=id; it.rar=M.rar; it.ident=ident!==false; if(M.charges) it.charges=M.charges; return it;
 }
-function itemDef(it){ return WEAPONS[it.base]||ARMORS[it.base]||GEAR[it.base]||MATERIALS[it.base]||(it.magic&&MAGIC[it.magic])||{n:it.base}; }
+function makeMaterial(base,qty){ return {uid:uid('i'),base,plus:0,affixes:[],rar:'common',ident:true,qty:qty||1,kind:'material',stack:1}; }
+function itemDef(it){ if(it&&it.kind==='material'&&MATERIALS[it.base]) return MATERIALS[it.base]; return WEAPONS[it.base]||ARMORS[it.base]||GEAR[it.base]||MATERIALS[it.base]||(it.magic&&MAGIC[it.magic])||{n:it.base}; }
 function itemName(it){
   if(!it) return '—';
   if(it.kind==='quest') return it.qname||'Quest Item';
@@ -112,7 +113,9 @@ function itemName(it){
   if(it.magic){ const M=MAGIC[it.magic]; return M.n+((it.plus&&it.plus>(M.plus||0))?' +'+it.plus:''); }
   const pre=(it.affixes||[]).filter(a=>AFFIXES[a].pre).map(a=>AFFIXES[a].n).join(' ');
   const suf=(it.affixes||[]).filter(a=>!AFFIXES[a].pre).map(a=>AFFIXES[a].n).join(' ');
-  return (pre?pre+' ':'')+(itemDef(it).n||it.base)+(suf?' '+suf:'')+(it.plus?' +'+it.plus:'');
+  let n=(pre?pre+' ':'')+(itemDef(it).n||it.base)+(suf?' '+suf:'')+(it.plus?' +'+it.plus:'');
+  if(it.silvered) n='Silvered '+n;
+  return n;
 }
 function itemValue(it){
   const d=itemDef(it); let v=d.cost||5; if(it.kind==='scroll') v=SPELLS[it.spell].l*60+25; if(it.kind==='quest') return 0;
@@ -121,7 +124,7 @@ function itemValue(it){
 }
 function itemDesc(it){
   const out=[]; const d=itemDef(it);
-  if(it.kind==='weapon'){ const w=WEAPONS[it.base]; out.push(w.d+' '+w.dt+(w.vd?' (versatile '+w.vd+')':'')+(w.r?' · range '+w.r*5+'/'+w.lr*5+' ft':'')); out.push((w.p||[]).join(', ')+' · '+w.cat); }
+  if(it.kind==='weapon'){ const w=WEAPONS[it.base]; out.push(w.d+' '+w.dt+(w.vd?' (versatile '+w.vd+')':'')+(w.r?' · range '+w.r*5+'/'+w.lr*5+' ft':'')); out.push((w.p||[]).join(', ')+' · '+w.cat); if(it.silvered) out.push('Silvered: bypasses resistance to nonmagical bludgeoning, piercing and slashing.'); }
   if(it.kind==='armor'){ const a=ARMORS[it.base]; out.push('AC '+(a.ac+(it.plus||0))+(a.type==='light'?' + Dex':a.type==='medium'?' + Dex (max 2)':'')+' · '+a.type+(a.str?' · Str '+a.str:'')+(a.stealthDis?' · Stealth disadvantage':'')); }
   if(it.kind==='shield') out.push('+'+(2+(it.plus||0))+' AC');
   if(it.plus) out.push('+'+it.plus+' magic bonus');
@@ -157,7 +160,7 @@ function rollLoot(tier,rich){
   return out;
 }
 function monsterDrops(m,tier){
-  const out=[]; const mats=TYPE_MATERIALS[m.type]||['iron']; if(Math.random()<0.6) out.push(Object.assign(makeItem(pick(mats)),{qty:1+(m.cr>=3?rnd(3):0)}));
+  const out=[]; const mats=TYPE_MATERIALS[m.type]||['iron']; if(Math.random()<0.6) out.push(makeMaterial(pick(mats),1+(m.cr>=3?rnd(3):0)));
   if(m.boss) { out.push(randomGear(tier+2,{rar:pick(['rare','rare','veryrare'])})); out.push(makeItem('potsuperior')); }
   else if(Math.random()<0.08+m.cr*0.02) out.push(randomGear(tier));
   return out;
