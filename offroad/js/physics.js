@@ -69,7 +69,7 @@ export function createSim(world) {
       dampingRelaxation: 2.5,
       dampingCompression: 4.3,
       maxSuspensionForce: 140000,
-      rollInfluence: 0.16,
+      rollInfluence: 0.07,
       maxSuspensionTravel: spec.travel,
       customSlidingRotationalSpeed: -30,
       useCustomSlidingRotationalSpeed: true,
@@ -94,26 +94,40 @@ export function createSim(world) {
     if (!vehicle) return
     vehicle.getVehicleAxisWorld(2, forward)
     const speed = chassis.velocity.dot(forward)
+    const low = !!input.low
+    const cap = spec.maxSpeed * (low ? 0.45 : 1)
+    const torque = spec.force * (low ? 1.8 : 1)
+    const throttle = Math.max(0, input.throttle || 0)
+    const brakeIn = Math.max(0, input.brake || 0)
+    const tip = Math.pow(throttle, 1.25)
     let surfSum = 0
     let dragSum = 0
     for (let i = 0; i < vehicle.wheelInfos.length; i++) {
       const w = vehicle.wheelInfos[i]
       const p = w.chassisConnectionPointWorld
       const s = world.surface(p.x, p.z)
-      const grip = FRICTION[s] * spec.grip * (input.lock ? 1.38 : 1) * (input.grip || 1)
+      const grip = FRICTION[s] * spec.grip * (input.lock ? 1.55 : 1) * (input.grip || 1) * (s === 4 ? 1.15 : 1)
       w.frictionSlip = grip
       surfSum += s
       dragSum += DRAG[s]
-      const steer = (i < 2 ? 1 : 0) * input.steer * spec.steer * (input.lock ? 0.72 : 1)
+      const steer = (i < 2 ? 1 : 0) * input.steer * spec.steer * (input.lock ? 0.65 : 1) * (low ? 0.82 : 1)
       vehicle.setSteeringValue(steer, i)
       let engine = 0
       let brake = 0
       const fueled = input.fuel > 0.02
-      if (input.handbrake && i >= 2) brake = 28
-      if (input.brake > 0.05 && speed > 0.4) brake = Math.max(brake, 10 * input.brake)
-      else if (input.brake > 0.05 && fueled) engine = -spec.force * 0.55 * input.brake
-      if (input.throttle > 0.05 && fueled && speed < spec.maxSpeed) engine += spec.force * input.throttle
-      if (input.brake > 0.05 && speed > 0.4) engine = 0
+      if (input.handbrake && i >= 2) brake = 42
+      if (brakeIn > 0.05 && speed > 0.35) brake = Math.max(brake, 16 * brakeIn)
+      else if (brakeIn > 0.05 && fueled) engine = -torque * 0.72 * brakeIn
+      if (tip > 0.02 && fueled && speed < cap) {
+        const head = Math.max(0, 1 - Math.max(0, speed) / cap)
+        engine += torque * tip * (0.7 + 0.6 * head)
+      }
+      if (brakeIn > 0.05 && speed > 0.35) engine = 0
+      if (throttle < 0.04 && brakeIn < 0.04 && !input.handbrake) {
+        const hold = low ? 1.3 : 1
+        if (Math.abs(speed) < 0.42) brake = Math.max(brake, 16 * hold)
+        else brake = Math.max(brake, Math.min(8 * hold, Math.abs(speed) * 1.7 * hold))
+      }
       vehicle.applyEngineForce(-engine, i)
       vehicle.setBrake(brake, i)
     }

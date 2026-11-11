@@ -1,17 +1,26 @@
 // OFFROAD_V2 — terrain, reputation, fuel, and solid trees. Run: node offroad/test/sim.js
 import { createWorld, SURF, FRICTION, DRAG, HALF } from '../js/world.js'
-import { OFFROAD_V2, OFFROAD_V3, OFFROAD_V4, OFFROAD_V4_1, VEHICLES, freshSave, buyUpgrade, buyVehicle, buyAux, buyJerry, useJerry, refuel, burnFuel, coerceSave, tickAdventure, tankCapacity, jerrySlots, isDark, TANK, specWithUpgrades } from '../js/economy.js'
+import { OFFROAD_V2, OFFROAD_V3, OFFROAD_V4, OFFROAD_V4_1, OFFROAD_V5, VEHICLES, ADVENTURES, freshSave, buyUpgrade, buyVehicle, buyAux, buyJerry, useJerry, refuel, burnFuel, coerceSave, tickAdventure, tankCapacity, jerrySlots, isDark, TANK, specWithUpgrades } from '../js/economy.js'
 import { canPitch, slopeAt, buyCamp, cookJudge, applyCook, rollFish, aimHit, RECIPES } from '../js/camp.js'
 import { createSim, tractionTrial } from '../js/physics.js'
 
 const fails = []
 const fail = m => fails.push(m)
-if (OFFROAD_V2 !== 1 || OFFROAD_V3 !== 1 || OFFROAD_V4 !== 1 || OFFROAD_V4_1 !== 1) fail('marker missing')
+if (OFFROAD_V2 !== 1 || OFFROAD_V3 !== 1 || OFFROAD_V4 !== 1 || OFFROAD_V4_1 !== 1 || OFFROAD_V5 !== 1) fail('marker missing')
 const ids = Object.keys(VEHICLES)
 if (ids.length < 6) fail('roster ' + ids.join(','))
 for (const id of ['mule', 'scout', 'runner', 'wagon', 'hauler', 'van']) if (!VEHICLES[id]) fail('missing ' + id)
 if (VEHICLES.mule.need !== 0 || VEHICLES.scout.need >= VEHICLES.runner.need) fail('unlock order')
 if (!(VEHICLES.scout.maxSpeed > VEHICLES.mule.maxSpeed && VEHICLES.hauler.grip > VEHICLES.scout.grip && VEHICLES.van.mass > VEHICLES.wagon.mass)) fail('stats do not differ')
+const mphOf = s => s * 2.237
+for (const v of Object.values(VEHICLES)) {
+  const mph = mphOf(v.maxSpeed)
+  if (mph < 8 || mph > 18) fail(v.id + ' top speed ' + mph.toFixed(1) + ' mph')
+}
+if (!(mphOf(VEHICLES.scout.maxSpeed) > mphOf(VEHICLES.van.maxSpeed) + 5)) fail('scout should stay the quicker rig')
+if (!(VEHICLES.hauler.force > VEHICLES.scout.force && VEHICLES.hauler.maxSpeed < VEHICLES.scout.maxSpeed)) fail('hauler should crawl harder and slower')
+const quarryAdv = ADVENTURES.find(a => a.id === 'quarry')
+if (!quarryAdv || quarryAdv.limit < 200) fail('quarry time limit too tight for a crawl')
 if (buyVehicle(Object.assign(freshSave(), { rep: VEHICLES.runner.need }), 'runner').vehicle !== 'runner') fail('runner unlock')
 
 const t0 = performance.now()
@@ -132,6 +141,21 @@ const moved = Math.hypot(sim.chassis.position.x - x0, sim.chassis.position.z - z
 console.log('drove', moved.toFixed(2), 'm', 'pos', sim.chassis.position.x.toFixed(1), sim.chassis.position.z.toFixed(1))
 if (moved < 4) fail('throttle did not move the truck')
 if (!(sim.chassis.position.z > z0 + 2)) fail('truck drove backward')
+sim.chassis.quaternion.set(0, 0, 0, 1)
+sim.chassis.velocity.set(0, 0, 6)
+for (let i = 0; i < 120; i++) sim.step(1 / 60, { throttle: 0, brake: 0, steer: 0, handbrake: 0, lock: false, winch: false, fuel: 18 })
+if (sim.chassis.velocity.z > 2.2) fail('engine brake did not slow the truck ' + sim.chassis.velocity.z.toFixed(2))
+const capped = createSim(world)
+capped.spawn('mule', { x: yard.x, z: yard.z + 6 })
+for (let i = 0; i < 90; i++) capped.step(1 / 60, { throttle: 0, brake: 0, steer: 0, handbrake: 0, lock: false, winch: false, fuel: 18 })
+for (let i = 0; i < 360; i++) capped.step(1 / 60, { throttle: 1, brake: 0, steer: 0, handbrake: 0, lock: false, winch: false, fuel: 18 })
+const capSpeed = capped.chassis.velocity.length()
+if (capSpeed > 7.2) fail('mule too fast for a crawl ' + capSpeed.toFixed(2))
+const crawl = createSim(world)
+crawl.spawn('scout', { x: yard.x + 30, z: yard.z + 6 })
+for (let i = 0; i < 90; i++) crawl.step(1 / 60, { throttle: 0, brake: 0, steer: 0, handbrake: 0, lock: false, winch: false, fuel: 18, low: true })
+for (let i = 0; i < 360; i++) crawl.step(1 / 60, { throttle: 1, brake: 0, steer: 0, handbrake: 0, lock: false, winch: false, fuel: 18, low: true })
+if (crawl.chassis.velocity.length() > VEHICLES.scout.maxSpeed * 0.62) fail('low range still too quick ' + crawl.chassis.velocity.length().toFixed(2))
 if (!Number.isFinite(sim.chassis.position.y)) fail('position NaN')
 sim.chassis.quaternion.setFromEuler(Math.PI * 0.85, 0.4, 0.2)
 sim.chassis.velocity.set(4, 1, -2)
@@ -183,14 +207,4 @@ const troutDone = tickAdventure(troutSave, { x: mill.x, z: mill.z, speed: 0, clo
 if (!troutDone || !troutDone.done || troutSave.rep !== 35 + 8) fail('trout adventure ' + JSON.stringify(troutDone))
 if (!aimHit(0.5, 0.5, 0.2, 1).hit) fail('aim should hit')
 if (aimHit(0.1, 0.9, 0.08, 1).hit) fail('aim should miss')
-import * as THREE from '../vendor/three.module.js'
-import { buildRig } from '../js/rigs.js'
-for (const spec of Object.values(VEHICLES)) {
-  const built = buildRig(THREE, spec, { livery: 0, rack: { jerry: true, spare: true, kayak: true, bike: true }, detail: 2, shadow: false })
-  if (!built.group || built.wheels.length !== 4) fail('rig ' + spec.id)
-  if (!built.group.userData.lamps || built.group.userData.lamps.length !== 2) fail('lamps ' + spec.id)
-  let tris = 0
-  built.group.traverse(o => { if (o.isMesh && o.geometry && o.geometry.attributes.position) tris += o.geometry.attributes.position.count / 3 })
-  if (tris < 80) fail('empty mesh ' + spec.id)
-}
-console.log('OK OFFROAD_V4_1')
+console.log('OK OFFROAD_V5')

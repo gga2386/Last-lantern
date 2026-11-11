@@ -1,14 +1,15 @@
-// Reputation, adventures, fuel, and the rigs. No cash. OFFROAD_V4_1
+// Reputation, adventures, fuel, and the rigs. No cash. OFFROAD_V5
 export const OFFROAD_V2 = 1
 export const OFFROAD_V3 = 1
 export const OFFROAD_V4 = 1
 export const OFFROAD_V4_1 = 1
+export const OFFROAD_V5 = 1
 export const VEHICLES = {
   mule: {
     id: 'mule', name: 'Yard Mule', need: 0, style: 'pickup', mass: 1580,
     half: [1.02, 0.42, 2.25], dark: 0x1b2126, glass: 0x9ec9d4,
-    force: 3500, maxSpeed: 25, steer: 0.44, wheelR: 0.48,
-    track: 0.98, wheelbase: 1.65, rest: 0.34, travel: 0.2, stiff: 36, grip: 1,
+    force: 4800, maxSpeed: 5.36, steer: 0.30, wheelR: 0.48,
+    track: 0.98, wheelbase: 1.65, rest: 0.34, travel: 0.28, stiff: 28, grip: 1,
     liveries: [
       { color: '#b84322', stripe: '#f2e2c4', kind: 'stripe', name: 'Yard rust' },
       { color: '#e8e4dc', stripe: '#2a2a2a', kind: 'thick', name: 'Salt' },
@@ -18,8 +19,8 @@ export const VEHICLES = {
   scout: {
     id: 'scout', name: 'Ridge Scout', need: 80, style: 'jeep', mass: 900,
     half: [0.86, 0.34, 1.55], dark: 0x24281c, glass: 0xb7ddd4,
-    force: 2600, maxSpeed: 33, steer: 0.55, wheelR: 0.42,
-    track: 0.78, wheelbase: 1.12, rest: 0.28, travel: 0.16, stiff: 32, grip: 0.76,
+    force: 3200, maxSpeed: 7.60, steer: 0.38, wheelR: 0.42,
+    track: 0.78, wheelbase: 1.12, rest: 0.28, travel: 0.24, stiff: 24, grip: 0.76,
     liveries: [
       { color: '#d6a21f', stripe: '#1c1c1c', kind: 'stripe', name: 'Scout gold' },
       { color: '#c4552e', stripe: '#f4efe6', kind: 'stripe', name: 'Signal' },
@@ -29,8 +30,8 @@ export const VEHICLES = {
   runner: {
     id: 'runner', name: 'Bluff Runner', need: 120, style: 'bronco', mass: 1420,
     half: [1.0, 0.4, 1.9], dark: 0x1a2430, glass: 0x9fd0e0,
-    force: 3300, maxSpeed: 28, steer: 0.5, wheelR: 0.5,
-    track: 0.94, wheelbase: 1.38, rest: 0.32, travel: 0.2, stiff: 34, grip: 0.96,
+    force: 4600, maxSpeed: 6.26, steer: 0.32, wheelR: 0.5,
+    track: 0.94, wheelbase: 1.38, rest: 0.32, travel: 0.30, stiff: 26, grip: 0.96,
     liveries: [
       { color: '#2f6fbe', stripe: '#f4efe6', kind: 'thick', name: 'Creek blue' },
       { color: '#e8e4dc', stripe: '#2f6fbe', kind: 'stripe', name: 'Two-tone' },
@@ -40,8 +41,8 @@ export const VEHICLES = {
   wagon: {
     id: 'wagon', name: 'Creek Wagon', need: 180, style: 'wagon', mass: 1760,
     half: [1.05, 0.44, 2.35], dark: 0x2a241c, glass: 0xc5ddd4,
-    force: 3200, maxSpeed: 24, steer: 0.4, wheelR: 0.46,
-    track: 0.98, wheelbase: 1.72, rest: 0.32, travel: 0.18, stiff: 38, grip: 1.08,
+    force: 4400, maxSpeed: 4.92, steer: 0.26, wheelR: 0.46,
+    track: 0.98, wheelbase: 1.72, rest: 0.32, travel: 0.26, stiff: 30, grip: 1.08,
     liveries: [
       { color: '#e6e2d8', stripe: '#6a4a32', kind: 'wood', name: 'Timber' },
       { color: '#2a4a38', stripe: '#c4a06a', kind: 'wood', name: 'Lodge' },
@@ -51,8 +52,8 @@ export const VEHICLES = {
   hauler: {
     id: 'hauler', name: 'Basin Hauler', need: 240, style: 'utility', mass: 1680,
     half: [1.0, 0.42, 2.05], dark: 0x1c2420, glass: 0xb7c8c4,
-    force: 3900, maxSpeed: 23, steer: 0.42, wheelR: 0.5,
-    track: 0.96, wheelbase: 1.52, rest: 0.34, travel: 0.22, stiff: 40, grip: 1.16,
+    force: 5600, maxSpeed: 4.47, steer: 0.28, wheelR: 0.5,
+    track: 0.96, wheelbase: 1.52, rest: 0.34, travel: 0.34, stiff: 28, grip: 1.16,
     liveries: [
       { color: '#e4e8e2', stripe: '#2a3a32', kind: 'stripe', name: 'Chalk' },
       { color: '#cfcab8', stripe: '#6a5a3a', kind: 'thick', name: 'Dust' },
@@ -62,8 +63,8 @@ export const VEHICLES = {
   van: {
     id: 'van', name: 'Lantern Van', need: 320, style: 'van', mass: 1920,
     half: [1.02, 0.55, 2.45], dark: 0x1a1c22, glass: 0x8fb4c8,
-    force: 3100, maxSpeed: 22, steer: 0.36, wheelR: 0.44,
-    track: 0.92, wheelbase: 1.88, rest: 0.3, travel: 0.16, stiff: 42, grip: 0.9,
+    force: 4000, maxSpeed: 3.80, steer: 0.22, wheelR: 0.44,
+    track: 0.92, wheelbase: 1.88, rest: 0.3, travel: 0.22, stiff: 34, grip: 0.9,
     liveries: [
       { color: '#f4f1ea', stripe: '#e4572e', kind: 'chevron', name: 'Retro' },
       { color: '#f7f4ee', stripe: '#2f6fbe', kind: 'thick', name: 'Coast' },
@@ -110,8 +111,8 @@ export const ADVENTURES = [
     ]
   },
   {
-    id: 'quarry', name: 'Quarry Climb', diff: 'Hard', rep: 60, bonus: 'timed', bonusRep: 20, limit: 110,
-    text: 'The quarry road is a climb. They time it from the moment you take the slip.',
+    id: 'quarry', name: 'Quarry Climb', diff: 'Hard', rep: 60, bonus: 'timed', bonusRep: 20, limit: 240,
+    text: 'The quarry road is a climb. A careful crawl still makes the time.',
     steps: [{ kind: 'reach', poi: 'quarry', text: 'Reach Quarry Camp' }]
   },
   {
@@ -303,8 +304,8 @@ export function specWithUpgrades(id, upgrades) {
   const t = upgrades.tires || 0, s = upgrades.susp || 0, e = upgrades.engine || 0, w = upgrades.winch || 0
   return {
     ...base,
-    force: base.force * (1 + 0.22 * e),
-    maxSpeed: base.maxSpeed * (1 + 0.06 * e),
+    force: base.force * (1 + 0.26 * e),
+    maxSpeed: base.maxSpeed * (1 + 0.04 * e),
     grip: base.grip * (1 + 0.2 * t),
     rest: base.rest + 0.035 * s,
     travel: base.travel + 0.055 * s,

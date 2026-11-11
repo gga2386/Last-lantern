@@ -5,7 +5,7 @@ export const HALF = WORLD_SIZE / 2
 export const SURF = { dirt: 0, trail: 1, mud: 2, sand: 3, rock: 4, water: 5 }
 export const SURF_NAME = ['dirt', 'trail', 'mud', 'sand', 'rock', 'water']
 // Wheel frictionSlip multipliers. Mud and water are deliberately slick.
-export const FRICTION = [2.2, 3.15, 0.58, 1.02, 1.62, 0.4]
+export const FRICTION = [2.2, 3.15, 0.58, 1.02, 2.65, 0.4]
 export const DRAG = [0.15, 0.1, 1.15, 0.7, 0.22, 2.2]
 
 function mulberry32(a) {

@@ -122,8 +122,9 @@ button.danger { background: #6a2418; border-color: #e4572e; }
 .controls button { pointer-events: auto; }
 .steer, .mid, .pedals { display: flex; gap: 8px; align-items: flex-end; }
 .steer button, #btn-left, #btn-right { width: 76px; height: 76px; font-size: 22px; }
-#btn-lock, .mid button { min-width: 72px; height: 48px; font-size: 12px; letter-spacing: 0.08em; }
+#btn-lock, #btn-low, .mid button { min-width: 72px; height: 48px; font-size: 12px; letter-spacing: 0.08em; }
 #btn-lock.on { background: var(--teal); border-color: #8fd0c8; }
+#btn-low.on { background: #6a3a12; border-color: var(--gold); color: var(--gold); }
 #btn-gas {
   width: 96px; height: 96px; border-radius: 18px; background: var(--orange); border-color: #ffb089;
   font-family: Impact, "Arial Narrow", sans-serif; font-size: 28px; letter-spacing: 0.04em;
@@ -197,7 +198,7 @@ h1 {
   .mid { grid-area: mid; justify-content: center; }
   #btn-gas { width: 84px; height: 84px; }
   .steer button { width: 64px; height: 64px; }
-  .mid button, #btn-lock { min-width: 64px; height: 44px; padding: 6px 8px; }
+  .mid button, #btn-lock, #btn-low { min-width: 64px; height: 44px; padding: 6px 8px; }
 }
 @media (max-height: 420px) {
   #minimap { width: 96px; height: 96px; top: calc(64px + var(--safe-t)); }

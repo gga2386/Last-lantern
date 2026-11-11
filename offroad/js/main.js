@@ -1,12 +1,12 @@
 // Oxbow — Hollow Creek. OFFROAD_V2
 import * as THREE from '../vendor/three.module.js'
 import { createWorld, WORLD_SIZE, HALF, SURF, SURF_NAME } from './world.js'
-import { OFFROAD_V2, OFFROAD_V3, OFFROAD_V4, OFFROAD_V4_1, freshSave, SAVE_KEY, VEHICLES, UPGRADES, AUX, JERRY, ADVENTURES, TANK, coerceSave, buyUpgrade, buyVehicle, buyAux, buyJerry, useJerry, refuel, burnFuel, specWithUpgrades, tankCapacity, jerrySlots, rankFor, isDark, clockLabel, tickAdventure } from './economy.js'
-import { buildRig } from './rigs.js'
+import { OFFROAD_V2, OFFROAD_V3, OFFROAD_V4, OFFROAD_V4_1, OFFROAD_V5, freshSave, SAVE_KEY, VEHICLES, UPGRADES, AUX, JERRY, ADVENTURES, TANK, coerceSave, buyUpgrade, buyVehicle, buyAux, buyJerry, useJerry, refuel, burnFuel, specWithUpgrades, tankCapacity, jerrySlots, rankFor, isDark, clockLabel, tickAdventure } from './economy.js'
+import { preloadRigs, buildRig, applyLod } from './rigs.js'
 import { CAMP, campLevel, buyCamp, canPitch, nearWater, rollFish, reelBand, biteSeconds, GAME, aimHit, RECIPES, canCook, cookJudge, applyCook } from './camp.js'
 import { createSim } from './physics.js'
 
-export { OFFROAD_V2, OFFROAD_V3, OFFROAD_V4, OFFROAD_V4_1 }
+export { OFFROAD_V2, OFFROAD_V3, OFFROAD_V4, OFFROAD_V4_1, OFFROAD_V5 }
 
 const world = createWorld(1)
 const yard = world.pois.find(p => p.id === 'yard')
@@ -34,6 +34,8 @@ let save = loadSave() || freshSave({ settings: { gfx: defaultGfx(), tilt: false,
 let mode = 'title'
 let camMode = 'chase'
 let lockOn = false
+let lowOn = false
+let throttleSm = 0
 let lastSpeed = 0
 let lastSurf = 0
 let steerSm = 0
@@ -489,13 +491,17 @@ function sampleInput(dt) {
   let target = (pad.right - pad.left) + (keys.d - keys.a)
   if (save.settings.tilt) target += tiltV
   target = Math.max(-1, Math.min(1, target))
-  steerSm += (target - steerSm) * Math.min(1, dt * 7)
+  steerSm += (target - steerSm) * Math.min(1, dt * 3.2)
+  const rawT = Math.max(keys.w, pad.gas)
+  const rise = rawT > throttleSm ? 1.8 : 4.2
+  throttleSm += (rawT - throttleSm) * Math.min(1, dt * rise)
   return {
-    throttle: Math.max(keys.w, pad.gas),
+    throttle: throttleSm,
     brake: Math.max(keys.s, pad.brake),
     steer: steerSm,
     handbrake: !!(keys.space || pad.hand),
     lock: lockOn,
+    low: lowOn,
     winch: !!(keys.f || pad.winch),
     fuel: save.fuel,
     grip: (save.buff && save.buff.grip) || 1
@@ -512,6 +518,7 @@ function syncTruck() {
   if (!c || !truck) return
   truck.position.set(c.position.x, c.position.y, c.position.z)
   truck.quaternion.set(c.quaternion.x, c.quaternion.y, c.quaternion.z, c.quaternion.w)
+  applyLod(truck, camera.position.distanceTo(truck.position) > 28)
   q.copy(truck.quaternion)
   fwd.set(0, 0, 1).applyQuaternion(q)
   if (sim.vehicle) {
@@ -685,7 +692,7 @@ function drawMap(canvas, big) {
 function updateHud() {
   const mph = Math.abs(lastSpeed) * 2.237
   $('speed').textContent = String(Math.round(mph))
-  $('gear').textContent = lastSpeed < -0.5 ? 'R' : 'D'
+  $('gear').textContent = lastSpeed < -0.35 ? 'R' : lowOn ? 'L' : 'D'
   const cap = tankCapacity(save)
   const fuelPct = Math.max(0, save.fuel / cap) * 100
   $('fuelbar').style.width = fuelPct + '%'
@@ -697,6 +704,8 @@ function updateHud() {
   $('rep').textContent = rk.name + ' · ' + save.rep
   $('surface').textContent = (SURF_NAME[Math.round(lastSurf)] || 'dirt').toUpperCase()
   $('btn-lock').classList.toggle('on', lockOn)
+  const lowBtn = $('btn-low')
+  if (lowBtn) lowBtn.classList.toggle('on', lowOn)
   drawMap($('minimap'), false)
   if ($('mapfull').classList.contains('show')) drawMap($('mapbig'), true)
   const curP = currentStep()
@@ -958,6 +967,7 @@ hold('btn-right', 'right')
 hold('btn-winch', 'winch')
 hold('btn-hand', 'hand')
 $('btn-lock').onclick = () => { lockOn = !lockOn }
+$('btn-low').onclick = () => { lowOn = !lowOn }
 $('btn-reset').onclick = () => doReset()
 $('btn-lights').onclick = () => cycleLights()
 $('btn-beam').onclick = () => { save.highbeam = !save.highbeam; persist() }
@@ -1017,6 +1027,7 @@ document.addEventListener('keydown', e => {
   if (e.code === 'KeyC') { $('btn-cam').click() }
   if (e.code === 'KeyR') doReset()
   if (e.code === 'KeyL') lockOn = !lockOn
+  if (e.code === 'KeyK') lowOn = !lowOn
   if (e.code === 'KeyH') cycleLights()
   if (e.code === 'KeyB') { save.highbeam = !save.highbeam; persist() }
   if (e.code === 'KeyM') $('btn-map').click()
@@ -1110,6 +1121,7 @@ function resize() {
 window.addEventListener('resize', resize)
 resize()
 
+await preloadRigs()
 buildTerrain()
 scatter()
 buildCamps()
