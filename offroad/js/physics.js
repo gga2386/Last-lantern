@@ -100,7 +100,7 @@ export function createSim(world) {
       const w = vehicle.wheelInfos[i]
       const p = w.chassisConnectionPointWorld
       const s = world.surface(p.x, p.z)
-      const grip = FRICTION[s] * spec.grip * (input.lock ? 1.38 : 1)
+      const grip = FRICTION[s] * spec.grip * (input.lock ? 1.38 : 1) * (input.grip || 1)
       w.frictionSlip = grip
       surfSum += s
       dragSum += DRAG[s]

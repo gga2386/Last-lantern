@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
-<meta name="oxbow-build" content="OFFROAD_V2">
+<meta name="oxbow-build" content="OFFROAD_V3">
 <title>Oxbow — Hollow Creek</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect fill='%23140e0a' width='32' height='32'/%3E%3Cpath fill='%23e4572e' d='M4 22h24l-3-8H7z'/%3E%3Ccircle cx='10' cy='23' r='3' fill='%23f4efe6'/%3E%3Ccircle cx='22' cy='23' r='3' fill='%23f4efe6'/%3E%3C/svg%3E">
 <link rel="stylesheet" href="style.css">
@@ -38,6 +38,7 @@
     </header>
     <canvas id="minimap" width="168" height="168"></canvas>
     <div id="fliphint">You're on your lid. Hit reset.</div>
+    <button type="button" id="btn-camp" hidden>CAMP</button>
     <button type="button" id="btn-store" hidden>STORE</button>
     <button type="button" id="btn-jerry" hidden>CAN 0</button>
     <footer class="controls">
@@ -56,6 +57,14 @@
         <button type="button" id="btn-gas">GAS</button>
       </div>
     </footer>
+    <div id="campbar" hidden>
+      <button type="button" id="camp-morn">Morning</button>
+      <button type="button" id="camp-eve">Evening</button>
+      <button type="button" id="camp-fish">Fish</button>
+      <button type="button" id="camp-hunt">Hunt</button>
+      <button type="button" id="camp-cook">Cook</button>
+      <button type="button" id="camp-pack" class="ghost">Pack up</button>
+    </div>
   </div>
 
   <section id="title">
@@ -78,6 +87,7 @@
       <h2>Paused</h2>
       <button type="button" id="btn-resume">Resume</button>
       <button type="button" id="btn-jobs">Adventures</button>
+      <button type="button" id="btn-return" class="ghost">Return to camp</button>
       <button type="button" id="btn-garage">Garage</button>
       <button type="button" id="btn-pause-help" class="ghost">How to drive</button>
       <button type="button" id="btn-pause-settings" class="ghost">Settings</button>
@@ -110,7 +120,8 @@
         <p>LOCK ties the diffs for mud and rock. Hold WINCH to drag yourself forward and back onto your wheels. RESET plants you upright where you are.</p>
         <p>Dirt, trail, sand, mud, rock, and creek water all grip differently. The creek is shallow enough to ford and slow enough to respect.</p>
         <p>Fuel burns while the engine runs, and it is free — but only a general store pump will fill you. The stores also fit a bigger tank and sell jerry cans you can pour from the CAN button anywhere. Both take reputation, not cash.</p>
-        <p>Adventures pay reputation. Ranks open tires, suspension, the engine, the winch, and the Ridge Scout at the yard garage. Headlights come on at dusk (AUTO). H cycles them, B is high beam. C cycles the camera. J is the board, G is the garage, E is the store.</p>
+        <p>Adventures pay reputation. Ranks open tires, suspension, the engine, the winch, the camp kit, and the Ridge Scout at the yard garage. Headlights come on at dusk (AUTO). H cycles them, B is high beam. C cycles the camera. J is the board, G is the garage, E is the store.</p>
+        <p>Stop on flat ground, or at a marked camp, and tap CAMP. The fire will carry you to morning or evening. Fish the creek, photograph the wildlife (a bow, later, brings meat), and cook at the fire. A meal can steady the tires, stretch the fuel, or sweeten the next adventure.</p>
       </div>
       <button type="button" id="btn-help-close" class="ghost">Close</button>
     </div>
@@ -151,6 +162,18 @@
       <button type="button" id="btn-store-close" class="ghost">Close</button>
     </div>
   </section>
+
+  <div id="play" hidden>
+    <div class="sheet wide">
+      <h2 id="play-title">Camp</h2>
+      <p id="play-text" class="note"></p>
+      <div id="play-recipes"></div>
+      <div id="play-bar"><div id="play-sweet"></div><div id="play-mark"></div></div>
+      <canvas id="play-canvas" width="640" height="280" hidden></canvas>
+      <button type="button" id="play-act">Tap</button>
+      <button type="button" id="play-close" class="ghost">Back to the fire</button>
+    </div>
+  </div>
 
   <section id="mapfull" class="panel">
     <div class="sheet mapwrap">

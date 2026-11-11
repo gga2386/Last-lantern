@@ -58,7 +58,9 @@ export function createWorld(seed = 1) {
     { id: 'storeyard', name: 'Yard Store', x: -16, z: -148, r: 14, kind: 'store' },
     { id: 'storewren', name: 'Wren Store', x: -142, z: -112, r: 12, kind: 'store' },
     { id: 'storequarry', name: 'Quarry Store', x: 148, z: 112, r: 12, kind: 'store' },
-    { id: 'storeridge', name: 'Ridge Store', x: 96, z: 168, r: 12, kind: 'store' }
+    { id: 'storeridge', name: 'Ridge Store', x: 96, z: 168, r: 12, kind: 'store' },
+    { id: 'creekcamp', name: 'Creek Bend', x: 40, z: -32, r: 14, kind: 'camp' },
+    { id: 'highcamp', name: 'Quarry Bench', x: 124, z: 138, r: 12, kind: 'camp' }
   ]
   const ford = { x: 8, z: 0 }
   ford.z = riverZ(ford.x)

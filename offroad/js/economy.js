@@ -1,5 +1,6 @@
-// Reputation, adventures, fuel, and the two trucks. No cash. OFFROAD_V2
+// Reputation, adventures, fuel, and the two trucks. No cash. OFFROAD_V2 OFFROAD_V3
 export const OFFROAD_V2 = 1
+export const OFFROAD_V3 = 1
 export const VEHICLES = {
   mule: {
     id: 'mule', name: 'Yard Mule', need: 0, mass: 1550,
@@ -63,6 +64,20 @@ export const ADVENTURES = [
     steps: [{ kind: 'reach', poi: 'cairn', text: 'Find Ash Cairn' }]
   },
   {
+    id: 'trout', name: 'Mill Trout', diff: 'Medium', rep: 35, bonus: 'clean', bonusRep: 8,
+    text: 'The mill pool holds trout. Bring a rod and a little patience.',
+    steps: [{ kind: 'catch', fish: 'trout', poi: 'mill', text: 'Catch a trout near Crow Mill' }]
+  },
+  {
+    id: 'overnight', name: 'Lookout Night', diff: 'Medium', rep: 40, bonus: 'clean', bonusRep: 10,
+    text: 'Pitch camp under the fire lookout and stay until morning.',
+    steps: [
+      { kind: 'reach', poi: 'lookout', text: 'Reach the Fire Lookout' },
+      { kind: 'camp', poi: 'lookout', text: 'Set camp at the lookout' },
+      { kind: 'morning', text: 'Rest until morning' }
+    ]
+  },
+  {
     id: 'loop', name: 'Basin Loop', diff: 'Hard', rep: 70, bonus: 'clean', bonusRep: 18,
     text: 'Ride the whole basin: Wren Cabin, Crow Mill, the lookout, then home.',
     steps: [
@@ -101,7 +116,7 @@ export function clockLabel(clock) {
 }
 export function freshSave(partial) {
   return {
-    v: 2,
+    v: 3,
     rep: 0,
     fuel: TANK,
     aux: 0,
@@ -117,6 +132,11 @@ export function freshSave(partial) {
     x: 0, y: 0, z: -160,
     qw: 1, qx: 0, qy: 0, qz: 0,
     clock: 0.42,
+    camp: { tent: 0, pit: 0, chairs: 0, lights: 0, rod: 0, hunt: 0 },
+    pantry: { trout: 0, fish: 0, meat: 0, salt: 0, oil: 0 },
+    log: { fish: {}, photos: {} },
+    respawn: null,
+    buff: null,
     settings: { gfx: 'medium', tilt: false, sound: true, shake: true, cycle: 8 },
     ...partial
   }
@@ -126,7 +146,10 @@ export function coerceSave(raw, gfx) {
   const base = freshSave({ settings: { gfx: gfx || 'medium', tilt: false, sound: true, shake: true, cycle: 8 } })
   if (raw.v === 2) {
     const s = Object.assign(base, raw)
-    s.v = 2
+    s.v = 3
+    s.camp = Object.assign({ tent: 0, pit: 0, chairs: 0, lights: 0, rod: 0, hunt: 0 }, raw.camp || {})
+    s.pantry = Object.assign({ trout: 0, fish: 0, meat: 0, salt: 0, oil: 0 }, raw.pantry || {})
+    s.log = raw.log || { fish: {}, photos: {} }
     s.upgrades = Object.assign({ tires: 0, susp: 0, engine: 0, winch: 0 }, raw.upgrades)
     s.settings = Object.assign(base.settings, raw.settings || {})
     s.cleared = raw.cleared || {}
@@ -239,6 +262,13 @@ export function tickAdventure(save, q) {
   const step = adv.steps[save.active.step]
   let hit = false
   if (step.kind === 'ford') hit = Math.hypot(q.x - q.ford.x, q.z - q.ford.z) < 14 && q.water
+  else if (step.kind === 'catch') {
+    const poi = q.pois[step.poi]
+    hit = q.catch === step.fish && !!poi && Math.hypot(q.x - poi.x, q.z - poi.z) < 46
+  } else if (step.kind === 'camp') {
+    const poi = q.pois[step.poi]
+    hit = !!q.camped && !!poi && Math.hypot(q.x - poi.x, q.z - poi.z) < (poi.r || 12) + 8
+  } else if (step.kind === 'morning') hit = q.rested === 'morning'
   else {
     const poi = q.pois[step.poi]
     if (!poi) return null
@@ -254,6 +284,7 @@ export function tickAdventure(save, q) {
   const timed = save.active.elapsed < (adv.limit || 1e9)
   const first = !save.cleared[adv.id]
   let gain = first ? adv.rep : Math.round(adv.rep * 0.5)
+  if (save.buff && save.buff.rep) { gain += save.buff.rep; save.buff.rep = 0 }
   let stars = 1
   if (adv.bonus === 'clean' && clean) { gain += adv.bonusRep; stars = 2 }
   if (adv.bonus === 'timed' && timed) { gain += adv.bonusRep; stars = Math.max(stars, 2) }

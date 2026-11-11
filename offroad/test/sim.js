@@ -1,11 +1,12 @@
 // OFFROAD_V2 — terrain, reputation, fuel, and solid trees. Run: node offroad/test/sim.js
 import { createWorld, SURF, FRICTION, DRAG, HALF } from '../js/world.js'
-import { OFFROAD_V2, freshSave, buyUpgrade, buyVehicle, buyAux, buyJerry, useJerry, refuel, burnFuel, coerceSave, tickAdventure, tankCapacity, jerrySlots, isDark, TANK, specWithUpgrades, ADVENTURES } from '../js/economy.js'
+import { OFFROAD_V2, OFFROAD_V3, freshSave, buyUpgrade, buyVehicle, buyAux, buyJerry, useJerry, refuel, burnFuel, coerceSave, tickAdventure, tankCapacity, jerrySlots, isDark, TANK, specWithUpgrades } from '../js/economy.js'
+import { canPitch, slopeAt, buyCamp, cookJudge, applyCook, rollFish, aimHit, RECIPES } from '../js/camp.js'
 import { createSim, tractionTrial } from '../js/physics.js'
 
 const fails = []
 const fail = m => fails.push(m)
-if (OFFROAD_V2 !== 1) fail('marker missing')
+if (OFFROAD_V2 !== 1 || OFFROAD_V3 !== 1) fail('marker missing')
 
 const t0 = performance.now()
 const world = createWorld(1)
@@ -82,7 +83,8 @@ const fuelLeft = burnFuel(TANK, 1, 2)
 if (!(fuelLeft < TANK && fuelLeft > TANK - 1)) fail('fuel burn ' + fuelLeft)
 if (burnFuel(0.01, 1, 5) !== 0) fail('fuel went negative')
 const migrated = coerceSave({ v: 1, money: 400, fuel: 9, vehicle: 'mule', owned: ['mule'], upgrades: { tires: 1, susp: 0, engine: 0, winch: 0 }, discovered: ['yard'], done: ['lookout', 'mill'], settings: { time: 0.2, gfx: 'low' }, x: 1, z: 2, qw: 1 }, 'low')
-if (!migrated || migrated.v !== 2 || migrated.money != null) fail('migration kept cash')
+if (!migrated || migrated.v !== 3 || migrated.money != null) fail('migration kept cash')
+if (!migrated.camp || migrated.camp.tent !== 0 || !migrated.pantry) fail('migration dropped the camp kit')
 if (migrated.rep !== 45 + 50) fail('migration rep ' + migrated.rep)
 if (!migrated.cleared.nightwatch || !migrated.cleared.ford) fail('migration adventures')
 if (migrated.upgrades.tires !== 1 || migrated.clock !== 0.2) fail('migration kept the truck and the clock')
@@ -155,4 +157,24 @@ if (fails.length) {
   fails.forEach(f => console.error(' -', f))
   process.exit(1)
 }
-console.log('OK OFFROAD_V2')
+const flat = canPitch(world, yard.x, yard.z + 6, 1, 0)
+if (!flat) fail('the yard pad should take a tent')
+if (canPitch(world, yard.x, yard.z + 6, 1, 8)) fail('camped while still rolling')
+if (!Number.isFinite(slopeAt(world, 10, 10))) fail('slope')
+if (buyCamp(freshSave(), 'rod')) fail('rod without reputation')
+const rod = buyCamp(Object.assign(freshSave(), { rep: 40, camp: { tent: 0, pit: 0, chairs: 0, lights: 0, rod: 0, hunt: 0 } }), 'rod')
+if (!rod || rod.camp.rod !== 1) fail('cane pole')
+if (cookJudge(0.66, 0) !== 'perfect') fail('perfect cook')
+if (cookJudge(0.05, 0) !== 'burnt') fail('burnt cook')
+const meal = applyCook(Object.assign(freshSave(), { pantry: { trout: 1, fish: 0, meat: 0, salt: 0, oil: 0 }, buff: null }), RECIPES[0], 'cooked')
+if (meal.grade !== 'cooked' || meal.save.pantry.trout !== 0 || meal.save.buff.grip < 1) fail('trout meal')
+const mill = world.pois.find(p => p.id === 'mill')
+const caught = rollFish(world, mill.x, mill.z, 0.5, 2, () => 0.99)
+if (!caught.cm || !caught.name) fail('fish roll')
+const troutSave = freshSave()
+troutSave.active = { id: 'trout', step: 0, elapsed: 0, resets: 0 }
+const troutDone = tickAdventure(troutSave, { x: mill.x, z: mill.z, speed: 0, clock: 0.5, dt: 0, water: false, ford: world.ford, pois: Object.fromEntries(world.pois.map(p => [p.id, p])), catch: 'trout' })
+if (!troutDone || !troutDone.done || troutSave.rep !== 35 + 8) fail('trout adventure ' + JSON.stringify(troutDone))
+if (!aimHit(0.5, 0.5, 0.2, 1).hit) fail('aim should hit')
+if (aimHit(0.1, 0.9, 0.08, 1).hit) fail('aim should miss')
+console.log('OK OFFROAD_V3')

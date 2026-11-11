@@ -82,7 +82,25 @@ button.danger { background: #6a2418; border-color: #e4572e; }
 #btn-store, #btn-jerry {
   position: absolute; pointer-events: auto; z-index: 4;
 }
+#btn-camp { left: calc(16px + var(--safe-l)); bottom: calc(210px + var(--safe-b)); background: #6a3a22; }
 #btn-store { right: calc(16px + var(--safe-r)); bottom: calc(210px + var(--safe-b)); background: #1d4e5a; }
+#app.camping .controls { display: none; }
+#campbar {
+  position: absolute; left: 0; right: 0; bottom: calc(12px + var(--safe-b));
+  display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; pointer-events: auto;
+  padding: 0 12px;
+}
+#campbar button { min-width: 88px; }
+#play {
+  position: absolute; inset: 0; z-index: 9; display: flex; align-items: center; justify-content: center;
+  background: rgba(8, 5, 3, 0.55); padding: 16px;
+}
+#play[hidden] { display: none; }
+#play-bar { position: relative; height: 28px; margin: 12px 0; background: #2a2118; border: 1px solid var(--line); border-radius: 99px; }
+#play-sweet { position: absolute; top: 0; bottom: 0; background: rgba(240, 193, 74, 0.85); border-radius: 99px; }
+#play-mark { position: absolute; top: -4px; width: 8px; height: 36px; margin-left: -4px; background: #f4efe6; border-radius: 4px; }
+#play-canvas { width: 100%; height: auto; border-radius: 10px; background: #1c2418; margin-bottom: 8px; }
+#play-recipes { display: flex; flex-direction: column; gap: 6px; }
 #btn-jerry { left: calc(16px + var(--safe-l)); bottom: calc(168px + var(--safe-b)); }
 .up.locked b { opacity: 0.7; }
 #minimap {
