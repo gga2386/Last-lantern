@@ -90,6 +90,7 @@ button.danger { background: #6a2418; border-color: #e4572e; }
   display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; pointer-events: auto;
   padding: 0 12px;
 }
+#campbar[hidden] { display: none; }
 #campbar button { min-width: 88px; }
 #play {
   position: absolute; inset: 0; z-index: 9; display: flex; align-items: center; justify-content: center;

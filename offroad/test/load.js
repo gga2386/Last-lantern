@@ -74,7 +74,7 @@ async function main() {
   const fails = []
   if (info.title !== 'OXBOW') fails.push('title missing')
   if (info.mode !== 'title' || !info.ready) fails.push('game did not boot ' + JSON.stringify(info))
-  if (info.marker !== 'OFFROAD_V3') fails.push('marker ' + info.marker)
+  if (info.marker !== 'OFFROAD_V4') fails.push('marker ' + info.marker)
   await send('Runtime.evaluate', { expression: `document.getElementById('btn-new').click()` })
   await sleep(400)
   const before = await send('Runtime.evaluate', { expression: `JSON.stringify(OX.pos)`, returnByValue: true })
@@ -95,6 +95,6 @@ async function main() {
     fails.forEach(f => console.error(' -', f))
     process.exit(1)
   }
-  console.log('OK OFFROAD_V3 load')
+  console.log('OK OFFROAD_V4 load')
 }
 main().catch(e => { console.error(e); process.exit(1) })

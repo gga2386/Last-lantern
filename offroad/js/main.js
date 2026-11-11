@@ -1,11 +1,12 @@
 // Oxbow — Hollow Creek. OFFROAD_V2
 import * as THREE from '../vendor/three.module.js'
 import { createWorld, WORLD_SIZE, HALF, SURF, SURF_NAME } from './world.js'
-import { OFFROAD_V2, OFFROAD_V3, freshSave, SAVE_KEY, VEHICLES, UPGRADES, AUX, JERRY, ADVENTURES, TANK, coerceSave, buyUpgrade, buyVehicle, buyAux, buyJerry, useJerry, refuel, burnFuel, specWithUpgrades, tankCapacity, jerrySlots, rankFor, isDark, clockLabel, tickAdventure } from './economy.js'
+import { OFFROAD_V2, OFFROAD_V3, OFFROAD_V4, freshSave, SAVE_KEY, VEHICLES, UPGRADES, AUX, JERRY, ADVENTURES, TANK, coerceSave, buyUpgrade, buyVehicle, buyAux, buyJerry, useJerry, refuel, burnFuel, specWithUpgrades, tankCapacity, jerrySlots, rankFor, isDark, clockLabel, tickAdventure } from './economy.js'
+import { buildRig } from './rigs.js'
 import { CAMP, campLevel, buyCamp, canPitch, nearWater, rollFish, reelBand, biteSeconds, GAME, aimHit, RECIPES, canCook, cookJudge, applyCook } from './camp.js'
 import { createSim } from './physics.js'
 
-export { OFFROAD_V2, OFFROAD_V3 }
+export { OFFROAD_V2, OFFROAD_V3, OFFROAD_V4 }
 
 const world = createWorld(1)
 const yard = world.pois.find(p => p.id === 'yard')
@@ -285,117 +286,29 @@ scene.add(beam)
 beam.visible = false
 
 let truck, wheels = []
+function rigLook(id) {
+  const all = (save.cosmetics && save.cosmetics[id]) || {}
+  const style = (VEHICLES[id] && VEHICLES[id].style) || 'pickup'
+  const base = {
+    pickup: { jerry: true, spare: true, kayak: false, bike: false },
+    jeep: { jerry: false, spare: true, kayak: false, bike: false },
+    bronco: { jerry: false, spare: false, kayak: true, bike: false },
+    wagon: { jerry: true, spare: false, kayak: false, bike: true },
+    utility: { jerry: true, spare: true, kayak: false, bike: false },
+    van: { jerry: false, spare: true, kayak: false, bike: false }
+  }[style] || { jerry: false, spare: true, kayak: false, bike: false }
+  return { livery: all.livery || 0, rack: Object.assign({}, base, all.rack || {}) }
+}
 function buildTruck(spec) {
   if (truck) scene.remove(truck)
   wheels.forEach(w => scene.remove(w))
   wheels = []
-  truck = new THREE.Group()
-  const paint = new THREE.MeshStandardMaterial({ color: spec.color, roughness: 0.48, metalness: 0.34 })
-  const dirt = new THREE.MeshStandardMaterial({ color: spec.mud || 0x4a3828, roughness: 0.94, metalness: 0.04 })
-  const dark = new THREE.MeshStandardMaterial({ color: spec.dark, roughness: 0.58, metalness: 0.42 })
-  const glass = new THREE.MeshStandardMaterial({ color: spec.glass, roughness: 0.06, metalness: 0.12, transparent: true, opacity: 0.5 })
-  const lampMat = new THREE.MeshStandardMaterial({ color: 0xfff6df, emissive: 0xffe7b0, emissiveIntensity: 0.15, roughness: 0.28 })
-  const tailMat = new THREE.MeshStandardMaterial({ color: 0x6e1612, emissive: 0xff2a18, emissiveIntensity: 0.3 })
-  const roofMat = new THREE.MeshStandardMaterial({ color: 0xfff8ee, emissive: 0xfff1c8, emissiveIntensity: 0.08 })
-  const rubber = new THREE.MeshStandardMaterial({ color: 0x161616, roughness: 0.92 })
-  const steel = new THREE.MeshStandardMaterial({ color: 0xc5c0b6, roughness: 0.32, metalness: 0.72 })
-  const L = spec.half[2], W = spec.half[0]
-  const scout = spec.id === 'scout'
-  const box = (mat, w, h, d, x, y, z) => {
-    const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat)
-    m.position.set(x, y, z)
-    m.castShadow = true
-    truck.add(m)
-    return m
-  }
-  box(dirt, W * 1.72, 0.2, L * 1.92, 0, -0.04, 0)
-  box(dirt, 0.14, 0.16, L * 1.45, -W * 0.92, 0.06, 0)
-  box(dirt, 0.14, 0.16, L * 1.45, W * 0.92, 0.06, 0)
-  box(paint, W * 1.5, 0.2, L * 0.7, 0, 0.28, L * 0.46)
-  box(paint, W * 1.46, 0.58, scout ? L * 0.72 : L * 0.58, 0, 0.68, scout ? 0.02 : -0.12)
-  const wind = new THREE.Mesh(new THREE.PlaneGeometry(W * 1.22, 0.4), glass)
-  wind.position.set(0, 0.74, L * 0.2)
-  wind.rotation.x = -0.42
-  truck.add(wind)
-  const cabZ = scout ? 0.02 : -0.12
-  const cabD = scout ? L * 0.72 : L * 0.58
-  for (const s of [-1, 1]) {
-    const side = new THREE.Mesh(new THREE.PlaneGeometry(cabD * 0.62, 0.28), glass)
-    side.position.set(s * W * 0.74, 0.78, cabZ)
-    side.rotation.y = s > 0 ? Math.PI / 2 : -Math.PI / 2
-    truck.add(side)
-    box(dark, 0.05, 0.1, 0.18, s * (W * 0.86), 0.82, L * 0.02)
-  }
-  if (!scout) {
-    box(dark, W * 1.52, 0.2, L * 0.78, 0, 0.26, -L * 0.62)
-    box(paint, 0.08, 0.32, L * 0.78, -W * 0.76, 0.46, -L * 0.62)
-    box(paint, 0.08, 0.32, L * 0.78, W * 0.76, 0.46, -L * 0.62)
-    box(paint, W * 1.52, 0.28, 0.08, 0, 0.46, -L * 0.98)
-  } else box(dark, W * 1.35, 0.18, L * 0.42, 0, 0.26, -L * 0.72)
-  for (const [sx, sz] of [[-1, 1], [1, 1], [-1, -1], [1, -1]]) box(paint, W * 0.52, 0.14, 0.62, sx * W * 0.7, 0.22, sz * (scout ? L * 0.55 : L * 0.62))
-  box(steel, W * 1.85, 0.14, 0.12, 0, 0.1, L * 0.96)
-  box(dark, W * 1.65, 0.12, 0.1, 0, 0.12, -L * 1.0)
-  box(dark, W * 0.62, 0.26, 0.05, 0, 0.32, L * 0.86)
-  for (let i = -1; i <= 1; i++) box(steel, W * 0.55, 0.025, 0.03, 0, 0.32 + i * 0.07, L * 0.9)
-  for (const s of [-1, 1]) {
-    box(dark, 0.2, 0.16, 0.08, s * W * 0.46, 0.32, L * 0.9)
-    const lens = new THREE.Mesh(new THREE.CircleGeometry(0.065, 12), lampMat)
-    lens.position.set(s * W * 0.46, 0.32, L * 0.95)
-    truck.add(lens)
-    box(tailMat, 0.16, 0.09, 0.05, s * W * 0.58, 0.3, -L * 1.02)
-  }
-  box(dark, W * 1.15, 0.04, cabD * 0.75, 0, 1.02, cabZ)
-  for (const s of [-1, 1]) {
-    const lamp = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.08, 0.1), roofMat)
-    lamp.position.set(s * 0.28, 1.1, cabZ + 0.05)
-    truck.add(lamp)
-  }
-  if (!scout) {
-    const sn = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, 0.8, 6), dark)
-    sn.position.set(-W * 0.82, 0.7, L * 0.22)
-    truck.add(sn)
-  }
-  const spare = new THREE.Mesh(new THREE.TorusGeometry(spec.wheelR * 0.62, 0.08, 6, 12), rubber)
-  spare.rotation.y = Math.PI / 2
-  spare.position.set(0, 0.55, -L * 1.02)
-  truck.add(spare)
-  const axleMat = steel
-  box(axleMat, W * 1.7, 0.06, 0.06, 0, 0.02, L * 0.55)
-  box(axleMat, W * 1.7, 0.06, 0.06, 0, 0.02, -L * 0.55)
-  const lamps = []
-  for (const s of [-1, 1]) {
-    const spot = new THREE.SpotLight(0xfff4d4, 0, 40, 0.5, 0.42, 1)
-    spot.position.set(s * W * 0.42, 0.4, L * 0.9)
-    const tgt = new THREE.Object3D()
-    tgt.position.set(s * W * 0.12, -0.55, L + 24)
-    truck.add(spot, tgt)
-    spot.target = tgt
-    if (gfx().shadow) {
-      spot.castShadow = true
-      spot.shadow.mapSize.set(512, 512)
-      spot.shadow.camera.near = 0.4
-      spot.shadow.camera.far = 55
-      spot.shadow.bias = -0.0012
-    }
-    lamps.push(spot)
-  }
-  truck.userData = { lampMat, tailMat, roofMat, lamps }
+  const look = rigLook(spec.id)
+  const built = buildRig(THREE, spec, { livery: look.livery, rack: look.rack, shadow: !!gfx().shadow })
+  truck = built.group
+  wheels = built.wheels
   scene.add(truck)
-  const geo = new THREE.CylinderGeometry(spec.wheelR, spec.wheelR, 0.3, 16)
-  geo.rotateZ(Math.PI / 2)
-  const tread = new THREE.TorusGeometry(spec.wheelR * 0.9, 0.045, 4, 16)
-  tread.rotateY(Math.PI / 2)
-  const rimGeo = new THREE.CylinderGeometry(spec.wheelR * 0.42, spec.wheelR * 0.42, 0.32, 10)
-  rimGeo.rotateZ(Math.PI / 2)
-  for (let i = 0; i < 4; i++) {
-    const wheel = new THREE.Mesh(geo, rubber)
-    wheel.add(new THREE.Mesh(tread, rubber))
-    const rim = new THREE.Mesh(rimGeo, steel)
-    wheel.add(rim)
-    wheel.castShadow = true
-    scene.add(wheel)
-    wheels.push(wheel)
-  }
+  wheels.forEach(w => scene.add(w))
 }
 function updateLamps() {
   const ud = truck && truck.userData
@@ -410,8 +323,8 @@ function updateLamps() {
     s.angle = hi ? 0.32 : 0.5
   }
   ud.lampMat.emissiveIntensity = on ? (hi ? 3.2 : 2.1) : 0.12
-  ud.roofMat.emissiveIntensity = on ? 1.8 : 0.05
-  ud.tailMat.emissiveIntensity = dark ? 1.4 : 0.28
+  if (ud.roofMat) ud.roofMat.emissiveIntensity = on ? 1.8 : 0.05
+  if (ud.tailMat) ud.tailMat.emissiveIntensity = dark ? 1.4 : 0.28
   const btn = $('btn-lights')
   if (btn) btn.textContent = modeL === 'auto' ? 'AUTO' : modeL === 'on' ? 'ON' : 'OFF'
   const beam = $('btn-beam')
@@ -840,6 +753,45 @@ function fillGarage() {
     }
     row.appendChild(btn)
     box.appendChild(row)
+  }
+  if (here && save.owned.includes(save.vehicle)) {
+    const look = rigLook(save.vehicle)
+    const v = VEHICLES[save.vehicle]
+    const paintRow = document.createElement('div')
+    paintRow.className = 'up'
+    paintRow.innerHTML = '<b></b><span></span>'
+    const liv = v.liveries[look.livery % v.liveries.length]
+    paintRow.querySelector('b').textContent = 'Paint · ' + liv.name
+    paintRow.querySelector('span').textContent = 'Cycle the livery. The mud stays.'
+    const pb = document.createElement('button')
+    pb.type = 'button'
+    pb.textContent = 'Next paint'
+    pb.onclick = () => {
+      save.cosmetics = save.cosmetics || {}
+      const cur = save.cosmetics[save.vehicle] || { livery: 0, rack: {} }
+      cur.livery = ((cur.livery || 0) + 1) % v.liveries.length
+      save.cosmetics[save.vehicle] = cur
+      buildTruck(sim.spec)
+      persist(); fillGarage()
+    }
+    paintRow.appendChild(pb)
+    box.appendChild(paintRow)
+    for (const key of ['jerry', 'spare', 'kayak', 'bike']) {
+      const label = { jerry: 'Roof cans', spare: 'Spare tire', kayak: 'Kayak', bike: 'Rear bike' }[key]
+      const b = document.createElement('button')
+      b.type = 'button'
+      b.textContent = (look.rack[key] ? 'On · ' : 'Off · ') + label
+      b.onclick = () => {
+        save.cosmetics = save.cosmetics || {}
+        const cur = save.cosmetics[save.vehicle] || { livery: look.livery, rack: {} }
+        cur.rack = Object.assign({}, look.rack, cur.rack, { [key]: !look.rack[key] })
+        cur.livery = look.livery
+        save.cosmetics[save.vehicle] = cur
+        buildTruck(sim.spec)
+        persist(); fillGarage()
+      }
+      box.appendChild(b)
+    }
   }
   const head = document.createElement('p')
   head.className = 'note'
@@ -1436,5 +1388,28 @@ window.OX = {
   goto(id) { const p = poiById[id]; if (!p) return; sim.place(p.x + 4, p.z + 6, 0) },
   pitch() { pitchCamp() },
   showPlay(kind) { openPlay(kind) },
+  lineup() {
+    const ids = Object.keys(VEHICLES)
+    ids.forEach((id, i) => {
+      const spec = specWithUpgrades(id, save.upgrades)
+      const built = buildRig(THREE, spec, { livery: i % spec.liveries.length, rack: rigLook(id).rack, shadow: false })
+      built.group.position.set(-14 + i * 5.2, world.height(-14 + i * 5.2, yard.z + 18) , yard.z + 18)
+      scene.add(built.group)
+      built.wheels.forEach((w, wi) => {
+        const side = wi % 2 === 0 ? -1 : 1
+        const front = wi < 2 ? 1 : -1
+        w.position.copy(built.group.position)
+        w.position.x += side * spec.track
+        w.position.z += front * spec.wheelbase
+        w.position.y = built.group.position.y - 0.15
+        scene.add(w)
+      })
+    })
+    if (truck) truck.visible = false
+    wheels.forEach(w => w.visible = false)
+    const gy = world.height(0, yard.z + 18)
+    camera.position.set(6, gy + 5.5, yard.z + 4)
+    camera.lookAt(-2, gy + 1.3, yard.z + 18)
+  },
   prep(camp, pantry) { if (camp) Object.assign(save.camp, camp); if (pantry) Object.assign(save.pantry, pantry) }
 }

@@ -1,12 +1,18 @@
 // OFFROAD_V2 — terrain, reputation, fuel, and solid trees. Run: node offroad/test/sim.js
 import { createWorld, SURF, FRICTION, DRAG, HALF } from '../js/world.js'
-import { OFFROAD_V2, OFFROAD_V3, freshSave, buyUpgrade, buyVehicle, buyAux, buyJerry, useJerry, refuel, burnFuel, coerceSave, tickAdventure, tankCapacity, jerrySlots, isDark, TANK, specWithUpgrades } from '../js/economy.js'
+import { OFFROAD_V2, OFFROAD_V3, OFFROAD_V4, VEHICLES, freshSave, buyUpgrade, buyVehicle, buyAux, buyJerry, useJerry, refuel, burnFuel, coerceSave, tickAdventure, tankCapacity, jerrySlots, isDark, TANK, specWithUpgrades } from '../js/economy.js'
 import { canPitch, slopeAt, buyCamp, cookJudge, applyCook, rollFish, aimHit, RECIPES } from '../js/camp.js'
 import { createSim, tractionTrial } from '../js/physics.js'
 
 const fails = []
 const fail = m => fails.push(m)
-if (OFFROAD_V2 !== 1 || OFFROAD_V3 !== 1) fail('marker missing')
+if (OFFROAD_V2 !== 1 || OFFROAD_V3 !== 1 || OFFROAD_V4 !== 1) fail('marker missing')
+const ids = Object.keys(VEHICLES)
+if (ids.length < 6) fail('roster ' + ids.join(','))
+for (const id of ['mule', 'scout', 'runner', 'wagon', 'hauler', 'van']) if (!VEHICLES[id]) fail('missing ' + id)
+if (VEHICLES.mule.need !== 0 || VEHICLES.scout.need >= VEHICLES.runner.need) fail('unlock order')
+if (!(VEHICLES.scout.maxSpeed > VEHICLES.mule.maxSpeed && VEHICLES.hauler.grip > VEHICLES.scout.grip && VEHICLES.van.mass > VEHICLES.wagon.mass)) fail('stats do not differ')
+if (buyVehicle(Object.assign(freshSave(), { rep: VEHICLES.runner.need }), 'runner').vehicle !== 'runner') fail('runner unlock')
 
 const t0 = performance.now()
 const world = createWorld(1)
@@ -83,7 +89,7 @@ const fuelLeft = burnFuel(TANK, 1, 2)
 if (!(fuelLeft < TANK && fuelLeft > TANK - 1)) fail('fuel burn ' + fuelLeft)
 if (burnFuel(0.01, 1, 5) !== 0) fail('fuel went negative')
 const migrated = coerceSave({ v: 1, money: 400, fuel: 9, vehicle: 'mule', owned: ['mule'], upgrades: { tires: 1, susp: 0, engine: 0, winch: 0 }, discovered: ['yard'], done: ['lookout', 'mill'], settings: { time: 0.2, gfx: 'low' }, x: 1, z: 2, qw: 1 }, 'low')
-if (!migrated || migrated.v !== 3 || migrated.money != null) fail('migration kept cash')
+if (!migrated || migrated.v !== 4 || migrated.money != null) fail('migration kept cash')
 if (!migrated.camp || migrated.camp.tent !== 0 || !migrated.pantry) fail('migration dropped the camp kit')
 if (migrated.rep !== 45 + 50) fail('migration rep ' + migrated.rep)
 if (!migrated.cleared.nightwatch || !migrated.cleared.ford) fail('migration adventures')

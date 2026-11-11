@@ -1,18 +1,73 @@
-// Reputation, adventures, fuel, and the two trucks. No cash. OFFROAD_V2 OFFROAD_V3
+// Reputation, adventures, fuel, and the rigs. No cash. OFFROAD_V4
 export const OFFROAD_V2 = 1
 export const OFFROAD_V3 = 1
+export const OFFROAD_V4 = 1
 export const VEHICLES = {
   mule: {
-    id: 'mule', name: 'Yard Mule', need: 0, mass: 1550,
-    half: [1.02, 0.4, 2.2], color: 0xb84322, dark: 0x1b2126, glass: 0x9ec9d4, mud: 0x4a3828,
-    force: 3400, maxSpeed: 26, steer: 0.46, wheelR: 0.48,
-    track: 0.95, wheelbase: 1.58, rest: 0.34, travel: 0.2, stiff: 36, grip: 1
+    id: 'mule', name: 'Yard Mule', need: 0, style: 'pickup', mass: 1580,
+    half: [1.02, 0.42, 2.25], dark: 0x1b2126, glass: 0x9ec9d4,
+    force: 3500, maxSpeed: 25, steer: 0.44, wheelR: 0.48,
+    track: 0.98, wheelbase: 1.65, rest: 0.34, travel: 0.2, stiff: 36, grip: 1,
+    liveries: [
+      { color: '#b84322', stripe: '#f2e2c4', kind: 'stripe', name: 'Yard rust' },
+      { color: '#e8e4dc', stripe: '#2a2a2a', kind: 'thick', name: 'Salt' },
+      { color: '#2f4a34', stripe: '#c4a06a', kind: 'wood', name: 'Woodline' }
+    ]
   },
   scout: {
-    id: 'scout', name: 'Ridge Scout', need: 160, mass: 920,
-    half: [0.9, 0.34, 1.72], color: 0xd6a21f, dark: 0x24281c, glass: 0xb7ddd4, mud: 0x3e3424,
-    force: 2700, maxSpeed: 34, steer: 0.52, wheelR: 0.4,
-    track: 0.82, wheelbase: 1.22, rest: 0.28, travel: 0.16, stiff: 32, grip: 0.78
+    id: 'scout', name: 'Ridge Scout', need: 80, style: 'jeep', mass: 900,
+    half: [0.86, 0.34, 1.55], dark: 0x24281c, glass: 0xb7ddd4,
+    force: 2600, maxSpeed: 33, steer: 0.55, wheelR: 0.42,
+    track: 0.78, wheelbase: 1.12, rest: 0.28, travel: 0.16, stiff: 32, grip: 0.76,
+    liveries: [
+      { color: '#d6a21f', stripe: '#1c1c1c', kind: 'stripe', name: 'Scout gold' },
+      { color: '#c4552e', stripe: '#f4efe6', kind: 'stripe', name: 'Signal' },
+      { color: '#2c4a32', stripe: '#d8c07a', kind: 'thick', name: 'Brush' }
+    ]
+  },
+  runner: {
+    id: 'runner', name: 'Bluff Runner', need: 120, style: 'bronco', mass: 1420,
+    half: [1.0, 0.4, 1.9], dark: 0x1a2430, glass: 0x9fd0e0,
+    force: 3300, maxSpeed: 28, steer: 0.5, wheelR: 0.5,
+    track: 0.94, wheelbase: 1.38, rest: 0.32, travel: 0.2, stiff: 34, grip: 0.96,
+    liveries: [
+      { color: '#2f6fbe', stripe: '#f4efe6', kind: 'thick', name: 'Creek blue' },
+      { color: '#e8e4dc', stripe: '#2f6fbe', kind: 'stripe', name: 'Two-tone' },
+      { color: '#8a3a28', stripe: '#e8c07a', kind: 'chevron', name: 'Sunset' }
+    ]
+  },
+  wagon: {
+    id: 'wagon', name: 'Creek Wagon', need: 180, style: 'wagon', mass: 1760,
+    half: [1.05, 0.44, 2.35], dark: 0x2a241c, glass: 0xc5ddd4,
+    force: 3200, maxSpeed: 24, steer: 0.4, wheelR: 0.46,
+    track: 0.98, wheelbase: 1.72, rest: 0.32, travel: 0.18, stiff: 38, grip: 1.08,
+    liveries: [
+      { color: '#e6e2d8', stripe: '#6a4a32', kind: 'wood', name: 'Timber' },
+      { color: '#2a4a38', stripe: '#c4a06a', kind: 'wood', name: 'Lodge' },
+      { color: '#d7d2c8', stripe: '#8a3a28', kind: 'thick', name: 'Mud white' }
+    ]
+  },
+  hauler: {
+    id: 'hauler', name: 'Basin Hauler', need: 240, style: 'utility', mass: 1680,
+    half: [1.0, 0.42, 2.05], dark: 0x1c2420, glass: 0xb7c8c4,
+    force: 3900, maxSpeed: 23, steer: 0.42, wheelR: 0.5,
+    track: 0.96, wheelbase: 1.52, rest: 0.34, travel: 0.22, stiff: 40, grip: 1.16,
+    liveries: [
+      { color: '#e4e8e2', stripe: '#2a3a32', kind: 'stripe', name: 'Chalk' },
+      { color: '#cfcab8', stripe: '#6a5a3a', kind: 'thick', name: 'Dust' },
+      { color: '#3a4a44', stripe: '#d8c07a', kind: 'stripe', name: 'Field' }
+    ]
+  },
+  van: {
+    id: 'van', name: 'Lantern Van', need: 320, style: 'van', mass: 1920,
+    half: [1.02, 0.55, 2.45], dark: 0x1a1c22, glass: 0x8fb4c8,
+    force: 3100, maxSpeed: 22, steer: 0.36, wheelR: 0.44,
+    track: 0.92, wheelbase: 1.88, rest: 0.3, travel: 0.16, stiff: 42, grip: 0.9,
+    liveries: [
+      { color: '#f4f1ea', stripe: '#e4572e', kind: 'chevron', name: 'Retro' },
+      { color: '#f7f4ee', stripe: '#2f6fbe', kind: 'thick', name: 'Coast' },
+      { color: '#f2efe6', stripe: '#2a2a2a', kind: 'stripe', name: 'Plain' }
+    ]
   }
 }
 export const RANKS = [
@@ -116,7 +171,7 @@ export function clockLabel(clock) {
 }
 export function freshSave(partial) {
   return {
-    v: 3,
+    v: 4,
     rep: 0,
     fuel: TANK,
     aux: 0,
@@ -137,6 +192,7 @@ export function freshSave(partial) {
     log: { fish: {}, photos: {} },
     respawn: null,
     buff: null,
+    cosmetics: {},
     settings: { gfx: 'medium', tilt: false, sound: true, shake: true, cycle: 8 },
     ...partial
   }
@@ -144,9 +200,10 @@ export function freshSave(partial) {
 export function coerceSave(raw, gfx) {
   if (!raw || !raw.upgrades) return null
   const base = freshSave({ settings: { gfx: gfx || 'medium', tilt: false, sound: true, shake: true, cycle: 8 } })
-  if (raw.v === 2) {
+  if ((raw.v || 0) >= 2) {
     const s = Object.assign(base, raw)
-    s.v = 3
+    s.v = 4
+    s.cosmetics = raw.cosmetics || {}
     s.camp = Object.assign({ tent: 0, pit: 0, chairs: 0, lights: 0, rod: 0, hunt: 0 }, raw.camp || {})
     s.pantry = Object.assign({ trout: 0, fish: 0, meat: 0, salt: 0, oil: 0 }, raw.pantry || {})
     s.log = raw.log || { fish: {}, photos: {} }
