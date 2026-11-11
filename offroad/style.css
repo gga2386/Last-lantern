@@ -75,7 +75,16 @@ button.danger { background: #6a2418; border-color: #e4572e; }
   text-shadow: 0 1px 2px #000; max-width: 42vw;
 }
 .iconrow { display: flex; gap: 6px; pointer-events: auto; }
-.iconrow button { min-height: 40px; padding: 6px 10px; font-size: 12px; letter-spacing: 0.08em; }
+.iconrow button { min-height: 36px; padding: 4px 8px; font-size: 11px; letter-spacing: 0.06em; }
+#clock { font-variant-numeric: tabular-nums; letter-spacing: 0.04em; }
+#rep { color: var(--gold); font-size: 13px; }
+#btn-beam.on { background: #f0c14a; color: #1a120c; }
+#btn-store, #btn-jerry {
+  position: absolute; pointer-events: auto; z-index: 4;
+}
+#btn-store { right: calc(16px + var(--safe-r)); bottom: calc(210px + var(--safe-b)); background: #1d4e5a; }
+#btn-jerry { left: calc(16px + var(--safe-l)); bottom: calc(168px + var(--safe-b)); }
+.up.locked b { opacity: 0.7; }
 #minimap {
   position: absolute; top: calc(92px + var(--safe-t)); left: calc(12px + var(--safe-l));
   width: 132px; height: 132px; border-radius: 12px; border: 1px solid var(--line);

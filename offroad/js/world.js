@@ -52,7 +52,13 @@ export function createWorld(seed = 1) {
     { id: 'cabin', name: 'Wren Cabin', x: -168, z: -78, r: 13, kind: 'cabin' },
     { id: 'quarry', name: 'Quarry Camp', x: 168, z: 78, r: 13, kind: 'quarry' },
     { id: 'mill', name: 'Crow Mill', x: -78, z: 96, r: 12, kind: 'mill' },
-    { id: 'lookout', name: 'Fire Lookout', x: -16, z: 198, r: 14, kind: 'peak' }
+    { id: 'lookout', name: 'Fire Lookout', x: -16, z: 198, r: 14, kind: 'peak' },
+    { id: 'switchback', name: 'South Marker', x: 62, z: -208, r: 12, kind: 'view' },
+    { id: 'cairn', name: 'Ash Cairn', x: 188, z: -36, r: 11, kind: 'hidden' },
+    { id: 'storeyard', name: 'Yard Store', x: -16, z: -148, r: 14, kind: 'store' },
+    { id: 'storewren', name: 'Wren Store', x: -142, z: -112, r: 12, kind: 'store' },
+    { id: 'storequarry', name: 'Quarry Store', x: 148, z: 112, r: 12, kind: 'store' },
+    { id: 'storeridge', name: 'Ridge Store', x: 96, z: 168, r: 12, kind: 'store' }
   ]
   const ford = { x: 8, z: 0 }
   ford.z = riverZ(ford.x)

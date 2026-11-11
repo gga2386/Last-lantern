@@ -1,10 +1,10 @@
-// Oxbow — Hollow Creek. OFFROAD_V1
+// Oxbow — Hollow Creek. OFFROAD_V2
 import * as THREE from '../vendor/three.module.js'
-import { OFFROAD_V1, createWorld, WORLD_SIZE, HALF, SURF_NAME } from './world.js'
-import { freshSave, SAVE_KEY, VEHICLES, UPGRADES, JOBS, TANK, buyUpgrade, buyVehicle, refuelQuote, burnFuel, jobPay, specWithUpgrades } from './economy.js'
+import { createWorld, WORLD_SIZE, HALF, SURF, SURF_NAME } from './world.js'
+import { OFFROAD_V2, freshSave, SAVE_KEY, VEHICLES, UPGRADES, AUX, JERRY, ADVENTURES, TANK, coerceSave, buyUpgrade, buyVehicle, buyAux, buyJerry, useJerry, refuel, burnFuel, specWithUpgrades, tankCapacity, jerrySlots, rankFor, isDark, clockLabel, tickAdventure } from './economy.js'
 import { createSim } from './physics.js'
 
-export { OFFROAD_V1 }
+export { OFFROAD_V2 }
 
 const world = createWorld(1)
 const yard = world.pois.find(p => p.id === 'yard')
@@ -25,13 +25,10 @@ function loadSave() {
   try {
     const raw = localStorage.getItem(SAVE_KEY)
     if (!raw) return null
-    const s = JSON.parse(raw)
-    if (!s || s.v !== 1 || !s.upgrades) return null
-    s.settings = Object.assign({ gfx: defaultGfx(), tilt: false, sound: true, shake: true, time: 0.36 }, s.settings)
-    return s
+    return coerceSave(JSON.parse(raw), defaultGfx())
   } catch (e) { return null }
 }
-let save = loadSave() || freshSave({ settings: { gfx: defaultGfx(), tilt: false, sound: true, shake: true, time: 0.36 } })
+let save = loadSave() || freshSave({ settings: { gfx: defaultGfx(), tilt: false, sound: true, shake: true, cycle: 8 } })
 let mode = 'title'
 let camMode = 'chase'
 let lockOn = false
@@ -79,28 +76,48 @@ const skyMat = new THREE.ShaderMaterial({
   side: THREE.BackSide,
   depthWrite: false,
   toneMapped: false,
-  uniforms: { sun: { value: new THREE.Vector3(0, 0.2, 0) }, elev: { value: 0.2 } },
+  uniforms: { sun: { value: new THREE.Vector3(0, 0.2, 0) }, elev: { value: 0.6 } },
   vertexShader: 'varying vec3 vP; void main(){ vP = position; gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0); }',
   fragmentShader: `
     varying vec3 vP; uniform vec3 sun; uniform float elev;
+    float hash(vec2 p){ return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
     void main(){
       vec3 d = normalize(vP);
       float h = clamp(d.y, -0.05, 1.0);
-      vec3 nightTop = vec3(0.05, 0.07, 0.12);
+      float day = smoothstep(-0.05, 0.35, elev);
+      vec3 nightTop = vec3(0.02, 0.03, 0.07);
       vec3 dayTop = vec3(0.34, 0.52, 0.78);
-      vec3 setTop = vec3(0.18, 0.28, 0.48);
-      vec3 hor = mix(vec3(0.95, 0.45, 0.22), vec3(0.72, 0.82, 0.9), smoothstep(0.2, 0.85, elev));
-      hor = mix(vec3(0.08, 0.1, 0.16), hor, smoothstep(-0.05, 0.25, elev));
-      vec3 top = mix(nightTop, setTop, smoothstep(0.0, 0.35, elev));
-      top = mix(top, dayTop, smoothstep(0.35, 0.9, elev));
+      vec3 setTop = vec3(0.16, 0.24, 0.46);
+      vec3 horDay = vec3(0.72, 0.82, 0.9);
+      vec3 horSet = vec3(0.95, 0.48, 0.22);
+      vec3 horNight = vec3(0.04, 0.05, 0.09);
+      float low = smoothstep(0.05, 0.55, elev);
+      vec3 hor = mix(horSet, horDay, low);
+      hor = mix(horNight, hor, smoothstep(-0.35, 0.15, elev));
+      vec3 top = mix(nightTop, setTop, smoothstep(-0.2, 0.25, elev));
+      top = mix(top, dayTop, day);
       vec3 col = mix(hor, top, smoothstep(0.0, 0.55, h));
-      float sd = pow(max(dot(d, normalize(sun)), 0.0), 90.0);
-      col += vec3(1.0, 0.62, 0.28) * sd * smoothstep(-0.1, 0.2, elev);
+      float sd = pow(max(dot(d, normalize(sun)), 0.0), mix(40.0, 90.0, day));
+      col += vec3(1.0, 0.62, 0.28) * sd * smoothstep(-0.15, 0.2, elev);
+      vec3 moon = normalize(vec3(-sun.x, max(0.15, -sun.y), -sun.z));
+      float md = pow(max(dot(d, moon), 0.0), 280.0);
+      col += vec3(0.75, 0.84, 1.0) * md * (1.0 - day);
+      float star = step(0.997, hash(floor(d.xz * 220.0 + d.y * 40.0)));
+      col += star * (1.0 - day) * step(0.08, d.y);
       gl_FragColor = vec4(col, 1.0);
     }`
 })
 const sky = new THREE.Mesh(new THREE.SphereGeometry(520, 24, 16), skyMat)
 scene.add(sky)
+const moon = new THREE.DirectionalLight(0xb9c7ff, 0)
+scene.add(moon, moon.target)
+const starPos = []
+for (let i = 0; i < (gfx().shadow ? 420 : 180); i++) {
+  const v = new THREE.Vector3(Math.random() * 2 - 1, Math.random() * 0.85 + 0.08, Math.random() * 2 - 1).normalize().multiplyScalar(470)
+  starPos.push(v.x, v.y, v.z)
+}
+const stars = new THREE.Points(new THREE.BufferGeometry().setAttribute('position', new THREE.Float32BufferAttribute(starPos, 3)), new THREE.PointsMaterial({ color: 0xffffff, size: 1.4, sizeAttenuation: false, transparent: true, opacity: 0, depthWrite: false }))
+scene.add(stars)
 scene.fog = new THREE.Fog(0xe39a6a, 28, gfx().fog)
 
 const PAL = ['#6e4b32', '#8d6844', '#3c342b', '#c6a36b', '#6a6763', '#243833'].map(h => new THREE.Color(h))
@@ -226,6 +243,10 @@ function buildCamps() {
   const quarry = world.pois.find(p => p.id === 'quarry')
   block(0x8a5a32, quarry.x + 6, quarry.y + 0.6, quarry.z + 2, 1.4, 1.2, 1.4)
   block(0x5c6a72, quarry.x + 8, quarry.y + 0.8, quarry.z - 1, 1.6, 1.6, 1.2)
+  const cairn = world.pois.find(p => p.id === 'cairn')
+  block(0x8d887f, cairn.x, cairn.y + 0.35, cairn.z, 0.7, 0.7, 0.7)
+  block(0x6e6a64, cairn.x + 0.15, cairn.y + 0.9, cairn.z - 0.1, 0.45, 0.45, 0.45)
+  for (const p of world.pois) if (p.kind === 'store') buildStore(p)
   const sign = document.createElement('canvas')
   sign.width = 256; sign.height = 64
   const sg = sign.getContext('2d')
@@ -237,6 +258,24 @@ function buildCamps() {
   board.position.set(y.x - 7, y.y + 2.5, y.z + 4.8)
   scene.add(board)
 }
+function buildStore(p) {
+  block(0x6d4a32, p.x + 5.5, p.y + 1.5, p.z, 5.6, 3, 4.2)
+  block(0x2c241c, p.x + 5.5, p.y + 3.15, p.z, 6.2, 0.28, 4.8)
+  block(0xc4552e, p.x + 5.5, p.y + 2.2, p.z + 2.2, 2.4, 0.12, 1.4)
+  block(0xc9ccd0, p.x, p.y + 0.85, p.z + 1.2, 0.7, 1.5, 0.5)
+  block(0x222, p.x, p.y + 1.7, p.z + 1.2, 0.9, 0.16, 0.7)
+  const c = document.createElement('canvas')
+  c.width = 512; c.height = 128
+  const g = c.getContext('2d')
+  g.fillStyle = '#1a120c'; g.fillRect(0, 0, 512, 128)
+  g.fillStyle = '#f0c14a'; g.font = '700 42px Impact, sans-serif'; g.fillText('GENERAL STORE', 24, 52)
+  g.fillStyle = '#f4efe6'; g.font = '28px sans-serif'; g.fillText(p.name + '  ·  fuel', 24, 96)
+  const tex = new THREE.CanvasTexture(c)
+  tex.colorSpace = THREE.SRGBColorSpace
+  const board = new THREE.Mesh(new THREE.PlaneGeometry(4.4, 1.1), new THREE.MeshBasicMaterial({ map: tex }))
+  board.position.set(p.x + 5.5, p.y + 2.35, p.z + 2.16)
+  scene.add(board)
+}
 const beam = new THREE.Mesh(
   new THREE.CylinderGeometry(0.35, 1.4, 46, 8, 1, true),
   new THREE.MeshBasicMaterial({ color: 0xffc14a, transparent: true, opacity: 0.28, side: THREE.DoubleSide, depthWrite: false })
@@ -244,59 +283,138 @@ const beam = new THREE.Mesh(
 scene.add(beam)
 beam.visible = false
 
-let truck, wheels = [], cargo, spot
+let truck, wheels = []
 function buildTruck(spec) {
   if (truck) scene.remove(truck)
   wheels.forEach(w => scene.remove(w))
   wheels = []
   truck = new THREE.Group()
-  const paint = new THREE.MeshStandardMaterial({ color: spec.color, roughness: 0.52, metalness: 0.12 })
-  const dark = new THREE.MeshStandardMaterial({ color: spec.dark, roughness: 0.72, metalness: 0.25 })
-  const glass = new THREE.MeshStandardMaterial({ color: spec.glass, roughness: 0.12, metalness: 0.45 })
-  const glow = new THREE.MeshStandardMaterial({ color: 0xffe1a8, emissive: 0xffb45a, emissiveIntensity: 1.6 })
-  const tail = new THREE.MeshStandardMaterial({ color: 0xff4a3a, emissive: 0xff2a22, emissiveIntensity: 1.2 })
+  const paint = new THREE.MeshStandardMaterial({ color: spec.color, roughness: 0.48, metalness: 0.34 })
+  const dirt = new THREE.MeshStandardMaterial({ color: spec.mud || 0x4a3828, roughness: 0.94, metalness: 0.04 })
+  const dark = new THREE.MeshStandardMaterial({ color: spec.dark, roughness: 0.58, metalness: 0.42 })
+  const glass = new THREE.MeshStandardMaterial({ color: spec.glass, roughness: 0.06, metalness: 0.12, transparent: true, opacity: 0.5 })
+  const lampMat = new THREE.MeshStandardMaterial({ color: 0xfff6df, emissive: 0xffe7b0, emissiveIntensity: 0.15, roughness: 0.28 })
+  const tailMat = new THREE.MeshStandardMaterial({ color: 0x6e1612, emissive: 0xff2a18, emissiveIntensity: 0.3 })
+  const roofMat = new THREE.MeshStandardMaterial({ color: 0xfff8ee, emissive: 0xfff1c8, emissiveIntensity: 0.08 })
+  const rubber = new THREE.MeshStandardMaterial({ color: 0x161616, roughness: 0.92 })
+  const steel = new THREE.MeshStandardMaterial({ color: 0xc5c0b6, roughness: 0.32, metalness: 0.72 })
   const L = spec.half[2], W = spec.half[0]
-  const add = (mat, w, h, d, x, y, z) => {
+  const scout = spec.id === 'scout'
+  const box = (mat, w, h, d, x, y, z) => {
     const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat)
     m.position.set(x, y, z)
     m.castShadow = true
     truck.add(m)
     return m
   }
-  add(dark, W * 1.85, 0.42, L * 1.85, 0, 0.02, 0)
-  add(paint, W * 1.7, 0.32, L * 0.55, 0, 0.38, L * 0.52)
-  add(paint, W * 1.6, 0.72, L * 0.62, 0, 0.72, -L * 0.02)
-  add(glass, W * 1.42, 0.38, L * 0.48, 0, 0.9, L * 0.02)
-  add(dark, W * 1.72, 0.28, L * 0.7, 0, 0.42, -L * 0.62)
-  add(dark, W * 1.95, 0.18, 0.16, 0, 0.04, L * 0.96)
-  add(glow, 0.22, 0.14, 0.08, -W * 0.55, 0.28, L * 0.98)
-  add(glow, 0.22, 0.14, 0.08, W * 0.55, 0.28, L * 0.98)
-  add(tail, 0.18, 0.14, 0.08, -W * 0.62, 0.32, -L * 0.94)
-  add(tail, 0.18, 0.14, 0.08, W * 0.62, 0.32, -L * 0.94)
-  const snorkel = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.9, 6), dark)
-  snorkel.position.set(-W * 0.95, 0.7, L * 0.35)
-  truck.add(snorkel)
-  cargo = add(new THREE.MeshStandardMaterial({ color: 0x8a5a32, roughness: 0.8 }), 0.7, 0.55, 0.7, 0, 0.78, -L * 0.6)
-  cargo.visible = false
-  spot = new THREE.SpotLight(0xfff1d0, gfx().shadow ? 12 : 0, 26, 0.55, 0.45, 1.2)
-  spot.position.set(0, 0.7, L * 0.9)
-  const tgt = new THREE.Object3D()
-  tgt.position.set(0, 0.2, L * 0.9 + 12)
-  truck.add(spot, tgt)
-  spot.target = tgt
+  box(dirt, W * 1.72, 0.2, L * 1.92, 0, -0.04, 0)
+  box(dirt, 0.14, 0.16, L * 1.45, -W * 0.92, 0.06, 0)
+  box(dirt, 0.14, 0.16, L * 1.45, W * 0.92, 0.06, 0)
+  box(paint, W * 1.5, 0.2, L * 0.7, 0, 0.28, L * 0.46)
+  box(paint, W * 1.46, 0.58, scout ? L * 0.72 : L * 0.58, 0, 0.68, scout ? 0.02 : -0.12)
+  const wind = new THREE.Mesh(new THREE.PlaneGeometry(W * 1.22, 0.4), glass)
+  wind.position.set(0, 0.74, L * 0.2)
+  wind.rotation.x = -0.42
+  truck.add(wind)
+  const cabZ = scout ? 0.02 : -0.12
+  const cabD = scout ? L * 0.72 : L * 0.58
+  for (const s of [-1, 1]) {
+    const side = new THREE.Mesh(new THREE.PlaneGeometry(cabD * 0.62, 0.28), glass)
+    side.position.set(s * W * 0.74, 0.78, cabZ)
+    side.rotation.y = s > 0 ? Math.PI / 2 : -Math.PI / 2
+    truck.add(side)
+    box(dark, 0.05, 0.1, 0.18, s * (W * 0.86), 0.82, L * 0.02)
+  }
+  if (!scout) {
+    box(dark, W * 1.52, 0.2, L * 0.78, 0, 0.26, -L * 0.62)
+    box(paint, 0.08, 0.32, L * 0.78, -W * 0.76, 0.46, -L * 0.62)
+    box(paint, 0.08, 0.32, L * 0.78, W * 0.76, 0.46, -L * 0.62)
+    box(paint, W * 1.52, 0.28, 0.08, 0, 0.46, -L * 0.98)
+  } else box(dark, W * 1.35, 0.18, L * 0.42, 0, 0.26, -L * 0.72)
+  for (const [sx, sz] of [[-1, 1], [1, 1], [-1, -1], [1, -1]]) box(paint, W * 0.52, 0.14, 0.62, sx * W * 0.7, 0.22, sz * (scout ? L * 0.55 : L * 0.62))
+  box(steel, W * 1.85, 0.14, 0.12, 0, 0.1, L * 0.96)
+  box(dark, W * 1.65, 0.12, 0.1, 0, 0.12, -L * 1.0)
+  box(dark, W * 0.62, 0.26, 0.05, 0, 0.32, L * 0.86)
+  for (let i = -1; i <= 1; i++) box(steel, W * 0.55, 0.025, 0.03, 0, 0.32 + i * 0.07, L * 0.9)
+  for (const s of [-1, 1]) {
+    box(dark, 0.2, 0.16, 0.08, s * W * 0.46, 0.32, L * 0.9)
+    const lens = new THREE.Mesh(new THREE.CircleGeometry(0.065, 12), lampMat)
+    lens.position.set(s * W * 0.46, 0.32, L * 0.95)
+    truck.add(lens)
+    box(tailMat, 0.16, 0.09, 0.05, s * W * 0.58, 0.3, -L * 1.02)
+  }
+  box(dark, W * 1.15, 0.04, cabD * 0.75, 0, 1.02, cabZ)
+  for (const s of [-1, 1]) {
+    const lamp = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.08, 0.1), roofMat)
+    lamp.position.set(s * 0.28, 1.1, cabZ + 0.05)
+    truck.add(lamp)
+  }
+  if (!scout) {
+    const sn = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, 0.8, 6), dark)
+    sn.position.set(-W * 0.82, 0.7, L * 0.22)
+    truck.add(sn)
+  }
+  const spare = new THREE.Mesh(new THREE.TorusGeometry(spec.wheelR * 0.62, 0.08, 6, 12), rubber)
+  spare.rotation.y = Math.PI / 2
+  spare.position.set(0, 0.55, -L * 1.02)
+  truck.add(spare)
+  const axleMat = steel
+  box(axleMat, W * 1.7, 0.06, 0.06, 0, 0.02, L * 0.55)
+  box(axleMat, W * 1.7, 0.06, 0.06, 0, 0.02, -L * 0.55)
+  const lamps = []
+  for (const s of [-1, 1]) {
+    const spot = new THREE.SpotLight(0xfff4d4, 0, 40, 0.5, 0.42, 1)
+    spot.position.set(s * W * 0.42, 0.4, L * 0.9)
+    const tgt = new THREE.Object3D()
+    tgt.position.set(s * W * 0.12, -0.55, L + 24)
+    truck.add(spot, tgt)
+    spot.target = tgt
+    if (gfx().shadow) {
+      spot.castShadow = true
+      spot.shadow.mapSize.set(512, 512)
+      spot.shadow.camera.near = 0.4
+      spot.shadow.camera.far = 55
+      spot.shadow.bias = -0.0012
+    }
+    lamps.push(spot)
+  }
+  truck.userData = { lampMat, tailMat, roofMat, lamps }
   scene.add(truck)
-  const geo = new THREE.CylinderGeometry(spec.wheelR, spec.wheelR, 0.28, 14)
+  const geo = new THREE.CylinderGeometry(spec.wheelR, spec.wheelR, 0.3, 16)
   geo.rotateZ(Math.PI / 2)
-  const tire = new THREE.MeshStandardMaterial({ color: 0x1a1a1a, roughness: 0.85 })
+  const tread = new THREE.TorusGeometry(spec.wheelR * 0.9, 0.045, 4, 16)
+  tread.rotateY(Math.PI / 2)
+  const rimGeo = new THREE.CylinderGeometry(spec.wheelR * 0.42, spec.wheelR * 0.42, 0.32, 10)
+  rimGeo.rotateZ(Math.PI / 2)
   for (let i = 0; i < 4; i++) {
-    const wheel = new THREE.Mesh(geo, tire)
-    const hub = new THREE.Mesh(new THREE.CylinderGeometry(spec.wheelR * 0.45, spec.wheelR * 0.45, 0.3, 8), dark)
-    hub.rotation.z = Math.PI / 2
-    wheel.add(hub)
+    const wheel = new THREE.Mesh(geo, rubber)
+    wheel.add(new THREE.Mesh(tread, rubber))
+    const rim = new THREE.Mesh(rimGeo, steel)
+    wheel.add(rim)
     wheel.castShadow = true
     scene.add(wheel)
     wheels.push(wheel)
   }
+}
+function updateLamps() {
+  const ud = truck && truck.userData
+  if (!ud) return
+  const dark = isDark(save.clock)
+  const modeL = save.lights || 'auto'
+  const on = modeL === 'on' || (modeL === 'auto' && dark)
+  const hi = !!(on && save.highbeam)
+  for (const s of ud.lamps) {
+    s.intensity = on ? (hi ? 34 : 18) : 0
+    s.distance = hi ? 68 : 40
+    s.angle = hi ? 0.32 : 0.5
+  }
+  ud.lampMat.emissiveIntensity = on ? (hi ? 3.2 : 2.1) : 0.12
+  ud.roofMat.emissiveIntensity = on ? 1.8 : 0.05
+  ud.tailMat.emissiveIntensity = dark ? 1.4 : 0.28
+  const btn = $('btn-lights')
+  if (btn) btn.textContent = modeL === 'auto' ? 'AUTO' : modeL === 'on' ? 'ON' : 'OFF'
+  const beam = $('btn-beam')
+  if (beam) { beam.classList.toggle('on', hi); beam.disabled = !on }
 }
 function paintMap(target) {
   const n = world.gridN
@@ -322,24 +440,33 @@ mapBake.width = mapBake.height = world.gridN
 paintMap(mapBake)
 
 function applyTime(t) {
-  const elev = -0.05 + t * 0.95
-  const fogC = new THREE.Color().setRGB(0.1, 0.12, 0.16).lerp(new THREE.Color('#e39a6a'), Math.min(1, t / 0.4))
-  if (t > 0.4) fogC.lerp(new THREE.Color('#c5d6e4'), (t - 0.4) / 0.6)
+  const ang = (t - 0.25) * Math.PI * 2
+  const elev = Math.sin(ang)
+  const day = Math.max(0, elev)
+  const fogC = new THREE.Color('#070b14')
+  if (elev > -0.2) fogC.lerp(new THREE.Color('#e39a6a'), Math.min(1, (elev + 0.2) / 0.45))
+  if (elev > 0.35) fogC.lerp(new THREE.Color('#c5d6e4'), (elev - 0.35) / 0.65)
   scene.fog.color.copy(fogC)
-  scene.fog.far = gfx().fog
+  scene.fog.near = 18 + day * 12
+  scene.fog.far = gfx().fog * (0.55 + day * 0.45)
   renderer.setClearColor(fogC)
-  const sunC = new THREE.Color('#9db4d4').lerp(new THREE.Color('#ffb068'), Math.min(1, t / 0.45))
-  if (t > 0.45) sunC.lerp(new THREE.Color('#fff4dc'), (t - 0.45) / 0.55)
-  sun.color.copy(sunC)
-  sun.intensity = 0.35 + t * 2.3
-  hemi.color.set(t < 0.3 ? '#203048' : '#ffd0a8')
-  hemi.intensity = 0.25 + t * 0.45
-  const dir = new THREE.Vector3(-0.9, Math.max(0.08, elev), 0.35).normalize()
+  renderer.toneMappingExposure = 0.72 + day * 0.38
+  sun.color.copy(new THREE.Color('#9db4ff').lerp(new THREE.Color('#ffb068'), Math.min(1, day * 1.4 + 0.2)))
+  if (day > 0.45) sun.color.lerp(new THREE.Color('#fff4dc'), (day - 0.45) / 0.55)
+  sun.intensity = day * 2.7
+  hemi.color.set(day < 0.25 ? '#1a2740' : '#ffd0a8')
+  hemi.groundColor.set(day < 0.2 ? '#100e0c' : '#3a2a22')
+  hemi.intensity = 0.05 + day * 0.55
+  fill.intensity = 0.05 + day * 0.62
+  const dir = new THREE.Vector3(Math.cos(ang), Math.max(-0.05, elev), Math.sin(ang) * 0.55).normalize()
   skyMat.uniforms.sun.value.copy(dir)
   skyMat.uniforms.elev.value = elev
+  moon.intensity = Math.max(0, -elev) * 0.42
+  moon.color.set('#c5d4ff')
+  stars.material.opacity = Math.max(0, Math.min(1, -elev * 1.3))
   return dir
 }
-let sunDir = applyTime(save.settings.time)
+let sunDir = applyTime(save.clock)
 
 function persist() {
   try { localStorage.setItem(SAVE_KEY, JSON.stringify(save)) } catch (e) {}
@@ -434,10 +561,6 @@ function syncTruck() {
       wheels[i].quaternion.set(t.quaternion.x, t.quaternion.y, t.quaternion.z, t.quaternion.w)
     }
   }
-  if (cargo) {
-    const job = JOBS.find(j => j.id === save.active)
-    cargo.visible = !!(job && job.kind === 'deliver')
-  }
 }
 function updateCamera(dt) {
   const c = sim.chassis
@@ -473,53 +596,79 @@ function updateCamera(dt) {
     if (camera.position.y < gy) camera.position.y = gy
     camera.lookAt(lookAt)
   }
-  sunDir = applyTime(save.settings.time)
-  sun.position.set(p.x + sunDir.x * 42, p.y + 10 + Math.max(0, sunDir.y) * 36, p.z + sunDir.z * 42)
+  sunDir = applyTime(save.clock)
+  sun.position.set(p.x + sunDir.x * 48, p.y + Math.max(6, sunDir.y * 48), p.z + sunDir.z * 48)
   sun.target.position.set(p.x, p.y, p.z)
+  moon.position.set(p.x - sunDir.x * 40, p.y + 30, p.z - sunDir.z * 40)
+  moon.target.position.set(p.x, p.y, p.z)
   sky.position.copy(camera.position)
+  stars.position.copy(camera.position)
 }
-function activePoi() {
-  const job = JOBS.find(j => j.id === save.active)
-  if (!job) return null
-  return world.pois.find(p => p.id === job.poi)
+const poiById = Object.fromEntries(world.pois.map(p => [p.id, p]))
+function nearStore() {
+  const c = sim.chassis
+  if (!c) return null
+  let best = null, bd = 1e9
+  for (const p of world.pois) {
+    if (p.kind !== 'store') continue
+    const d = Math.hypot(c.position.x - p.x, c.position.z - p.z)
+    if (d < p.r && d < bd) { best = p; bd = d }
+  }
+  return best
+}
+function currentStep() {
+  if (!save.active) return null
+  const adv = ADVENTURES.find(a => a.id === save.active.id)
+  return adv ? { adv, step: adv.steps[save.active.step] } : null
 }
 function updateGame(dt) {
   const c = sim.chassis
   if (!c) return
+  if (save.settings.cycle > 0) save.clock = (save.clock + dt / (save.settings.cycle * 60)) % 1
   for (const p of world.pois) {
-    if (save.discovered.includes(p.id)) continue
-    if (Math.hypot(c.position.x - p.x, c.position.z - p.z) < 20) {
+    if (p.kind === 'store' || save.discovered.includes(p.id)) continue
+    if (Math.hypot(c.position.x - p.x, c.position.z - p.z) < 18) {
       save.discovered.push(p.id)
-      save.money += 25
-      toast('Discovered ' + p.name + '  +$25')
+      toast('Found ' + p.name)
       persist()
     }
   }
-  const poi = activePoi()
-  if (poi && Math.hypot(c.position.x - poi.x, c.position.z - poi.z) < poi.r && Math.abs(lastSpeed) < 6) {
-    const job = JOBS.find(j => j.id === save.active)
-    const pay = jobPay(save, job)
-    save.money += pay
-    if (!save.done.includes(job.id)) save.done.push(job.id)
-    save.active = null
-    toast(job.name + ' complete  +$' + pay)
-    persist()
+  const cur = currentStep()
+  if (cur) {
+    const res = tickAdventure(save, {
+      x: c.position.x, z: c.position.z, speed: lastSpeed, clock: save.clock, dt,
+      water: world.surface(c.position.x, c.position.z) === SURF.water,
+      ford: world.ford, pois: poiById
+    })
+    if (res && res.advanced) { toast(res.step.text); persist() }
+    if (res && res.done) { toast(res.adv.name + '  +' + res.gain + ' rep' + (res.stars > 1 ? '  ★'.repeat(res.stars) : '')); persist() }
   }
   if (mode === 'play') {
     saveAcc += dt
     if (saveAcc > 4) { saveAcc = 0; capturePose(); persist() }
   }
-  const job = JOBS.find(j => j.id === save.active)
-  if (job && poi) {
+  const now = currentStep()
+  if (now) {
+    const step = now.step
+    const poi = step.poi ? poiById[step.poi] : world.ford
     const dist = Math.hypot(c.position.x - poi.x, c.position.z - poi.z)
-    $('objective').textContent = job.name + ' · ' + Math.round(dist) + ' m'
+    $('objective').textContent = now.adv.name + ' · ' + step.text + ' · ' + Math.round(dist) + ' m'
     beam.visible = true
-    beam.position.set(poi.x, poi.y + 24, poi.z)
+    const gy = step.poi && poiById[step.poi] ? poiById[step.poi].y : world.height(poi.x, poi.z)
+    beam.position.set(poi.x, gy + 24, poi.z)
   } else {
-    $('objective').textContent = atYard() ? 'At the yard — J opens jobs' : 'Pick up a job — press J'
+    $('objective').textContent = nearStore() ? nearStore().name + ' — E for the store' : 'J opens adventures'
     beam.visible = false
   }
   $('fliphint').classList.toggle('show', sim.upright() < 0.32)
+  const storeBtn = $('btn-store')
+  if (storeBtn) storeBtn.hidden = !nearStore()
+  const can = $('btn-jerry')
+  if (can) {
+    can.hidden = jerrySlots(save.rep) === 0 && !save.jerry
+    can.textContent = 'CAN ' + (save.jerry || 0)
+    can.disabled = !save.jerry
+  }
 }
 function drawMap(canvas, big) {
   const g = canvas.getContext('2d')
@@ -529,14 +678,17 @@ function drawMap(canvas, big) {
   for (const p of world.pois) {
     const [x, y] = px(p.x, p.z)
     const known = save.discovered.includes(p.id)
-    g.fillStyle = p.id === (activePoi() && activePoi().id) ? '#ffb000' : known ? '#f4efe6' : '#888'
+    const cur = currentStep()
+    const targetId = cur && cur.step.poi
+    if (p.kind === 'hidden' && !known && targetId !== p.id) continue
+    g.fillStyle = p.kind === 'store' ? '#3ec6b0' : p.id === targetId ? '#ffb000' : known ? '#f4efe6' : '#888'
     g.beginPath()
     g.arc(x, y, big ? 7 : 3.5, 0, Math.PI * 2)
     g.fill()
     if (big) {
       g.fillStyle = '#f4efe6'
       g.font = '16px sans-serif'
-      g.fillText(known ? p.name : '?', x + 8, y + 4)
+      g.fillText(p.kind === 'store' || known ? p.name : '?', x + 8, y + 4)
     }
   }
   const c = sim.chassis
@@ -557,19 +709,24 @@ function updateHud() {
   const mph = Math.abs(lastSpeed) * 2.237
   $('speed').textContent = String(Math.round(mph))
   $('gear').textContent = lastSpeed < -0.5 ? 'R' : 'D'
-  const fuelPct = Math.max(0, save.fuel / TANK) * 100
+  const cap = tankCapacity(save)
+  const fuelPct = Math.max(0, save.fuel / cap) * 100
   $('fuelbar').style.width = fuelPct + '%'
-  $('fuelbar').classList.toggle('low', save.fuel < TANK * 0.2)
-  $('fuellabel').textContent = save.fuel.toFixed(1) + ' gal'
-  $('money').textContent = '$' + save.money
+  $('fuelbar').classList.toggle('low', save.fuel < cap * 0.2)
+  $('fuellabel').textContent = save.fuel.toFixed(1) + '/' + cap
+  const clk = clockLabel(save.clock)
+  $('clock').textContent = clk.text + ' ' + clk.phase
+  const rk = rankFor(save.rep)
+  $('rep').textContent = rk.name + ' · ' + save.rep
   $('surface').textContent = (SURF_NAME[Math.round(lastSurf)] || 'dirt').toUpperCase()
   $('btn-lock').classList.toggle('on', lockOn)
   drawMap($('minimap'), false)
   if ($('mapfull').classList.contains('show')) drawMap($('mapbig'), true)
-  const poi = activePoi()
+  const curP = currentStep()
+  const poi = curP && curP.step.poi ? poiById[curP.step.poi] : curP && curP.step.kind === 'ford' ? { x: world.ford.x, y: world.height(world.ford.x, world.ford.z), z: world.ford.z, name: 'The ford' } : null
   const label = $('poi-label')
   if (!poi || mode !== 'play') { label.style.display = 'none'; return }
-  const v = new THREE.Vector3(poi.x, poi.y + 4, poi.z)
+  const v = new THREE.Vector3(poi.x, (poi.y || 0) + 4, poi.z)
   camera.getWorldDirection(camFwd)
   const inFront = v.clone().sub(camera.position).dot(camFwd) > 0
   const ndc = v.project(camera)
@@ -583,57 +740,58 @@ function updateHud() {
   label.style.display = 'block'
   label.style.left = sx + 'px'
   label.style.top = sy + 'px'
-  label.textContent = (clamped ? '▸ ' : '') + poi.name
+  const cur = currentStep()
+  const name = (cur && cur.step.poi && poiById[cur.step.poi] && poiById[cur.step.poi].name) || (cur && cur.step.text) || ''
+  label.textContent = (clamped ? '▸ ' : '') + name
 }
-function fillJobs() {
+function fillAdventures() {
   const box = $('job-list')
   box.replaceChildren()
-  for (const job of JOBS) {
+  const head = document.createElement('p')
+  head.className = 'note'
+  const rk = rankFor(save.rep)
+  head.textContent = rk.name + ' · ' + save.rep + ' reputation. A clean run or a fast climb earns extra.'
+  box.appendChild(head)
+  for (const adv of ADVENTURES) {
     const row = document.createElement('div')
     row.className = 'job'
-    const pay = jobPay(save, job)
+    const cleared = save.cleared[adv.id]
+    const active = save.active && save.active.id === adv.id
     row.innerHTML = '<b></b><span></span>'
-    row.querySelector('b').textContent = job.name + (save.active === job.id ? ' · active' : '') + '  $' + pay
-    row.querySelector('span').textContent = job.text
+    row.querySelector('b').textContent = adv.name + ' · ' + adv.diff + ' · ' + adv.rep + ' rep' + (cleared ? '  ' + '★'.repeat(cleared.stars) : '')
+    const stepNote = active ? ' Now: ' + adv.steps[save.active.step].text + '.' : ''
+    row.querySelector('span').textContent = adv.text + stepNote
     const btn = document.createElement('button')
     btn.type = 'button'
-    btn.textContent = save.active === job.id ? 'On the board' : 'Take job'
-    btn.disabled = save.active === job.id
-    btn.onclick = () => { save.active = job.id; toast(job.name); persist(); fillJobs() }
+    btn.textContent = active ? 'Under way' : cleared ? 'Ride it again' : 'Take adventure'
+    btn.disabled = !!active
+    btn.onclick = () => {
+      save.active = { id: adv.id, step: 0, elapsed: 0, resets: 0 }
+      toast(adv.name)
+      persist(); fillAdventures()
+    }
     row.appendChild(btn)
     box.appendChild(row)
   }
 }
 function fillGarage() {
   const here = atYard()
-  $('garage-note').textContent = here ? 'The yard pumps are open.' : 'You can look. Buying and fuel wait until you roll back to Oxbow Yard.'
+  $('garage-note').textContent = here ? rankFor(save.rep).name + ' · ' + save.rep + ' rep. The yard will fit what your name allows.' : 'Look around. Parts are fitted only at Oxbow Yard. Fuel and cans are at the general stores.'
   const box = $('garage-body')
   box.replaceChildren()
-  const fuel = refuelQuote(save.fuel)
-  const ref = document.createElement('button')
-  ref.type = 'button'
-  ref.textContent = fuel.missing < 0.05 ? 'Tank is full' : 'Fill the tank — $' + fuel.cost
-  ref.disabled = !here || fuel.missing < 0.05 || save.money < fuel.cost
-  ref.onclick = () => {
-    save.money -= fuel.cost
-    save.fuel = TANK
-    toast('Tank full')
-    persist(); fillGarage()
-  }
-  box.appendChild(ref)
   for (const id of Object.keys(UPGRADES)) {
     const u = UPGRADES[id]
     const level = save.upgrades[id] || 0
-    const cost = level >= u.max ? null : u.cost[level + 1]
+    const need = level >= u.max ? null : u.need[level]
     const row = document.createElement('div')
-    row.className = 'up'
+    row.className = 'up' + (need != null && save.rep < need ? ' locked' : '')
     row.innerHTML = '<b></b><span></span>'
     row.querySelector('b').textContent = u.name + '  ' + level + '/' + u.max
-    row.querySelector('span').textContent = u.blurb
+    row.querySelector('span').textContent = u.blurb + (need == null ? '' : ' Needs ' + rankFor(need).name + ' (' + need + ' rep).')
     const btn = document.createElement('button')
     btn.type = 'button'
-    btn.textContent = cost == null ? 'Maxed' : 'Buy — $' + cost
-    btn.disabled = !here || cost == null || save.money < cost
+    btn.textContent = need == null ? 'Maxed' : save.rep < need ? 'Locked · ' + need + ' rep' : 'Fit it'
+    btn.disabled = !here || need == null || save.rep < need
     btn.onclick = () => {
       const next = buyUpgrade(save, id)
       if (!next) return
@@ -651,19 +809,18 @@ function fillGarage() {
     const v = VEHICLES[id]
     const owned = save.owned.includes(id)
     const row = document.createElement('div')
-    row.className = 'up'
+    row.className = 'up' + (!owned && save.rep < v.need ? ' locked' : '')
     row.innerHTML = '<b></b><span></span>'
     row.querySelector('b').textContent = v.name + (save.vehicle === id ? ' · out' : '')
-    row.querySelector('span').textContent = owned ? 'In the shed.' : 'A lighter truck. Quicker, worse in the mud. $' + v.price
+    row.querySelector('span').textContent = owned ? 'In the shed.' : 'Lighter, quicker, worse in the mud. Needs ' + v.need + ' rep.'
     const btn = document.createElement('button')
     btn.type = 'button'
-    if (!owned) btn.textContent = 'Buy — $' + v.price
+    if (!owned) btn.textContent = save.rep < v.need ? 'Locked · ' + v.need + ' rep' : 'Take the keys'
     else btn.textContent = save.vehicle === id ? 'Driving it' : 'Take it out'
-    btn.disabled = !here || (!owned && save.money < v.price) || (owned && save.vehicle === id)
+    btn.disabled = !here || (!owned && save.rep < v.need) || (owned && save.vehicle === id)
     btn.onclick = () => {
-      let next = save
       if (!owned) {
-        next = buyVehicle(save, id)
+        const next = buyVehicle(save, id)
         if (!next) return
         save = next
       } else save.vehicle = id
@@ -675,25 +832,63 @@ function fillGarage() {
     row.appendChild(btn)
     box.appendChild(row)
   }
-  const tow = document.createElement('button')
-  tow.type = 'button'
-  tow.className = 'ghost'
-  tow.textContent = 'Tow to the yard — $60'
-  tow.disabled = save.money < 60
-  tow.onclick = () => {
-    save.money -= 60
-    sim.place(yard.x, yard.z + 8, 0)
-    toast('Back at the yard')
-    persist(); fillGarage()
-  }
-  box.appendChild(tow)
+}
+function fillStore() {
+  const here = nearStore()
+  $('store-note').textContent = here ? here.name + '. The pump is free. You still have to be here to use it.' : 'Roll up to a general store.'
+  const box = $('store-body')
+  box.replaceChildren()
+  const cap = tankCapacity(save)
+  const ref = document.createElement('button')
+  ref.type = 'button'
+  ref.textContent = save.fuel >= cap - 0.05 ? 'Tank is full (' + cap + ' gal)' : 'Fill the tank — free'
+  ref.disabled = !here || save.fuel >= cap - 0.05
+  ref.onclick = () => { save = refuel(save); toast('Tank full'); persist(); fillStore() }
+  box.appendChild(ref)
+  const level = save.aux || 0
+  const need = level >= AUX.max ? null : AUX.need[level]
+  const aux = document.createElement('div')
+  aux.className = 'up' + (need != null && save.rep < need ? ' locked' : '')
+  aux.innerHTML = '<b></b><span></span>'
+  aux.querySelector('b').textContent = AUX.name + '  ' + level + '/' + AUX.max + ' · ' + cap + ' gal'
+  aux.querySelector('span').textContent = AUX.blurb + (need == null ? '' : ' Next +' + AUX.add[level] + ' gal needs ' + need + ' rep.')
+  const ab = document.createElement('button')
+  ab.type = 'button'
+  ab.textContent = need == null ? 'Maxed' : save.rep < need ? 'Locked · ' + need + ' rep' : 'Fit auxiliary tank'
+  ab.disabled = !here || need == null || save.rep < need
+  ab.onclick = () => { const n = buyAux(save); if (!n) return; save = n; toast('Tank is now ' + tankCapacity(save) + ' gal'); persist(); fillStore() }
+  aux.appendChild(ab)
+  box.appendChild(aux)
+  const slots = jerrySlots(save.rep)
+  const nextSlot = slots < JERRY.need.length ? JERRY.need[slots] : null
+  const row = document.createElement('div')
+  row.className = 'up' + (slots === 0 ? ' locked' : '')
+  row.innerHTML = '<b></b><span></span>'
+  row.querySelector('b').textContent = 'Jerry cans  ' + (save.jerry || 0) + '/' + Math.max(slots, save.jerry || 0)
+  row.querySelector('span').textContent = JERRY.blurb + (nextSlot != null ? ' Next can at ' + nextSlot + ' rep.' : '')
+  const jb = document.createElement('button')
+  jb.type = 'button'
+  jb.textContent = (save.jerry || 0) >= slots ? (nextSlot != null ? 'Locked · ' + nextSlot + ' rep' : 'Carrying all you can') : 'Take a can'
+  jb.disabled = !here || (save.jerry || 0) >= slots
+  jb.onclick = () => { const n = buyJerry(save); if (!n) return; save = n; toast('Jerry can in the rack'); persist(); fillStore() }
+  row.appendChild(jb)
+  box.appendChild(row)
 }
 function syncSettings() {
   $('gfx').value = save.settings.gfx
-  $('time').value = String(Math.round(save.settings.time * 100))
+  $('cycle').value = String(save.settings.cycle)
   $('tilt').checked = !!save.settings.tilt
   $('sound').checked = save.settings.sound !== false
   $('shake').checked = save.settings.shake !== false
+}
+function doReset() {
+  if (save.active) save.active.resets = (save.active.resets || 0) + 1
+  sim.reset()
+  toast('Back on your wheels')
+}
+function cycleLights() {
+  save.lights = save.lights === 'auto' ? 'on' : save.lights === 'on' ? 'off' : 'auto'
+  persist()
 }
 function hold(id, key) {
   const el = $(id)
@@ -711,7 +906,11 @@ hold('btn-right', 'right')
 hold('btn-winch', 'winch')
 hold('btn-hand', 'hand')
 $('btn-lock').onclick = () => { lockOn = !lockOn }
-$('btn-reset').onclick = () => { sim.reset(); toast('Back on your wheels') }
+$('btn-reset').onclick = () => doReset()
+$('btn-lights').onclick = () => cycleLights()
+$('btn-beam').onclick = () => { save.highbeam = !save.highbeam; persist() }
+$('btn-store').onclick = () => { if (nearStore() && mode === 'play') { fillStore(); showPanel('store') } }
+$('btn-jerry').onclick = () => { const n = useJerry(save); if (!n) return; save = n; toast('Poured 5 gal'); persist() }
 $('btn-cam').onclick = () => {
   camMode = camMode === 'chase' ? 'hood' : camMode === 'hood' ? 'orbit' : 'chase'
   toast(camMode === 'chase' ? 'Chase' : camMode === 'hood' ? 'Hood' : 'Orbit')
@@ -720,10 +919,11 @@ $('btn-map').onclick = () => { if (mode === 'play') { showPanel('mapfull'); draw
 $('btn-menu').onclick = () => { if (mode === 'play') showPanel('pause') }
 $('btn-resume').onclick = closePanels
 $('btn-quit').onclick = () => { capturePose(); persist(); enterTitle() }
-$('btn-jobs').onclick = () => { fillJobs(); showPanel('jobs') }
+$('btn-jobs').onclick = () => { fillAdventures(); showPanel('jobs') }
 $('btn-garage').onclick = () => { fillGarage(); showPanel('garage') }
 $('btn-jobs-close').onclick = () => showPanel('pause')
 $('btn-garage-close').onclick = () => showPanel('pause')
+$('btn-store-close').onclick = () => closePanels()
 $('btn-map-close').onclick = closePanels
 $('btn-help').onclick = () => showPanel('help')
 $('btn-pause-help').onclick = () => showPanel('help')
@@ -737,7 +937,7 @@ $('gfx').onchange = () => {
   sessionStorage.setItem('oxbow_hot', mode === 'play' || mode === 'pause' ? '1' : '0')
   location.reload()
 }
-$('time').oninput = () => { save.settings.time = Number($('time').value) / 100; sunDir = applyTime(save.settings.time) }
+$('cycle').onchange = () => { save.settings.cycle = Number($('cycle').value); persist() }
 $('tilt').onchange = () => { save.settings.tilt = $('tilt').checked; persist() }
 $('sound').onchange = () => { save.settings.sound = $('sound').checked; persist() }
 $('shake').onchange = () => { save.settings.shake = $('shake').checked; persist() }
@@ -763,10 +963,13 @@ document.addEventListener('keydown', e => {
   const map = { KeyW: 'w', ArrowUp: 'w', KeyS: 's', ArrowDown: 's', KeyA: 'a', ArrowLeft: 'a', KeyD: 'd', ArrowRight: 'd', Space: 'space', KeyF: 'f' }
   if (map[e.code]) { keys[map[e.code]] = 1; e.preventDefault() }
   if (e.code === 'KeyC') { $('btn-cam').click() }
-  if (e.code === 'KeyR') sim.reset()
+  if (e.code === 'KeyR') doReset()
   if (e.code === 'KeyL') lockOn = !lockOn
+  if (e.code === 'KeyH') cycleLights()
+  if (e.code === 'KeyB') { save.highbeam = !save.highbeam; persist() }
   if (e.code === 'KeyM') $('btn-map').click()
-  if (e.code === 'KeyJ' && mode === 'play') { fillJobs(); showPanel('jobs') }
+  if (e.code === 'KeyE' && nearStore() && mode === 'play') { fillStore(); showPanel('store') }
+  if (e.code === 'KeyJ' && mode === 'play') { fillAdventures(); showPanel('jobs') }
   if (e.code === 'KeyG' && mode === 'play') { fillGarage(); showPanel('garage') }
   if (e.code === 'Escape') { if (mode === 'play') showPanel('pause'); else if (mode === 'pause') closePanels() }
 })
@@ -882,7 +1085,7 @@ function frame(now) {
     while (acc >= 1 / 60 && steps < 3) {
       const r = sim.step(1 / 60, input)
       if (r) { lastSpeed = r.speed; lastSurf = r.surf }
-      if (mode === 'play') sim.pushTrees(world.trees)
+      if (mode === 'play') sim.syncSolids(world.trees, world.rocks)
       acc -= 1 / 60
       steps++
     }
@@ -908,6 +1111,7 @@ function frame(now) {
     if (d.life <= 0) d.m.visible = false
   }
   syncTruck()
+  updateLamps()
   updateCamera(dt)
   if (mode === 'play') updateGame(dt)
   renderer.render(scene, camera)
@@ -926,11 +1130,18 @@ function frame(now) {
 requestAnimationFrame(frame)
 
 window.OX = {
-  OFFROAD_V1,
+  OFFROAD_V2,
   get mode() { return mode },
   get speed() { return lastSpeed },
   get pos() { const c = sim.chassis; return c ? { x: c.position.x, y: c.position.y, z: c.position.z } : null },
   get ready() { return !!sim.chassis },
   get errors() { return errors },
-  get gfx() { return save.settings.gfx }
+  get gfx() { return save.settings.gfx },
+  get clock() { return save.clock },
+  get lights() { return { mode: save.lights, high: !!save.highbeam, on: !!(truck && truck.userData && truck.userData.lamps[0].intensity > 0) } },
+  setClock(t) { save.clock = t; applyTime(t) },
+  setCam(kind, dist, yaw, pitch) { camMode = kind; if (dist) orbitDist = dist; if (yaw != null) orbitYaw = yaw; if (pitch != null) orbitPitch = pitch },
+  open(id) { if (id === 'jobs') fillAdventures(); if (id === 'garage') fillGarage(); if (id === 'store') fillStore(); showPanel(id) },
+  use(id) { save.vehicle = id; if (!save.owned.includes(id)) save.owned.push(id); sim.spawn(id, { x: sim.chassis.position.x, y: sim.chassis.position.y + 0.4, z: sim.chassis.position.z }, save.upgrades); buildTruck(sim.spec) },
+  goto(id) { const p = poiById[id]; if (!p) return; sim.place(p.x + 4, p.z + 6, 0) }
 }

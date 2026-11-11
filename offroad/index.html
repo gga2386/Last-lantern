@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
-<meta name="oxbow-build" content="OFFROAD_V1">
+<meta name="oxbow-build" content="OFFROAD_V2">
 <title>Oxbow — Hollow Creek</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect fill='%23140e0a' width='32' height='32'/%3E%3Cpath fill='%23e4572e' d='M4 22h24l-3-8H7z'/%3E%3Ccircle cx='10' cy='23' r='3' fill='%23f4efe6'/%3E%3Ccircle cx='22' cy='23' r='3' fill='%23f4efe6'/%3E%3C/svg%3E">
 <link rel="stylesheet" href="style.css">
@@ -23,10 +23,13 @@
         <div class="fuel"><div class="track"><div id="fuelbar"></div></div><span id="fuellabel">18 gal</span></div>
         <div id="surface">DIRT</div>
       </div>
-      <div id="objective">Pick up a job</div>
+      <div id="objective">J opens adventures</div>
       <div class="cluster right">
-        <div id="money">$90</div>
+        <div id="clock">10:00 Day</div>
+        <div id="rep">Rookie · 0</div>
         <div class="iconrow">
+          <button type="button" id="btn-lights" title="Headlights">AUTO</button>
+          <button type="button" id="btn-beam" title="High beam">BEAM</button>
           <button type="button" id="btn-cam" title="Camera">CAM</button>
           <button type="button" id="btn-map" title="Map">MAP</button>
           <button type="button" id="btn-menu" title="Menu">MENU</button>
@@ -35,6 +38,8 @@
     </header>
     <canvas id="minimap" width="168" height="168"></canvas>
     <div id="fliphint">You're on your lid. Hit reset.</div>
+    <button type="button" id="btn-store" hidden>STORE</button>
+    <button type="button" id="btn-jerry" hidden>CAN 0</button>
     <footer class="controls">
       <div class="steer">
         <button type="button" id="btn-left" aria-label="Steer left">◀</button>
@@ -72,7 +77,7 @@
     <div class="sheet">
       <h2>Paused</h2>
       <button type="button" id="btn-resume">Resume</button>
-      <button type="button" id="btn-jobs">Jobs</button>
+      <button type="button" id="btn-jobs">Adventures</button>
       <button type="button" id="btn-garage">Garage</button>
       <button type="button" id="btn-pause-help" class="ghost">How to drive</button>
       <button type="button" id="btn-pause-settings" class="ghost">Settings</button>
@@ -82,7 +87,7 @@
 
   <section id="jobs" class="panel">
     <div class="sheet wide">
-      <h2>Job board</h2>
+      <h2>Adventures</h2>
       <div id="job-list"></div>
       <button type="button" id="btn-jobs-close" class="ghost">Close</button>
     </div>
@@ -104,8 +109,8 @@
         <p>Gas is on the right. Brake at a stop puts you in reverse. Steer with the arrows, or A and D on a keyboard. Space is the handbrake.</p>
         <p>LOCK ties the diffs for mud and rock. Hold WINCH to drag yourself forward and back onto your wheels. RESET plants you upright where you are.</p>
         <p>Dirt, trail, sand, mud, rock, and creek water all grip differently. The creek is shallow enough to ford and slow enough to respect.</p>
-        <p>Fuel burns while you drive. Fill up at Oxbow Yard, and buy tires, suspension, the engine, and a stronger winch in the garage. The Ridge Scout is the second truck.</p>
-        <p>Jobs pay when you roll up slow. C cycles chase, hood, and orbit. Drag the view to look around. M is the map.</p>
+        <p>Fuel burns while the engine runs, and it is free — but only a general store pump will fill you. The stores also fit a bigger tank and sell jerry cans you can pour from the CAN button anywhere. Both take reputation, not cash.</p>
+        <p>Adventures pay reputation. Ranks open tires, suspension, the engine, the winch, and the Ridge Scout at the yard garage. Headlights come on at dusk (AUTO). H cycles them, B is high beam. C cycles the camera. J is the board, G is the garage, E is the store.</p>
       </div>
       <button type="button" id="btn-help-close" class="ghost">Close</button>
     </div>
@@ -121,14 +126,29 @@
           <option value="high">High</option>
         </select>
       </label>
-      <label>Time of day
-        <input id="time" type="range" min="0" max="100" value="36">
+      <label>Day length
+        <select id="cycle">
+          <option value="4">4 min</option>
+          <option value="8">8 min</option>
+          <option value="12">12 min</option>
+          <option value="20">20 min</option>
+          <option value="0">Hold the clock</option>
+        </select>
       </label>
       <label class="check"><input id="tilt" type="checkbox"> Tilt to steer</label>
       <label class="check"><input id="sound" type="checkbox" checked> Engine note</label>
       <label class="check"><input id="shake" type="checkbox" checked> Camera shake</label>
       <button type="button" id="btn-wipe" class="danger">Erase this run</button>
       <button type="button" id="btn-settings-close" class="ghost">Close</button>
+    </div>
+  </section>
+
+  <section id="store" class="panel">
+    <div class="sheet wide">
+      <h2>General store</h2>
+      <p id="store-note" class="note"></p>
+      <div id="store-body"></div>
+      <button type="button" id="btn-store-close" class="ghost">Close</button>
     </div>
   </section>
 

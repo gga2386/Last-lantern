@@ -1,11 +1,11 @@
-// OFFROAD_V1 — terrain, economy, and vehicle physics. Run: node offroad/test/sim.js
-import { OFFROAD_V1, createWorld, SURF, FRICTION, DRAG, HALF } from '../js/world.js'
-import { freshSave, buyUpgrade, buyVehicle, burnFuel, jobPay, JOBS, refuelQuote, TANK, specWithUpgrades } from '../js/economy.js'
+// OFFROAD_V2 — terrain, reputation, fuel, and solid trees. Run: node offroad/test/sim.js
+import { createWorld, SURF, FRICTION, DRAG, HALF } from '../js/world.js'
+import { OFFROAD_V2, freshSave, buyUpgrade, buyVehicle, buyAux, buyJerry, useJerry, refuel, burnFuel, coerceSave, tickAdventure, tankCapacity, jerrySlots, isDark, TANK, specWithUpgrades, ADVENTURES } from '../js/economy.js'
 import { createSim, tractionTrial } from '../js/physics.js'
 
 const fails = []
 const fail = m => fails.push(m)
-if (OFFROAD_V1 !== 1) fail('marker missing')
+if (OFFROAD_V2 !== 1) fail('marker missing')
 
 const t0 = performance.now()
 const world = createWorld(1)
@@ -36,7 +36,7 @@ for (let i = 0; i < world.gridN; i += 2) {
 console.log('height', min.toFixed(1), max.toFixed(1), 'cells', { dirt, trail, mud, sand, rock, water })
 if (max - min < 18) fail('terrain is too flat')
 if (!water || !mud || !sand || !rock || !trail || !dirt) fail('a surface type is missing')
-for (const id of ['yard', 'cabin', 'quarry', 'mill', 'lookout']) {
+for (const id of ['yard', 'cabin', 'quarry', 'mill', 'lookout', 'switchback', 'cairn', 'storeyard', 'storewren', 'storequarry', 'storeridge']) {
   const p = world.pois.find(q => q.id === id)
   if (!p) { fail('missing poi ' + id); continue }
   if (Math.abs(p.x) > HALF - 30 || Math.abs(p.z) > HALF - 30) fail(id + ' is outside the map')
@@ -57,24 +57,41 @@ if (!(FRICTION[SURF.mud] < FRICTION[SURF.sand] && FRICTION[SURF.sand] < FRICTION
 if (!(FRICTION[SURF.water] < FRICTION[SURF.mud])) fail('water should be slicker than mud')
 
 let save = freshSave()
-const broke = buyUpgrade(save, 'engine')
-if (broke) fail('bought an engine with no money')
-save.money = 2000
+if (buyUpgrade(save, 'tires')) fail('fitted tires with no reputation')
+if (buyVehicle(save, 'scout')) fail('took the scout with no reputation')
+save.rep = 40
 const up = buyUpgrade(save, 'tires')
-if (!up || up.money !== 1820 || up.upgrades.tires !== 1) fail('tire purchase ' + (up && up.money))
+if (!up || up.upgrades.tires !== 1 || up.rep !== 40) fail('tire fit')
 if (save.upgrades.tires !== 0) fail('purchase mutated the original save')
-const scout = buyVehicle(up, 'scout')
-if (!scout || !scout.owned.includes('scout') || scout.vehicle !== 'scout') fail('scout purchase')
-if (buyVehicle(scout, 'scout')) fail('bought the scout twice')
+save.rep = 160
+const scout = buyVehicle(save, 'scout')
+if (!scout || !scout.owned.includes('scout') || scout.vehicle !== 'scout') fail('scout unlock')
+if (buyVehicle(scout, 'scout')) fail('took the scout twice')
+const aux = buyAux(Object.assign(freshSave(), { rep: 40 }))
+if (!aux || aux.aux !== 1 || tankCapacity(aux) !== TANK + 4) fail('aux tank')
+if (buyJerry(freshSave())) fail('jerry can with no reputation')
+const can = buyJerry(Object.assign(freshSave(), { rep: 40 }))
+if (!can || can.jerry !== 1 || jerrySlots(40) !== 1) fail('jerry purchase')
+const poured = useJerry(can)
+if (!poured || poured.jerry !== 0 || poured.fuel !== TANK) fail('jerry pour when already full')
+const low = useJerry(Object.assign(can, { fuel: 2 }))
+if (!low || low.fuel !== 7) fail('jerry pour ' + (low && low.fuel))
+const full = refuel(Object.assign(freshSave(), { fuel: 3, aux: 1 }))
+if (full.fuel !== tankCapacity(full) || full.fuel <= 3) fail('free refuel')
 const fuelLeft = burnFuel(TANK, 1, 2)
 if (!(fuelLeft < TANK && fuelLeft > TANK - 1)) fail('fuel burn ' + fuelLeft)
 if (burnFuel(0.01, 1, 5) !== 0) fail('fuel went negative')
-const quote = refuelQuote(10)
-if (quote.missing !== 8 || quote.cost !== 32) fail('refuel quote')
-const look = JOBS.find(j => j.id === 'lookout')
-if (jobPay(save, look) !== look.pay) fail('first job pay')
-save.done.push('lookout')
-if (jobPay(save, look) !== Math.round(look.pay * 0.5)) fail('repeat pay')
+const migrated = coerceSave({ v: 1, money: 400, fuel: 9, vehicle: 'mule', owned: ['mule'], upgrades: { tires: 1, susp: 0, engine: 0, winch: 0 }, discovered: ['yard'], done: ['lookout', 'mill'], settings: { time: 0.2, gfx: 'low' }, x: 1, z: 2, qw: 1 }, 'low')
+if (!migrated || migrated.v !== 2 || migrated.money != null) fail('migration kept cash')
+if (migrated.rep !== 45 + 50) fail('migration rep ' + migrated.rep)
+if (!migrated.cleared.nightwatch || !migrated.cleared.ford) fail('migration adventures')
+if (migrated.upgrades.tires !== 1 || migrated.clock !== 0.2) fail('migration kept the truck and the clock')
+if (isDark(0.5) || !isDark(0.05) || !isDark(0.8)) fail('dusk and night window')
+const advSave = freshSave()
+advSave.active = { id: 'south', step: 0, elapsed: 0, resets: 0 }
+const south = world.pois.find(p => p.id === 'switchback')
+const done = tickAdventure(advSave, { x: south.x, z: south.z, speed: 0, clock: 0.5, dt: 0.2, water: false, ford: world.ford, pois: Object.fromEntries(world.pois.map(p => [p.id, p])) })
+if (!done || !done.done || done.gain !== 25 + 8 || advSave.rep !== 33) fail('south adventure ' + JSON.stringify(done))
 const spec = specWithUpgrades('mule', { tires: 2, susp: 2, engine: 2, winch: 1 })
 if (!(spec.force > 3400 && spec.grip > 1 && spec.travel > 0.2 && spec.winch > 650)) fail('upgrades did not change the truck')
 
@@ -120,9 +137,22 @@ const ez = empty.chassis.position.z
 for (let i = 0; i < 90; i++) empty.step(1 / 60, { throttle: 1, brake: 0, steer: 0, handbrake: 0, lock: false, winch: false, fuel: 0 })
 if (Math.abs(empty.chassis.position.z - ez) > 1.5) fail('empty tank still drove')
 
+const tree = world.trees.find(t => Math.abs(t.x - yard.x) < 25 && t.z > yard.z + 12 && t.z < yard.z + 40)
+if (!tree) fail('no tree north of the yard to crash into')
+else {
+  const hit = createSim(world)
+  hit.spawn('mule', { x: tree.x, z: tree.z - 7, y: world.height(tree.x, tree.z - 7) + 2 })
+  hit.syncSolids(world.trees, world.rocks)
+  for (let i = 0; i < 240; i++) hit.step(1 / 60, { throttle: 1, brake: 0, steer: 0, handbrake: 0, lock: false, winch: false, fuel: 18 })
+  const gap = Math.hypot(hit.chassis.position.x - tree.x, hit.chassis.position.z - tree.z)
+  console.log('tree gap', gap.toFixed(2), 'z', hit.chassis.position.z.toFixed(1), 'trunk', tree.z.toFixed(1))
+  if (hit.chassis.position.z > tree.z - 0.8) fail('truck drove through the tree')
+  if (gap < 0.7) fail('truck overlapped the trunk')
+}
+
 if (fails.length) {
   console.error('FAIL')
   fails.forEach(f => console.error(' -', f))
   process.exit(1)
 }
-console.log('OK OFFROAD_V1')
+console.log('OK OFFROAD_V2')

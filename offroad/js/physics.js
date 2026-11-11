@@ -34,6 +34,7 @@ export function createSim(world) {
   addBox(mill.x, mill.y + 2.2, mill.z, 1.1, 2.2, 1.1)
   const look = world.pois.find(p => p.id === 'lookout')
   addBox(look.x, look.y + 3.2, look.z, 1.3, 3.2, 1.3)
+  for (const p of world.pois) if (p.kind === 'store') addBox(p.x + 5.5, (p.y || 0) + 1.4, p.z, 2.8, 1.4, 2.1)
 
   let vehicle = null
   let chassis = null
@@ -143,18 +144,47 @@ export function createSim(world) {
     chassis.torque.set(0, 0, 0)
   }
 
-  function pushTrees(trees) {
+  const solids = new Map()
+  let solidAt = null
+  function syncSolids(trees, rocks) {
+    if (!chassis) return 0
     const x = chassis.position.x, z = chassis.position.z
-    for (const t of trees) {
-      const dx = x - t.x, dz = z - t.z
-      if (Math.abs(dx) > 3 || Math.abs(dz) > 3) continue
-      const d = Math.hypot(dx, dz)
-      const min = 0.85 * t.s
-      if (d < min && d > 0.001) {
-        const k = (min - d) * 9
-        chassis.applyImpulse(new CANNON.Vec3(dx / d * k, 0, dz / d * k), chassis.position)
-      }
+    if (solidAt && (x - solidAt.x) ** 2 + (z - solidAt.z) ** 2 < 36) return solids.size
+    solidAt = { x, z }
+    const keep = new Set()
+    const R2 = 38 * 38
+    const add = (key, body) => { cw.addBody(body); solids.set(key, body) }
+    for (let i = 0; i < trees.length; i++) {
+      const t = trees[i]
+      const dx = t.x - x, dz = t.z - z
+      if (dx * dx + dz * dz > R2) continue
+      const key = 't' + i
+      keep.add(key)
+      if (solids.has(key)) continue
+      const radius = 0.36 * t.s
+      const height = 3.6 * t.s
+      const b = new CANNON.Body({ mass: 0 })
+      b.addShape(new CANNON.Cylinder(radius, radius * 1.15, height, 6))
+      b.position.set(t.x, t.y + height * 0.45, t.z)
+      add(key, b)
     }
+    for (let i = 0; i < rocks.length; i++) {
+      const r = rocks[i]
+      const dx = r.x - x, dz = r.z - z
+      if (dx * dx + dz * dz > R2) continue
+      const key = 'r' + i
+      keep.add(key)
+      if (solids.has(key)) continue
+      const hx = r.rad * 0.45, hy = Math.max(0.9, r.h * 0.6), hz = r.rad * 0.45
+      const b = new CANNON.Body({ mass: 0 })
+      b.addShape(new CANNON.Box(new CANNON.Vec3(hx, hy, hz)))
+      b.position.set(r.x, world.height(r.x, r.z) + hy * 0.45, r.z)
+      add(key, b)
+    }
+    for (const [k, b] of solids) {
+      if (!keep.has(k)) { cw.removeBody(b); solids.delete(k) }
+    }
+    return solids.size
   }
 
   function upright() {
@@ -171,7 +201,7 @@ export function createSim(world) {
     chassis.force.set(0, 0, 0)
     chassis.torque.set(0, 0, 0)
   }
-  return { cw, ground, props, spawn, step, reset, place, pushTrees, upright, get chassis() { return chassis }, get vehicle() { return vehicle }, get spec() { return spec } }
+  return { cw, ground, props, spawn, step, reset, place, syncSolids, upright, get chassis() { return chassis }, get vehicle() { return vehicle }, get spec() { return spec } }
 }
 
 // Flat-ground traction check used by the node test. High grip should out-accelerate ice.
