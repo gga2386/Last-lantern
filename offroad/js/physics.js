@@ -41,6 +41,7 @@ export function createSim(world) {
   let spec = null
 
   function spawn(id, pose, upgrades) {
+    bog = 0
     if (vehicle) vehicle.removeFromWorld(cw)
     spec = specWithUpgrades(id, upgrades || { tires: 0, susp: 0, engine: 0, winch: 0 })
     chassis = new CANNON.Body({ mass: spec.mass, linearDamping: 0.05, angularDamping: 0.42 })
@@ -90,6 +91,7 @@ export function createSim(world) {
 
   const forward = new CANNON.Vec3()
   const up = new CANNON.Vec3()
+  let bog = 0
   function step(dt, input) {
     if (!vehicle) return
     vehicle.getVehicleAxisWorld(2, forward)
@@ -131,10 +133,45 @@ export function createSim(world) {
       vehicle.applyEngineForce(-engine, i)
       vehicle.setBrake(brake, i)
     }
-    const drag = dragSum / 4
+    const mx = chassis.position.x, mz = chassis.position.z
+    const mud = world.mudDepth(mx, mz)
+    const water = world.waterDepth(mx, mz)
+    bog += (mud - bog) * Math.min(1, dt * 1.6)
+    if (bog < 0) bog = 0
+    const sunk = bog > (spec.bogAt || 0.7)
+    const flooded = water > (spec.wade || 0.8)
+    if (sunk || flooded) {
+      for (let i = 0; i < vehicle.wheelInfos.length; i++) {
+        if (!(input.winch && input.anchor)) {
+          vehicle.applyEngineForce(0, i)
+          vehicle.setBrake(22, i)
+        }
+      }
+    }
+    const drag = dragSum / 4 + bog * 1.7 + Math.min(water, spec.wade || 1) * 0.9
     const damp = Math.exp(-drag * dt)
     chassis.velocity.scale(damp, chassis.velocity)
-    if (input.winch && Math.abs(speed) < 7) {
+    if (water > 0.15) {
+      const flow = world.currentDir(mx)
+      const push = Math.min(1.4, water) * spec.mass * 0.55
+      chassis.applyForce(new CANNON.Vec3(flow.x * push, 0, flow.z * push), chassis.position)
+      if (water > (spec.wade || 0.8) + 0.35) {
+        const lift = spec.mass * 2.4 * Math.min(1, (water - spec.wade) / 1.2)
+        chassis.applyForce(new CANNON.Vec3(0, lift, 0), chassis.position)
+        chassis.angularVelocity.scale(0.9, chassis.angularVelocity)
+      }
+    }
+    if (input.winch && input.anchor && Math.abs(speed) < 8) {
+      const dx = input.anchor.x - mx
+      const dz = input.anchor.z - mz
+      const len = Math.hypot(dx, dz) || 1
+      const f = spec.winch * (sunk || flooded ? 1.35 : 1)
+      chassis.applyForce(new CANNON.Vec3(dx / len * f, f * 0.25, dz / len * f), chassis.position)
+      up.set(0, 1, 0)
+      chassis.quaternion.vmult(up, up)
+      chassis.torque.x += up.z * f * 0.35
+      chassis.torque.z += -up.x * f * 0.35
+    } else if (input.winch && Math.abs(speed) < 7) {
       const f = spec.winch
       chassis.applyForce(new CANNON.Vec3(forward.x * f, f * 0.45, forward.z * f), chassis.position)
       up.set(0, 1, 0)
@@ -143,7 +180,8 @@ export function createSim(world) {
       chassis.torque.z += -up.x * spec.winch * 0.85
     }
     cw.step(dt)
-    return { speed, surf: surfSum / 4 }
+    const stuck = sunk ? 'mud' : flooded ? 'water' : ''
+    return { speed, surf: surfSum / 4, stuck, mud: bog, water, sink: Math.min(bog, spec.wheelR), wade: spec.wade, bogAt: spec.bogAt }
   }
 
   function reset() {

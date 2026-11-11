@@ -216,6 +216,25 @@ export function createWorld(seed = 1) {
   }
   stampTrail()
 
+  function mudDepth(x, z) {
+    if (surface(x, z) !== SURF.mud) return 0
+    const rd = Math.abs(z - riverZ(x))
+    const t = Math.max(0, Math.min(1, (20 - rd) / 9))
+    const wobble = n(x * 0.045, z * 0.045)
+    return 0.06 + t * 0.72 + wobble * 0.18
+  }
+  function waterDepth(x, z) {
+    if (surface(x, z) !== SURF.water) return 0
+    const fd = Math.hypot(x - ford.x, z - ford.z)
+    if (fd < 18) return 0.22 + fd * 0.012
+    const rd = Math.abs(z - riverZ(x))
+    return 0.35 + (1 - Math.min(1, rd / 11)) * 1.45
+  }
+  function currentDir(x) {
+    const dz = Math.cos(x * 0.009) * 0.342 + Math.cos(x * 0.02 + 1.1) * 0.28
+    const len = Math.hypot(1, dz) || 1
+    return { x: 1 / len, z: dz / len }
+  }
   function surface(x, z) {
     let i = Math.round(((x + HALF) / WORLD_SIZE) * (GRID - 1))
     let j = Math.round(((HALF - z) / WORLD_SIZE) * (GRID - 1))
@@ -242,7 +261,7 @@ export function createWorld(seed = 1) {
   }
 
   return {
-    seed, size: WORLD_SIZE, half: HALF, height, surface, pois, ford, rocks, trails, trees,
+    seed, size: WORLD_SIZE, half: HALF, height, surface, mudDepth, waterDepth, currentDir, pois, ford, rocks, trails, trees,
     gridN: GRID, heights, surf, riverZ
   }
 }

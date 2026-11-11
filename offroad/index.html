@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
-<meta name="oxbow-build" content="OFFROAD_V5">
+<meta name="oxbow-build" content="OFFROAD_V5_1">
 <title>Oxbow — Hollow Creek</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect fill='%23140e0a' width='32' height='32'/%3E%3Cpath fill='%23e4572e' d='M4 22h24l-3-8H7z'/%3E%3Ccircle cx='10' cy='23' r='3' fill='%23f4efe6'/%3E%3Ccircle cx='22' cy='23' r='3' fill='%23f4efe6'/%3E%3C/svg%3E">
 <link rel="stylesheet" href="style.css">
@@ -22,6 +22,7 @@
         <div class="speed"><b id="speed">0</b><span>mph <em id="gear">D</em></span></div>
         <div class="fuel"><div class="track"><div id="fuelbar"></div></div><span id="fuellabel">18 gal</span></div>
         <div id="surface">DIRT</div>
+        <div id="bog" hidden><div class="bogtrack"><div id="bogfill"></div></div><span id="boglabel"></span></div>
       </div>
       <div id="objective">J opens adventures</div>
       <div class="cluster right">
@@ -37,7 +38,15 @@
       </div>
     </header>
     <canvas id="minimap" width="168" height="168"></canvas>
-    <div id="fliphint">You're on your lid. Hit reset.</div>
+    <div id="fliphint">You're on your lid.</div>
+    <div id="recover" hidden>
+      <div class="radio">
+        <b id="recover-title">Call for recovery</b>
+        <span id="recover-sub">A yard truck can roll you back over.</span>
+        <em id="recover-time" hidden>20</em>
+        <button type="button" id="btn-call">Call</button>
+      </div>
+    </div>
     <button type="button" id="btn-camp" hidden>CAMP</button>
     <button type="button" id="btn-store" hidden>STORE</button>
     <button type="button" id="btn-jerry" hidden>CAN 0</button>
@@ -118,7 +127,7 @@
       <h2>How to drive</h2>
       <div class="prose">
         <p>Gas is on the right. Brake at a stop puts you in reverse. Steer with the arrows, or A and D on a keyboard. Space is the handbrake.</p>
-        <p>These are crawlers, not racers. LOW (or K) shortens the gear for torque and a slower crawl. LOCK ties the diffs for mud and rock. Hold WINCH to drag yourself forward and back onto your wheels. RESET plants you upright where you are. Off the throttle, the rig holds itself on a slope.</p>
+        <p>These are crawlers, not racers. LOW (or K) shortens the gear for torque and a slower crawl. LOCK ties the diffs for mud and rock. Hold WINCH to drag yourself toward a tree or a big rock. Deep mud bogs the chassis. Deep water, past the wading line, stalls the engine. A snorkel and a lift raise that line. RESET only helps when you are upright on firm ground. On your side, roof, or stuck, call for recovery: a yard truck takes about 20 seconds, hooks a line, and pulls you out. That call counts as a reset on an adventure.</p>
         <p>Dirt, trail, sand, mud, rock, and creek water all grip differently. The creek is shallow enough to ford and slow enough to respect.</p>
         <p>Fuel burns while the engine runs, and it is free — but only a general store pump will fill you. The stores also fit a bigger tank and sell jerry cans you can pour from the CAN button anywhere. Both take reputation, not cash.</p>
         <p>Adventures pay reputation. Ranks open tires, suspension, the engine, the winch, the camp kit, and the rest of the yard: the Ridge Scout, Bluff Runner, Creek Wagon, Basin Hauler, and Lantern Van. At the garage you can change paint and the roof rack. The body shells are original models made for Oxbow. Headlights come on at dusk (AUTO). H cycles them, B is high beam.</p>

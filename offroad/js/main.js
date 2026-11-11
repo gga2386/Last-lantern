@@ -1,12 +1,12 @@
 // Oxbow — Hollow Creek. OFFROAD_V2
 import * as THREE from '../vendor/three.module.js'
 import { createWorld, WORLD_SIZE, HALF, SURF, SURF_NAME } from './world.js'
-import { OFFROAD_V2, OFFROAD_V3, OFFROAD_V4, OFFROAD_V4_1, OFFROAD_V5, freshSave, SAVE_KEY, VEHICLES, UPGRADES, AUX, JERRY, ADVENTURES, TANK, coerceSave, buyUpgrade, buyVehicle, buyAux, buyJerry, useJerry, refuel, burnFuel, specWithUpgrades, tankCapacity, jerrySlots, rankFor, isDark, clockLabel, tickAdventure } from './economy.js'
+import { OFFROAD_V2, OFFROAD_V3, OFFROAD_V4, OFFROAD_V4_1, OFFROAD_V5, OFFROAD_V5_1, freshSave, SAVE_KEY, VEHICLES, UPGRADES, AUX, JERRY, ADVENTURES, TANK, coerceSave, buyUpgrade, buyVehicle, buyAux, buyJerry, useJerry, refuel, burnFuel, specWithUpgrades, tankCapacity, jerrySlots, rankFor, isDark, clockLabel, tickAdventure, noteAssist } from './economy.js'
 import { preloadRigs, buildRig, applyLod } from './rigs.js'
 import { CAMP, campLevel, buyCamp, canPitch, nearWater, rollFish, reelBand, biteSeconds, GAME, aimHit, RECIPES, canCook, cookJudge, applyCook } from './camp.js'
 import { createSim } from './physics.js'
 
-export { OFFROAD_V2, OFFROAD_V3, OFFROAD_V4, OFFROAD_V4_1, OFFROAD_V5 }
+export { OFFROAD_V2, OFFROAD_V3, OFFROAD_V4, OFFROAD_V4_1, OFFROAD_V5, OFFROAD_V5_1 }
 
 const world = createWorld(1)
 const yard = world.pois.find(p => p.id === 'yard')
@@ -36,6 +36,10 @@ let camMode = 'chase'
 let lockOn = false
 let lowOn = false
 let throttleSm = 0
+let hazard = { stuck: '', mud: 0, water: 0, sink: 0, wade: 0.7, bogAt: 0.6 }
+let recovery = null
+let anchor = null
+let freeze = false
 let lastSpeed = 0
 let lastSurf = 0
 let steerSm = 0
@@ -327,6 +331,12 @@ const beam = new THREE.Mesh(
 )
 scene.add(beam)
 beam.visible = false
+const winchGeo = new THREE.BufferGeometry()
+winchGeo.setAttribute('position', new THREE.Float32BufferAttribute([0, 0, 0, 0, 0, 0], 3))
+const winchLine = new THREE.Line(winchGeo, new THREE.LineBasicMaterial({ color: 0xe8e4dc }))
+winchLine.frustumCulled = false
+winchLine.visible = false
+scene.add(winchLine)
 
 let truck, wheels = []
 function rigLook(id) {
@@ -503,6 +513,7 @@ function sampleInput(dt) {
     lock: lockOn,
     low: lowOn,
     winch: !!(keys.f || pad.winch),
+    anchor,
     fuel: save.fuel,
     grip: (save.buff && save.buff.grip) || 1
   }
@@ -516,9 +527,17 @@ const camFwd = new THREE.Vector3()
 function syncTruck() {
   const c = sim.chassis
   if (!c || !truck) return
-  truck.position.set(c.position.x, c.position.y, c.position.z)
+  truck.position.set(c.position.x, c.position.y - Math.min(0.42, (hazard.sink || 0) * 0.55), c.position.z)
   truck.quaternion.set(c.quaternion.x, c.quaternion.y, c.quaternion.z, c.quaternion.w)
   applyLod(truck, camera.position.distanceTo(truck.position) > 28)
+  const pulling = !!(anchor && (keys.f || pad.winch) && mode === 'play')
+  winchLine.visible = pulling
+  if (pulling) {
+    const wp = winchLine.geometry.attributes.position
+    wp.setXYZ(0, c.position.x, c.position.y + 0.6, c.position.z)
+    wp.setXYZ(1, anchor.x, anchor.y, anchor.z)
+    wp.needsUpdate = true
+  }
   q.copy(truck.quaternion)
   fwd.set(0, 0, 1).applyQuaternion(q)
   if (sim.vehicle) {
@@ -642,7 +661,9 @@ function updateGame(dt) {
     $('objective').textContent = nearStore() ? nearStore().name + ' — E for the store' : 'J opens adventures'
     beam.visible = false
   }
-  $('fliphint').classList.toggle('show', sim.upright() < 0.32)
+  $('fliphint').classList.toggle('show', rolled() && !recovery)
+  anchor = nearestAnchor()
+  refreshRecover()
   const storeBtn = $('btn-store')
   if (storeBtn) storeBtn.hidden = mode === 'camp' || !nearStore()
   const campBtn = $('btn-camp')
@@ -703,6 +724,23 @@ function updateHud() {
   const rk = rankFor(save.rep)
   $('rep').textContent = rk.name + ' · ' + save.rep
   $('surface').textContent = (SURF_NAME[Math.round(lastSurf)] || 'dirt').toUpperCase()
+  const bogEl = $('bog')
+  if (bogEl) {
+    const show = hazard.mud > 0.04 || hazard.water > 0.04 || !!hazard.stuck
+    bogEl.hidden = !show
+    const fill = $('bogfill')
+    const label = $('boglabel')
+    if (show && fill && label) {
+      const waterish = hazard.water >= hazard.mud
+      const limit = waterish ? Math.max(0.2, hazard.wade || 0.8) : Math.max(0.2, hazard.bogAt || 0.6)
+      const value = waterish ? hazard.water : hazard.mud
+      const pct = Math.max(0, Math.min(1, value / limit))
+      fill.style.width = (pct * 100) + '%'
+      fill.classList.toggle('warn', pct > 0.6 && pct < 0.9)
+      fill.classList.toggle('bad', pct >= 0.9 || !!hazard.stuck)
+      label.textContent = hazard.stuck === 'mud' ? 'Bogged' : hazard.stuck === 'water' ? 'Flooded' : waterish ? 'Water ' + Math.round(pct * 100) + '%' : 'Mud ' + Math.round(pct * 100) + '%'
+    }
+  }
   $('btn-lock').classList.toggle('on', lockOn)
   const lowBtn = $('btn-low')
   if (lowBtn) lowBtn.classList.toggle('on', lowOn)
@@ -798,7 +836,8 @@ function fillGarage() {
     row.className = 'up' + (!owned && save.rep < v.need ? ' locked' : '')
     row.innerHTML = '<b></b><span></span>'
     row.querySelector('b').textContent = v.name + (save.vehicle === id ? ' · out' : '')
-    row.querySelector('span').textContent = owned ? 'In the shed.' : 'Lighter, quicker, worse in the mud. Needs ' + v.need + ' rep.'
+    const fitted = specWithUpgrades(id, save.upgrades)
+    row.querySelector('span').textContent = (owned ? 'In the shed. ' : 'Needs ' + v.need + ' rep. ') + 'Wade ' + fitted.wade.toFixed(2) + ' m, clearance ' + fitted.clearance.toFixed(2) + ' m.'
     const btn = document.createElement('button')
     btn.type = 'button'
     if (!owned) btn.textContent = save.rep < v.need ? 'Locked · ' + v.need + ' rep' : 'Take the keys'
@@ -942,8 +981,247 @@ function syncSettings() {
   $('sound').checked = save.settings.sound !== false
   $('shake').checked = save.settings.shake !== false
 }
+function rolled() { return sim.upright() < 0.45 }
+function nearestAnchor() {
+  const c = sim.chassis
+  if (!c) return null
+  let best = null
+  let bd = 16
+  for (const t of world.trees) {
+    const d = Math.hypot(t.x - c.position.x, t.z - c.position.z)
+    if (d < bd && d > 2.2) { bd = d; best = { x: t.x, y: t.y + 1.4, z: t.z } }
+  }
+  for (const r of world.rocks) {
+    if (r.rad < 6) continue
+    const d = Math.hypot(r.x - c.position.x, r.z - c.position.z)
+    if (d < bd && d > 3) { bd = d; best = { x: r.x, y: world.height(r.x, r.z) + r.h * 0.8, z: r.z } }
+  }
+  return best
+}
+function firmSpot(x, z) {
+  for (let ring = 8; ring <= 26; ring += 4) {
+    for (let a = 0; a < 8; a++) {
+      const ang = a / 8 * Math.PI * 2
+      const px = x + Math.cos(ang) * ring
+      const pz = z + Math.sin(ang) * ring
+      if (world.mudDepth(px, pz) < 0.05 && world.waterDepth(px, pz) < 0.05 && world.surface(px, pz) !== SURF.water) {
+        return { x: px, z: pz, y: world.height(px, pz) }
+      }
+    }
+  }
+  return { x: x + 14, z: z + 4, y: world.height(x + 14, z + 4) }
+}
+function yawOf(c) {
+  return Math.atan2(2 * (c.quaternion.w * c.quaternion.y + c.quaternion.x * c.quaternion.z), 1 - 2 * (c.quaternion.y * c.quaternion.y + c.quaternion.z * c.quaternion.z))
+}
+function buildWrecker() {
+  const g = new THREE.Group()
+  const paint = new THREE.MeshStandardMaterial({ color: 0xe4572e, roughness: 0.32, metalness: 0.08 })
+  const dark = new THREE.MeshStandardMaterial({ color: 0x1c1e22, roughness: 0.5 })
+  const glass = new THREE.MeshStandardMaterial({ color: 0x142028, roughness: 0.08, metalness: 0.15 })
+  const chrome = new THREE.MeshStandardMaterial({ color: 0xd5d2c8, metalness: 0.75, roughness: 0.28 })
+  const lamp = new THREE.MeshStandardMaterial({ color: 0xfff6df, emissive: 0xfff1c4, emissiveIntensity: 0.6 })
+  const rubber = new THREE.MeshStandardMaterial({ color: 0x1a1a1a, roughness: 0.8 })
+  const rim = new THREE.MeshStandardMaterial({ color: 0xf2efe6, metalness: 0.35, roughness: 0.35 })
+  const add = (mat, w, h, d, x, y, z) => {
+    const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat)
+    m.position.set(x, y, z)
+    g.add(m)
+    return m
+  }
+  add(paint, 1.8, 0.7, 3.4, 0, 0.75, 0)
+  add(paint, 1.55, 0.7, 1.25, 0, 1.35, 0.45)
+  add(glass, 1.3, 0.42, 0.06, 0, 1.4, 1.05)
+  add(chrome, 1.7, 0.14, 0.18, 0, 0.45, 1.7)
+  add(dark, 0.16, 0.16, 1.5, 0, 1.85, -0.7)
+  const boom = add(dark, 0.12, 0.12, 1.7, 0, 2.15, -1.35)
+  boom.rotation.x = 0.45
+  for (const [x, z] of [[-0.85, 1.15], [0.85, 1.15], [-0.85, -1.15], [0.85, -1.15]]) {
+    const w = new THREE.Mesh(new THREE.CylinderGeometry(0.4, 0.4, 0.3, 14), rubber)
+    w.rotation.z = Math.PI / 2
+    w.position.set(x, 0.4, z)
+    const cap = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.18, 0.32, 10), rim)
+    cap.rotation.z = Math.PI / 2
+    w.add(cap)
+    g.add(w)
+  }
+  const spots = []
+  for (const s of [-1, 1]) {
+    const spot = new THREE.SpotLight(0xfff4d4, 0, 30, 0.5, 0.4, 1)
+    spot.position.set(s * 0.4, 0.75, 1.55)
+    const tgt = new THREE.Object3D()
+    tgt.position.set(s * 0.1, -0.3, 14)
+    g.add(spot, tgt)
+    spot.target = tgt
+    spots.push(spot)
+    const bulb = new THREE.Mesh(new THREE.SphereGeometry(0.08, 8, 6), lamp)
+    bulb.position.set(s * 0.48, 0.62, 1.68)
+    g.add(bulb)
+  }
+  g.userData.spots = spots
+  g.userData.lamp = lamp
+  g.userData.hook = new THREE.Vector3(0, 1.7, -1.7)
+  return g
+}
+function approachPoint(px, pz, yaw) {
+  let best = null
+  for (const turn of [2.2, -2.2, 1.4, 2.8, 0.8]) {
+    const ang = yaw + turn
+    const dist = 20
+    const x = px + Math.sin(ang) * dist
+    const z = pz + Math.cos(ang) * dist
+    if (world.surface(x, z) === SURF.water) continue
+    const slope = Math.abs(world.height(x, z) - world.height(px, pz))
+    if (!best || slope < best.slope) best = { x, z, ang, slope }
+  }
+  if (!best || best.slope > 7) {
+    const ang = yaw + 1.7
+    return { x: px + Math.sin(ang) * 8, z: pz + Math.cos(ang) * 8, ang, slope: 0, near: true }
+  }
+  return best
+}
+function startRecovery(reason) {
+  if (recovery) return 'busy'
+  if (!rolled() && !hazard.stuck) return 'not-stuck'
+  noteAssist(save)
+  const c = sim.chassis
+  const yaw = yawOf(c)
+  const from = approachPoint(c.position.x, c.position.z, yaw)
+  const rig = buildWrecker()
+  const night = isDark(save.clock)
+  for (const s of rig.userData.spots) s.intensity = night ? 24 : 8
+  rig.userData.lamp.emissiveIntensity = night ? 2.4 : 0.45
+  rig.position.set(from.x, world.height(from.x, from.z) + 0.15, from.z)
+  scene.add(rig)
+  const lineGeo = new THREE.BufferGeometry()
+  lineGeo.setAttribute('position', new THREE.Float32BufferAttribute([0, 0, 0, 0, 0, 0], 3))
+  const line = new THREE.Line(lineGeo, new THREE.LineBasicMaterial({ color: 0xf0c14a }))
+  line.visible = false
+  line.frustumCulled = false
+  scene.add(line)
+  recovery = { phase: 'drive', left: from.near ? 20 : 20, t: 0, rig, line, from, reason: reason || (rolled() ? 'roll' : hazard.stuck), firm: firmSpot(c.position.x, c.position.z) }
+  persist()
+  toast(recovery.reason === 'mud' ? 'Yard truck is coming to pull you out of the mud.' : recovery.reason === 'water' ? 'Yard truck is coming to drag you out of the creek.' : 'Yard truck is on the way.')
+  return 'ok'
+}
+function cancelRecovery() {
+  if (!recovery || recovery.phase === 'drag' || recovery.phase === 'leave') return
+  recovery.phase = 'leave'
+  recovery.t = 0
+  recovery.line.visible = false
+  toast('Call canceled.')
+}
+function updateCable() {
+  if (!recovery || !recovery.line.visible) return
+  const hook = recovery.rig.localToWorld(recovery.rig.userData.hook.clone())
+  const c = sim.chassis
+  const nose = new THREE.Vector3(0, 0.35, -(sim.spec.half[2] || 2) * 0.65)
+  const qn = new THREE.Quaternion(c.quaternion.x, c.quaternion.y, c.quaternion.z, c.quaternion.w)
+  nose.applyQuaternion(qn).add(new THREE.Vector3(c.position.x, c.position.y, c.position.z))
+  const pos = recovery.line.geometry.attributes.position
+  pos.setXYZ(0, hook.x, hook.y, hook.z)
+  pos.setXYZ(1, nose.x, nose.y, nose.z)
+  pos.needsUpdate = true
+}
+function tickRecovery(dt) {
+  if (!recovery) return
+  const r = recovery
+  const c = sim.chassis
+  if (r.phase === 'drive') {
+    r.left -= dt
+    const u = 1 - Math.max(0, r.left) / 20
+    const ease = u * u * (3 - 2 * u)
+    const park = r.firm
+    const x = r.from.x + (park.x - r.from.x) * ease
+    const z = r.from.z + (park.z - r.from.z) * ease
+    const y = world.height(x, z) + 0.2
+    r.rig.position.set(x, y, z)
+    r.rig.rotation.set(0, Math.atan2(c.position.x - x, c.position.z - z), 0)
+    if (r.left <= 0) { r.phase = 'hook'; r.t = 0; r.line.visible = true }
+  } else if (r.phase === 'hook') {
+    r.t += dt
+    updateCable()
+    if (r.t > 1.1) {
+      r.phase = 'drag'
+      r.t = 0
+      r.startQ = new THREE.Quaternion(c.quaternion.x, c.quaternion.y, c.quaternion.z, c.quaternion.w)
+      r.endQ = new THREE.Quaternion().setFromEuler(new THREE.Euler(0, yawOf(c), 0))
+      r.start = { x: c.position.x, y: c.position.y, z: c.position.z }
+      const drop = { x: r.firm.x + Math.sin(yawOf(c)) * 4, z: r.firm.z + Math.cos(yawOf(c)) * 4 }
+      r.end = { x: drop.x, y: world.height(drop.x, drop.z) + 1.2, z: drop.z }
+    }
+  } else if (r.phase === 'drag') {
+    r.t += dt
+    const u = Math.min(1, r.t / 2.6)
+    const e = u * u * (3 - 2 * u)
+    const q = r.startQ.clone().slerp(r.endQ, e)
+    c.quaternion.set(q.x, q.y, q.z, q.w)
+    c.position.set(r.start.x + (r.end.x - r.start.x) * e, r.start.y + (r.end.y - r.start.y) * e, r.start.z + (r.end.z - r.start.z) * e)
+    c.velocity.set(0, 0, 0)
+    c.angularVelocity.set(0, 0, 0)
+    updateCable()
+    if (u >= 1) {
+      r.phase = 'leave'
+      r.t = 0
+      r.line.visible = false
+      hazard.stuck = ''
+      hazard.mud = 0
+      hazard.sink = 0
+      toast('Back on firm ground.')
+    }
+  } else if (r.phase === 'leave') {
+    r.t += dt
+    r.rig.position.x += Math.sin(r.rig.rotation.y) * dt * 5
+    r.rig.position.z += Math.cos(r.rig.rotation.y) * dt * 5
+    r.rig.position.y = world.height(r.rig.position.x, r.rig.position.z) + 0.2
+    if (r.t > 2.4) {
+      scene.remove(r.rig)
+      scene.remove(r.line)
+      recovery = null
+    }
+  }
+}
+function refreshRecover() {
+  const box = $('recover')
+  if (!box) return
+  const need = !!(recovery || rolled() || hazard.stuck)
+  box.hidden = !need || mode === 'title'
+  const title = $('recover-title')
+  const sub = $('recover-sub')
+  const time = $('recover-time')
+  const btn = $('btn-call')
+  const reset = $('btn-reset')
+  if (reset) reset.disabled = !!(rolled() || hazard.stuck || recovery)
+  if (!need) return
+  if (!recovery) {
+    if (time) time.hidden = true
+    const flooded = hazard.stuck === 'water'
+    const bogged = hazard.stuck === 'mud'
+    if (title) title.textContent = flooded ? 'Engine flooded' : bogged ? 'Bogged down' : 'Call for recovery'
+    const winchHint = anchor ? ' A tree or rock is in winch range.' : ''
+    if (sub) sub.textContent = (flooded ? 'The intake is under. You will not restart it here.' : bogged ? 'You will not crawl out of this.' : 'You are on your side. A yard truck can roll you back.') + winchHint
+    if (btn) { btn.hidden = false; btn.textContent = 'Call' }
+  } else if (recovery.phase === 'drive') {
+    if (time) { time.hidden = false; time.textContent = String(Math.max(0, Math.ceil(recovery.left))) }
+    if (title) title.textContent = 'Recovery on the way'
+    if (sub) sub.textContent = 'Keep the radio on. Cancel if you get out yourself.'
+    if (btn) { btn.hidden = false; btn.textContent = 'Cancel' }
+  } else if (recovery.phase === 'hook' || recovery.phase === 'drag') {
+    if (time) time.hidden = true
+    if (title) title.textContent = 'Hooked up'
+    if (sub) sub.textContent = recovery.reason === 'roll' ? 'Rolling you back onto the wheels.' : 'Dragging you to firm ground.'
+    if (btn) btn.hidden = true
+  } else {
+    if (btn) btn.hidden = true
+    if (time) time.hidden = true
+    if (title) title.textContent = 'Recovery leaving'
+    if (sub) sub.textContent = ''
+  }
+}
 function doReset() {
-  if (save.active) save.active.resets = (save.active.resets || 0) + 1
+  if (rolled() || hazard.stuck) { startRecovery(rolled() ? 'roll' : hazard.stuck); return }
+  if (recovery) return
+  noteAssist(save)
   sim.reset()
   toast('Back on your wheels')
 }
@@ -969,6 +1247,7 @@ hold('btn-hand', 'hand')
 $('btn-lock').onclick = () => { lockOn = !lockOn }
 $('btn-low').onclick = () => { lowOn = !lowOn }
 $('btn-reset').onclick = () => doReset()
+$('btn-call').onclick = () => { if (recovery && recovery.phase === 'drive') cancelRecovery(); else startRecovery() }
 $('btn-lights').onclick = () => cycleLights()
 $('btn-beam').onclick = () => { save.highbeam = !save.highbeam; persist() }
 $('btn-store').onclick = () => { if (nearStore() && mode === 'play') { fillStore(); showPanel('store') } }
@@ -1099,15 +1378,16 @@ if (gfx().dust) {
   }
 }
 let dustN = 0
-function puff(x, y, z) {
+function puff(x, y, z, mud) {
   if (!dust.length) return
   const d = dust[dustN++ % dust.length]
-  d.life = 0.7
+  d.life = mud ? 0.9 : 0.7
   d.m.visible = true
-  d.m.position.set(x, y, z)
-  d.m.scale.setScalar(0.4)
-  d.vx = (Math.random() - 0.5) * 1.5
-  d.vz = (Math.random() - 0.5) * 1.5
+  d.m.material.color.set(mud ? 0x4a3018 : 0xc4a27a)
+  d.m.position.set(x, y + (mud ? 0.2 : 0), z)
+  d.m.scale.setScalar(mud ? 0.7 : 0.4)
+  d.vx = (Math.random() - 0.5) * (mud ? 2.4 : 1.5)
+  d.vz = (Math.random() - 0.5) * (mud ? 2.4 : 1.5)
 }
 
 function resize() {
@@ -1385,13 +1665,18 @@ function frame(now) {
     if (save.buff.left <= 0) save.buff = null
   }
   if (mode === 'camp') tickPlay(dt)
-  if (mode === 'play' || mode === 'title') {
+  const dragging = recovery && recovery.phase === 'drag'
+  if (!freeze && !dragging && (mode === 'play' || mode === 'title')) {
     acc += dt
     let steps = 0
     const input = mode === 'play' ? sampleInput(dt) : zeroInput()
     while (acc >= 1 / 60 && steps < 3) {
       const r = sim.step(1 / 60, input)
-      if (r) { lastSpeed = r.speed; lastSurf = r.surf }
+      if (r) {
+        lastSpeed = r.speed
+        lastSurf = r.surf
+        if (!recovery || recovery.phase === 'drive') hazard = { stuck: r.stuck || '', mud: r.mud || 0, water: r.water || 0, sink: r.sink || 0, wade: r.wade || 0.7, bogAt: r.bogAt || 0.6 }
+      }
       if (mode === 'play') sim.syncSolids(world.trees, world.rocks)
       acc -= 1 / 60
       steps++
@@ -1401,6 +1686,11 @@ function frame(now) {
       const sip = (save.buff && save.buff.fuel) || 1
       save.fuel = burnFuel(save.fuel, Math.max(throttle, input.brake > 0 && lastSpeed < 0.4 ? input.brake : 0) * sip, dt)
     }
+  }
+  tickRecovery(dt)
+  if (hazard.mud > 0.18 && (keys.w || pad.gas) && wheels[0]) {
+    const w = wheels[Math.floor(Math.random() * wheels.length)]
+    if (w) puff(w.position.x, w.position.y, w.position.z, true)
   }
   if (blades) blades.rotation.z += dt * 0.7
   if (dust.length && mode === 'play' && Math.abs(lastSpeed) > 4 && lastSurf !== 4 && lastSurf !== 5) {
@@ -1455,6 +1745,57 @@ window.OX = {
   goto(id) { const p = poiById[id]; if (!p) return; sim.place(p.x + 4, p.z + 6, 0) },
   pitch() { pitchCamp() },
   showPlay(kind) { openPlay(kind) },
+  get hazard() { return hazard },
+  get rolled() { return rolled() },
+  get recovery() { return recovery ? recovery.phase : '' },
+  tip() {
+    const c = sim.chassis
+    c.quaternion.setFromEuler(Math.PI * 0.55, yawOf(c), 0.2)
+    c.velocity.set(0, 0, 0)
+  },
+  bogHere() {
+    let best = null
+    for (let i = 0; i < world.gridN; i += 3) {
+      for (let j = 0; j < world.gridN; j += 3) {
+        const x = -HALF + (i / (world.gridN - 1)) * WORLD_SIZE
+        const z = HALF - (j / (world.gridN - 1)) * WORLD_SIZE
+        const d = world.mudDepth(x, z)
+        if (!best || d > best.d) best = { x, z, d }
+      }
+    }
+    sim.place(best.x, best.z, 0)
+    return best
+  },
+  hold() { freeze = true; this.level() },
+  level() {
+    const c = sim.chassis
+    c.quaternion.setFromEuler(0, yawOf(c), 0)
+    c.angularVelocity.set(0, 0, 0)
+    c.velocity.set(0, 0, 0)
+  },
+  deepWater() {
+    let best = null
+    for (let i = 0; i < world.gridN; i += 3) {
+      for (let j = 0; j < world.gridN; j += 3) {
+        const x = -HALF + (i / (world.gridN - 1)) * WORLD_SIZE
+        const z = HALF - (j / (world.gridN - 1)) * WORLD_SIZE
+        const d = world.waterDepth(x, z)
+        if (d > 1.2 && (!best || d > best.d)) best = { x, z, d }
+      }
+    }
+    if (best) sim.place(best.x, best.z, 0)
+    return best
+  },
+  call() { return startRecovery() },
+  rush() { if (recovery && recovery.phase === 'drive') recovery.left = 0.2 },
+  frameTow() {
+    if (!recovery) return
+    holdCam = true
+    const p = recovery.rig.position
+    const c = sim.chassis.position
+    camera.position.set((p.x + c.x) / 2 + 3, Math.max(p.y, c.y) + 4.5, (p.z + c.z) / 2 + 12)
+    camera.lookAt((p.x + c.x) / 2, c.y + 0.8, (p.z + c.z) / 2)
+  },
   lineup() {
     const ids = Object.keys(VEHICLES)
     const detail = save.settings.gfx === 'high' ? 4 : 3

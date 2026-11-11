@@ -1,12 +1,12 @@
 // OFFROAD_V2 — terrain, reputation, fuel, and solid trees. Run: node offroad/test/sim.js
 import { createWorld, SURF, FRICTION, DRAG, HALF } from '../js/world.js'
-import { OFFROAD_V2, OFFROAD_V3, OFFROAD_V4, OFFROAD_V4_1, OFFROAD_V5, VEHICLES, ADVENTURES, freshSave, buyUpgrade, buyVehicle, buyAux, buyJerry, useJerry, refuel, burnFuel, coerceSave, tickAdventure, tankCapacity, jerrySlots, isDark, TANK, specWithUpgrades } from '../js/economy.js'
+import { OFFROAD_V2, OFFROAD_V3, OFFROAD_V4, OFFROAD_V4_1, OFFROAD_V5, OFFROAD_V5_1, VEHICLES, ADVENTURES, freshSave, buyUpgrade, buyVehicle, buyAux, buyJerry, useJerry, refuel, burnFuel, coerceSave, tickAdventure, tankCapacity, jerrySlots, isDark, TANK, specWithUpgrades, noteAssist } from '../js/economy.js'
 import { canPitch, slopeAt, buyCamp, cookJudge, applyCook, rollFish, aimHit, RECIPES } from '../js/camp.js'
 import { createSim, tractionTrial } from '../js/physics.js'
 
 const fails = []
 const fail = m => fails.push(m)
-if (OFFROAD_V2 !== 1 || OFFROAD_V3 !== 1 || OFFROAD_V4 !== 1 || OFFROAD_V4_1 !== 1 || OFFROAD_V5 !== 1) fail('marker missing')
+if (OFFROAD_V2 !== 1 || OFFROAD_V3 !== 1 || OFFROAD_V4 !== 1 || OFFROAD_V4_1 !== 1 || OFFROAD_V5 !== 1 || OFFROAD_V5_1 !== 1) fail('marker missing')
 const ids = Object.keys(VEHICLES)
 if (ids.length < 6) fail('roster ' + ids.join(','))
 for (const id of ['mule', 'scout', 'runner', 'wagon', 'hauler', 'van']) if (!VEHICLES[id]) fail('missing ' + id)
@@ -69,6 +69,28 @@ for (let t = 0; t <= 24; t++) {
   if (world.surface(x, world.riverZ(x)) === SURF.water) crossed = true
 }
 if (!crossed) fail('no water between the yard and the quarry')
+const fordDepth = world.waterDepth(world.ford.x, world.ford.z)
+if (!(fordDepth > 0.15 && fordDepth < 0.55)) fail('ford should stay shallow ' + fordDepth.toFixed(2))
+let deepMud = null, deepWater = null
+for (let i = 0; i < world.gridN; i += 4) {
+  for (let j = 0; j < world.gridN; j += 4) {
+    const x = -HALF + (i / (world.gridN - 1)) * (HALF * 2)
+    const z = HALF - (j / (world.gridN - 1)) * (HALF * 2)
+    const md = world.mudDepth(x, z)
+    const wd = world.waterDepth(x, z)
+    if (!deepMud || md > deepMud.d) deepMud = { x, z, d: md }
+    if (wd > 1.15 && (!deepWater || wd > deepWater.d)) deepWater = { x, z, d: wd }
+  }
+}
+if (!deepMud || deepMud.d < 0.7) fail('no deep mud ' + (deepMud && deepMud.d))
+if (!deepWater) fail('no deep water')
+if (world.mudDepth(yard.x, yard.z) > 0.05) fail('yard is bog')
+const plain = specWithUpgrades('mule', { tires: 0, susp: 0, engine: 0, winch: 0, snorkel: 0 })
+const breathed = specWithUpgrades('mule', { tires: 0, susp: 2, engine: 0, winch: 0, snorkel: 1 })
+if (!(breathed.wade > plain.wade + 0.3 && breathed.clearance > plain.clearance)) fail('snorkel and lift did not raise the truck')
+const assist = freshSave()
+assist.active = { id: 'south', step: 0, elapsed: 0, resets: 0 }
+if (noteAssist(assist) !== 1) fail('recovery did not count as a reset')
 if (!(FRICTION[SURF.mud] < FRICTION[SURF.sand] && FRICTION[SURF.sand] < FRICTION[SURF.rock] && FRICTION[SURF.dirt] < FRICTION[SURF.trail])) fail('friction order')
 if (!(FRICTION[SURF.water] < FRICTION[SURF.mud])) fail('water should be slicker than mud')
 
@@ -207,4 +229,14 @@ const troutDone = tickAdventure(troutSave, { x: mill.x, z: mill.z, speed: 0, clo
 if (!troutDone || !troutDone.done || troutSave.rep !== 35 + 8) fail('trout adventure ' + JSON.stringify(troutDone))
 if (!aimHit(0.5, 0.5, 0.2, 1).hit) fail('aim should hit')
 if (aimHit(0.1, 0.9, 0.08, 1).hit) fail('aim should miss')
-console.log('OK OFFROAD_V5')
+const bogSim = createSim(world)
+bogSim.spawn('mule', { x: deepMud.x, z: deepMud.z, y: world.height(deepMud.x, deepMud.z) + 1.4 })
+let bogged = ''
+const bogStart = bogSim.chassis.position.z
+for (let i = 0; i < 200; i++) {
+  const r = bogSim.step(1 / 60, { throttle: 1, brake: 0, steer: 0, handbrake: 0, lock: false, winch: false, fuel: 18 })
+  bogged = r.stuck
+}
+if (bogged !== 'mud') fail('deep mud did not bog the truck ' + bogged + ' depth ' + deepMud.d.toFixed(2))
+if (Math.abs(bogSim.chassis.position.z - bogStart) > 3) fail('bogged truck still drove')
+console.log('OK OFFROAD_V5_1')

@@ -4,6 +4,7 @@ export const OFFROAD_V3 = 1
 export const OFFROAD_V4 = 1
 export const OFFROAD_V4_1 = 1
 export const OFFROAD_V5 = 1
+export const OFFROAD_V5_1 = 1
 export const VEHICLES = {
   mule: {
     id: 'mule', name: 'Yard Mule', need: 0, style: 'pickup', mass: 1580,
@@ -83,7 +84,8 @@ export const UPGRADES = {
   tires: { name: 'Deep-tread tires', max: 3, need: [40, 120, 220], blurb: 'More grip in mud, sand, and the creek.' },
   susp: { name: 'Long-travel suspension', max: 3, need: [40, 140, 240], blurb: 'Wheels reach further over rocks and ruts.' },
   engine: { name: 'Engine', max: 3, need: [80, 160, 300], blurb: 'Harder pull on the grades.' },
-  winch: { name: 'Winch', max: 2, need: [40, 200], blurb: 'A longer tug when you are stuck.' }
+  winch: { name: 'Winch', max: 2, need: [40, 200], blurb: 'A longer tug when you are stuck.' },
+  snorkel: { name: 'Snorkel', max: 1, need: [80], blurb: 'Raises the air intake so a deeper ford does not stall the engine.' }
 }
 // Extra gallons stacked on the 18 gal stock tank. Bought at a general store.
 export const AUX = { name: 'Auxiliary tank', max: 3, need: [40, 120, 240], add: [4, 4, 6], blurb: 'A bigger tank for the long rides between stores.' }
@@ -180,7 +182,7 @@ export function freshSave(partial) {
     jerry: 0,
     vehicle: 'mule',
     owned: ['mule'],
-    upgrades: { tires: 0, susp: 0, engine: 0, winch: 0 },
+    upgrades: { tires: 0, susp: 0, engine: 0, winch: 0, snorkel: 0 },
     discovered: ['yard'],
     cleared: {},
     active: null,
@@ -209,7 +211,7 @@ export function coerceSave(raw, gfx) {
     s.camp = Object.assign({ tent: 0, pit: 0, chairs: 0, lights: 0, rod: 0, hunt: 0 }, raw.camp || {})
     s.pantry = Object.assign({ trout: 0, fish: 0, meat: 0, salt: 0, oil: 0 }, raw.pantry || {})
     s.log = raw.log || { fish: {}, photos: {} }
-    s.upgrades = Object.assign({ tires: 0, susp: 0, engine: 0, winch: 0 }, raw.upgrades)
+    s.upgrades = Object.assign({ tires: 0, susp: 0, engine: 0, winch: 0, snorkel: 0 }, raw.upgrades)
     s.settings = Object.assign(base.settings, raw.settings || {})
     s.cleared = raw.cleared || {}
     s.owned = raw.owned && raw.owned.length ? raw.owned.slice() : ['mule']
@@ -223,7 +225,7 @@ export function coerceSave(raw, gfx) {
   s.vehicle = raw.vehicle === 'scout' ? 'scout' : 'mule'
   s.owned = Array.isArray(raw.owned) ? raw.owned.slice() : ['mule']
   if (s.vehicle === 'scout' && !s.owned.includes('scout')) s.owned.push('scout')
-  s.upgrades = Object.assign({ tires: 0, susp: 0, engine: 0, winch: 0 }, raw.upgrades)
+  s.upgrades = Object.assign({ tires: 0, susp: 0, engine: 0, winch: 0, snorkel: 0 }, raw.upgrades)
   s.discovered = Array.isArray(raw.discovered) ? raw.discovered.slice() : ['yard']
   s.x = raw.x; s.y = raw.y; s.z = raw.z
   s.qx = raw.qx; s.qy = raw.qy; s.qz = raw.qz; s.qw = raw.qw
@@ -245,6 +247,10 @@ export function coerceSave(raw, gfx) {
   }
   s.rep = rep
   return s
+}
+export function noteAssist(save) {
+  if (save && save.active) save.active.resets = (save.active.resets || 0) + 1
+  return save && save.active ? save.active.resets : 0
 }
 function clone(save) { return structuredClone(save) }
 export function upgradeNeed(id, level) {
@@ -310,7 +316,10 @@ export function specWithUpgrades(id, upgrades) {
     rest: base.rest + 0.035 * s,
     travel: base.travel + 0.055 * s,
     stiff: base.stiff * (1 - 0.07 * s),
-    winch: 650 + w * 1700
+    winch: 650 + w * 1700,
+    clearance: 0.16 + base.wheelR * 0.2 + s * 0.05,
+    wade: 0.48 + base.wheelR * 0.35 + ((base.style === 'jeep' || base.style === 'utility' || base.style === 'pickup') ? 0.28 : 0) + (upgrades.snorkel ? 0.38 : 0),
+    bogAt: 0.22 + base.wheelR * 0.72 + s * 0.06 + t * 0.05
   }
 }
 export function tickAdventure(save, q) {
