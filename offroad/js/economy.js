@@ -1,7 +1,8 @@
-// Reputation, adventures, fuel, and the rigs. No cash. OFFROAD_V4
+// Reputation, adventures, fuel, and the rigs. No cash. OFFROAD_V4_1
 export const OFFROAD_V2 = 1
 export const OFFROAD_V3 = 1
 export const OFFROAD_V4 = 1
+export const OFFROAD_V4_1 = 1
 export const VEHICLES = {
   mule: {
     id: 'mule', name: 'Yard Mule', need: 0, style: 'pickup', mass: 1580,

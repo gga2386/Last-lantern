@@ -1,12 +1,12 @@
 // Oxbow — Hollow Creek. OFFROAD_V2
 import * as THREE from '../vendor/three.module.js'
 import { createWorld, WORLD_SIZE, HALF, SURF, SURF_NAME } from './world.js'
-import { OFFROAD_V2, OFFROAD_V3, OFFROAD_V4, freshSave, SAVE_KEY, VEHICLES, UPGRADES, AUX, JERRY, ADVENTURES, TANK, coerceSave, buyUpgrade, buyVehicle, buyAux, buyJerry, useJerry, refuel, burnFuel, specWithUpgrades, tankCapacity, jerrySlots, rankFor, isDark, clockLabel, tickAdventure } from './economy.js'
+import { OFFROAD_V2, OFFROAD_V3, OFFROAD_V4, OFFROAD_V4_1, freshSave, SAVE_KEY, VEHICLES, UPGRADES, AUX, JERRY, ADVENTURES, TANK, coerceSave, buyUpgrade, buyVehicle, buyAux, buyJerry, useJerry, refuel, burnFuel, specWithUpgrades, tankCapacity, jerrySlots, rankFor, isDark, clockLabel, tickAdventure } from './economy.js'
 import { buildRig } from './rigs.js'
 import { CAMP, campLevel, buyCamp, canPitch, nearWater, rollFish, reelBand, biteSeconds, GAME, aimHit, RECIPES, canCook, cookJudge, applyCook } from './camp.js'
 import { createSim } from './physics.js'
 
-export { OFFROAD_V2, OFFROAD_V3, OFFROAD_V4 }
+export { OFFROAD_V2, OFFROAD_V3, OFFROAD_V4, OFFROAD_V4_1 }
 
 const world = createWorld(1)
 const yard = world.pois.find(p => p.id === 'yard')
@@ -45,6 +45,7 @@ let dprScale = 1
 let adaptAcc = 0
 let saveAcc = 0
 let wiped = false
+let holdCam = false
 const keys = { w: 0, s: 0, a: 0, d: 0, space: 0, f: 0 }
 const pad = { gas: 0, brake: 0, left: 0, right: 0, winch: 0, hand: 0 }
 let tiltV = 0
@@ -74,6 +75,46 @@ scene.add(hemi)
 const fill = new THREE.DirectionalLight(0xffe2c4, 0.7)
 fill.position.set(30, 24, -40)
 scene.add(fill)
+const rim = new THREE.DirectionalLight(0xffb27a, 0.8)
+rim.position.set(-22, 14, 28)
+scene.add(rim)
+rim.target.position.set(0, 0, 0)
+scene.add(rim.target)
+function buildEnvironment() {
+  try {
+    const pmrem = new THREE.PMREMGenerator(renderer)
+    const envScene = new THREE.Scene()
+    const skyGeo = new THREE.SphereGeometry(12, 24, 14)
+    const envMat = new THREE.ShaderMaterial({
+      side: THREE.BackSide,
+      depthWrite: false,
+      vertexShader: 'varying vec3 vP; void main(){ vP=position; gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0); }',
+      fragmentShader: `
+        varying vec3 vP;
+        void main(){
+          vec3 d = normalize(vP);
+          float h = d.y;
+          vec3 top = vec3(0.52, 0.7, 0.95);
+          vec3 hor = vec3(1.0, 0.68, 0.36);
+          vec3 ground = vec3(0.48, 0.28, 0.16);
+          vec3 col = mix(hor, top, smoothstep(0.0, 0.55, h));
+          col = mix(ground, col, smoothstep(-0.4, 0.08, h));
+          float sunD = pow(max(dot(d, normalize(vec3(0.45, 0.32, 0.84))), 0.0), 26.0);
+          col += vec3(1.0, 0.86, 0.62) * sunD * 1.6;
+          gl_FragColor = vec4(col, 1.0);
+        }`
+    })
+    envScene.add(new THREE.Mesh(skyGeo, envMat))
+    const tex = pmrem.fromScene(envScene, 0.04).texture
+    pmrem.dispose()
+    skyGeo.dispose()
+    envMat.dispose()
+    return tex
+  } catch (e) {
+    return null
+  }
+}
+const envTex = buildEnvironment()
 const skyMat = new THREE.ShaderMaterial({
   side: THREE.BackSide,
   depthWrite: false,
@@ -304,7 +345,8 @@ function buildTruck(spec) {
   wheels.forEach(w => scene.remove(w))
   wheels = []
   const look = rigLook(spec.id)
-  const built = buildRig(THREE, spec, { livery: look.livery, rack: look.rack, shadow: !!gfx().shadow })
+  const detail = save.settings.gfx === 'high' ? 4 : save.settings.gfx === 'low' ? 2 : 3
+  const built = buildRig(THREE, spec, { livery: look.livery, rack: look.rack, shadow: !!gfx().shadow, detail, env: envTex })
   truck = built.group
   wheels = built.wheels
   scene.add(truck)
@@ -321,10 +363,11 @@ function updateLamps() {
     s.intensity = on ? (hi ? 34 : 18) : 0
     s.distance = hi ? 68 : 40
     s.angle = hi ? 0.32 : 0.5
+    s.castShadow = !!(on && gfx().shadow)
   }
-  ud.lampMat.emissiveIntensity = on ? (hi ? 3.2 : 2.1) : 0.12
+  ud.lampMat.emissiveIntensity = on ? (hi ? 3.4 : 2.3) : 0.55
   if (ud.roofMat) ud.roofMat.emissiveIntensity = on ? 1.8 : 0.05
-  if (ud.tailMat) ud.tailMat.emissiveIntensity = dark ? 1.4 : 0.28
+  if (ud.tailMat) ud.tailMat.emissiveIntensity = dark ? 1.6 : 0.5
   const btn = $('btn-lights')
   if (btn) btn.textContent = modeL === 'auto' ? 'AUTO' : modeL === 'on' ? 'ON' : 'OFF'
   const beam = $('btn-beam')
@@ -364,14 +407,17 @@ function applyTime(t) {
   scene.fog.near = 18 + day * 12
   scene.fog.far = gfx().fog * (0.55 + day * 0.45)
   renderer.setClearColor(fogC)
-  renderer.toneMappingExposure = 0.72 + day * 0.38
+  const low = elev > -0.02 && elev < 0.55 ? 1 : 0
+  renderer.toneMappingExposure = 0.74 + day * 0.28 + low * 0.26
   sun.color.copy(new THREE.Color('#9db4ff').lerp(new THREE.Color('#ffb068'), Math.min(1, day * 1.4 + 0.2)))
   if (day > 0.45) sun.color.lerp(new THREE.Color('#fff4dc'), (day - 0.45) / 0.55)
-  sun.intensity = day * 2.7
+  sun.intensity = day * 2.45 + low * 0.35
   hemi.color.set(day < 0.25 ? '#1a2740' : '#ffd0a8')
   hemi.groundColor.set(day < 0.2 ? '#100e0c' : '#3a2a22')
-  hemi.intensity = 0.05 + day * 0.55
-  fill.intensity = 0.05 + day * 0.62
+  hemi.intensity = 0.08 + day * 0.5 + low * 0.1
+  fill.intensity = 0.1 + day * 0.48 + low * 0.38
+  rim.intensity = 0.12 + day * 0.22 + low * 0.9
+  rim.color.set(low ? '#ffc48a' : '#d7e4ff')
   const dir = new THREE.Vector3(Math.cos(ang), Math.max(-0.05, elev), Math.sin(ang) * 0.55).normalize()
   skyMat.uniforms.sun.value.copy(dir)
   skyMat.uniforms.elev.value = elev
@@ -480,6 +526,15 @@ function syncTruck() {
 function updateCamera(dt) {
   const c = sim.chassis
   if (!c) return
+  if (holdCam) {
+    sunDir = applyTime(save.clock)
+    const p = camera.position
+    sun.position.set(p.x + sunDir.x * 48, Math.max(8, p.y + sunDir.y * 48), p.z + sunDir.z * 48)
+    sun.target.position.set(p.x - 2, p.y - 1.2, p.z + 6)
+    sky.position.copy(camera.position)
+    stars.position.copy(camera.position)
+    return
+  }
   q.set(c.quaternion.x, c.quaternion.y, c.quaternion.z, c.quaternion.w)
   fwd.set(0, 0, 1).applyQuaternion(q)
   const p = c.position
@@ -506,10 +561,10 @@ function updateCamera(dt) {
     )
     camera.lookAt(p.x, p.y + 0.8, p.z)
   } else {
-    const back = 7.4
-    desired.set(p.x - fwd.x * back, p.y + 2.9, p.z - fwd.z * back)
+    const back = 6.3
+    desired.set(p.x - fwd.x * back, p.y + 2.45, p.z - fwd.z * back)
     if (save.settings.shake) desired.y += Math.sin(performance.now() * 0.02) * Math.min(0.08, Math.abs(lastSpeed) * 0.004)
-    lookAt.set(p.x + fwd.x * 5, p.y + 1.15, p.z + fwd.z * 5)
+    lookAt.set(p.x + fwd.x * 4, p.y + 0.95, p.z + fwd.z * 4)
     const k = 1 - Math.pow(0.001, dt)
     camera.position.lerp(desired, k)
     const gy = world.height(camera.position.x, camera.position.z) + 1.15
@@ -1390,26 +1445,35 @@ window.OX = {
   showPlay(kind) { openPlay(kind) },
   lineup() {
     const ids = Object.keys(VEHICLES)
+    const detail = save.settings.gfx === 'high' ? 4 : 3
+    const zFront = yard.z + 16
     ids.forEach((id, i) => {
       const spec = specWithUpgrades(id, save.upgrades)
-      const built = buildRig(THREE, spec, { livery: i % spec.liveries.length, rack: rigLook(id).rack, shadow: false })
-      built.group.position.set(-14 + i * 5.2, world.height(-14 + i * 5.2, yard.z + 18) , yard.z + 18)
-      scene.add(built.group)
+      const built = buildRig(THREE, spec, { livery: i % spec.liveries.length, rack: rigLook(id).rack, shadow: false, detail, env: envTex })
+      const col = i % 3
+      const row = Math.floor(i / 3)
+      const x = (col - 1) * 5.2
+      const z = zFront + row * 7.4
+      const gy = world.height(x, z)
+      const wy = -0.05 - spec.rest
+      built.group.position.set(x, gy + spec.wheelR - wy, z)
+      built.group.rotation.y = Math.PI - 0.42
       built.wheels.forEach((w, wi) => {
         const side = wi % 2 === 0 ? -1 : 1
         const front = wi < 2 ? 1 : -1
-        w.position.copy(built.group.position)
-        w.position.x += side * spec.track
-        w.position.z += front * spec.wheelbase
-        w.position.y = built.group.position.y - 0.15
-        scene.add(w)
+        w.position.set(side * spec.track, wy, front * spec.wheelbase)
+        built.group.add(w)
       })
+      scene.add(built.group)
     })
     if (truck) truck.visible = false
     wheels.forEach(w => w.visible = false)
-    const gy = world.height(0, yard.z + 18)
-    camera.position.set(6, gy + 5.5, yard.z + 4)
-    camera.lookAt(-2, gy + 1.3, yard.z + 18)
+    const gy = world.height(0, zFront)
+    camera.fov = 62
+    camera.updateProjectionMatrix()
+    camera.position.set(1.6, gy + 3.6, zFront - 9.2)
+    camera.lookAt(0, gy + 0.9, zFront + 2.4)
+    holdCam = true
   },
   prep(camp, pantry) { if (camp) Object.assign(save.camp, camp); if (pantry) Object.assign(save.pantry, pantry) }
 }

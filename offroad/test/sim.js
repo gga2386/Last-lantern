@@ -1,12 +1,12 @@
 // OFFROAD_V2 — terrain, reputation, fuel, and solid trees. Run: node offroad/test/sim.js
 import { createWorld, SURF, FRICTION, DRAG, HALF } from '../js/world.js'
-import { OFFROAD_V2, OFFROAD_V3, OFFROAD_V4, VEHICLES, freshSave, buyUpgrade, buyVehicle, buyAux, buyJerry, useJerry, refuel, burnFuel, coerceSave, tickAdventure, tankCapacity, jerrySlots, isDark, TANK, specWithUpgrades } from '../js/economy.js'
+import { OFFROAD_V2, OFFROAD_V3, OFFROAD_V4, OFFROAD_V4_1, VEHICLES, freshSave, buyUpgrade, buyVehicle, buyAux, buyJerry, useJerry, refuel, burnFuel, coerceSave, tickAdventure, tankCapacity, jerrySlots, isDark, TANK, specWithUpgrades } from '../js/economy.js'
 import { canPitch, slopeAt, buyCamp, cookJudge, applyCook, rollFish, aimHit, RECIPES } from '../js/camp.js'
 import { createSim, tractionTrial } from '../js/physics.js'
 
 const fails = []
 const fail = m => fails.push(m)
-if (OFFROAD_V2 !== 1 || OFFROAD_V3 !== 1 || OFFROAD_V4 !== 1) fail('marker missing')
+if (OFFROAD_V2 !== 1 || OFFROAD_V3 !== 1 || OFFROAD_V4 !== 1 || OFFROAD_V4_1 !== 1) fail('marker missing')
 const ids = Object.keys(VEHICLES)
 if (ids.length < 6) fail('roster ' + ids.join(','))
 for (const id of ['mule', 'scout', 'runner', 'wagon', 'hauler', 'van']) if (!VEHICLES[id]) fail('missing ' + id)
@@ -183,4 +183,14 @@ const troutDone = tickAdventure(troutSave, { x: mill.x, z: mill.z, speed: 0, clo
 if (!troutDone || !troutDone.done || troutSave.rep !== 35 + 8) fail('trout adventure ' + JSON.stringify(troutDone))
 if (!aimHit(0.5, 0.5, 0.2, 1).hit) fail('aim should hit')
 if (aimHit(0.1, 0.9, 0.08, 1).hit) fail('aim should miss')
-console.log('OK OFFROAD_V3')
+import * as THREE from '../vendor/three.module.js'
+import { buildRig } from '../js/rigs.js'
+for (const spec of Object.values(VEHICLES)) {
+  const built = buildRig(THREE, spec, { livery: 0, rack: { jerry: true, spare: true, kayak: true, bike: true }, detail: 2, shadow: false })
+  if (!built.group || built.wheels.length !== 4) fail('rig ' + spec.id)
+  if (!built.group.userData.lamps || built.group.userData.lamps.length !== 2) fail('lamps ' + spec.id)
+  let tris = 0
+  built.group.traverse(o => { if (o.isMesh && o.geometry && o.geometry.attributes.position) tris += o.geometry.attributes.position.count / 3 })
+  if (tris < 80) fail('empty mesh ' + spec.id)
+}
+console.log('OK OFFROAD_V4_1')
