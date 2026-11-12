@@ -2018,6 +2018,10 @@ if (wheelEl) {
     base = ang(e)
     origin = wheelSteer
   })
+  const paintWheel = () => {
+    const shown = wheelHold ? wheelSteer : steerSm
+    wheelEl.style.transform = 'rotate(' + (shown * 110) + 'deg)'
+  }
   wheelEl.addEventListener('pointermove', e => {
     if (e.pointerId !== pid) return
     let d = ang(e) - base
@@ -2025,6 +2029,7 @@ if (wheelEl) {
     while (d < -Math.PI) d += Math.PI * 2
     const max = 110 * Math.PI / 180
     wheelSteer = Math.max(-1, Math.min(1, origin + d / max))
+    paintWheel()
   })
   const end = e => { if (e.pointerId === pid) { pid = null; wheelHold = false } }
   wheelEl.addEventListener('pointerup', end)
@@ -2865,6 +2870,16 @@ window.OX = {
       }
       o.instanceMatrix.needsUpdate = true
     })
+  },
+  bank(pitch, roll) {
+    const c = sim.chassis
+    if (!c) return
+    const yaw = yawOf(c)
+    const euler = new THREE.Euler((pitch || 0) * Math.PI / 180, yaw, (roll || 0) * Math.PI / 180, 'YXZ')
+    const turned = new THREE.Quaternion().setFromEuler(euler)
+    c.quaternion.set(turned.x, turned.y, turned.z, turned.w)
+    c.angularVelocity.set(0, 0, 0)
+    syncTruck()
   },
   vista(x, z, yaw, dist) {
     holdCam = true

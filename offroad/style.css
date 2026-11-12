@@ -70,11 +70,11 @@ button.danger { background: #6a2418; border-color: #e4572e; }
 #app.menu #hud .cockpit, #app.menu #minimap, #app.menu #fliphint { visibility: hidden; }
 .top {
   display: flex; justify-content: space-between; gap: 10px; align-items: flex-start;
-  padding: calc(10px + var(--safe-t)) calc(12px + var(--safe-r)) 0 calc(12px + var(--safe-l));
+  padding: calc(10px + var(--safe-t)) calc(12px + var(--safe-r)) 0 calc(118px + var(--safe-l));
 }
 .cluster { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
 .cluster.right { align-items: flex-end; }
-.speed { display: flex; align-items: flex-end; gap: 8px; }
+.speed { display: none; }
 .speed b { font-family: Impact, "Arial Narrow", sans-serif; font-size: 42px; line-height: 0.8; letter-spacing: 0.03em; }
 .speed span { color: var(--muted); font-size: 13px; }
 .speed em { font-style: normal; color: var(--orange); font-weight: 700; }
@@ -351,14 +351,21 @@ h1 {
     background: linear-gradient(transparent, rgba(10, 7, 5, 0.9) 42%);
   }
   #objective { display: none; }
-  #minimap { width: 84px; height: 84px; top: calc(168px + var(--safe-t)); }
-  .wheel { width: 96px; height: 96px; }
-  .speedo { width: 88px; height: 88px; }
-  .dial, .dial svg { width: 48px; height: 48px; }
-  .pedal.drive { width: 46px; height: 108px; }
-  .pedal.stop { width: 64px; height: 78px; }
-  .toolrow { max-width: 92vw; bottom: calc(112px + var(--safe-b)); }
+  #minimap { width: 72px; height: 72px; top: calc(150px + var(--safe-t)); left: auto; right: calc(8px + var(--safe-r)); }
+  .top { padding-left: calc(12px + var(--safe-l)); }
+  .wheel { left: 6px; bottom: 8px; width: 84px; height: 84px; }
+  .gauges { left: 86px; transform: none; bottom: 12px; gap: 2px; }
+  .speedo { width: 70px; height: 70px; }
+  .dial, .dial svg { width: 40px; height: 40px; }
+  .drive-side { right: 4px; bottom: 8px; gap: 4px; }
+  .pedal.drive { width: 52px; height: 92px; font-size: 9px; letter-spacing: 0.02em; }
+  .pedal.stop { width: 50px; height: 68px; font-size: 11px; }
+  #btn-camp { left: auto; right: calc(8px + var(--safe-r)); top: calc(168px + var(--safe-t)); bottom: auto; }
+  #btn-jerry { left: auto; right: calc(8px + var(--safe-r)); top: calc(220px + var(--safe-t)); bottom: auto; }
+  .gears button { width: 30px; height: 30px; min-height: 30px; }
+  .toolrow { max-width: 96vw; bottom: calc(112px + var(--safe-b)); }
   .corner.left { width: 96px; }
+  #rotate { top: 24%; max-width: 210px; font-size: 12px; }
 }
 @media (max-height: 430px) {
   #minimap {
