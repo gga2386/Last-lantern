@@ -9,6 +9,8 @@ export const OFFROAD_V6 = 1
 export const OFFROAD_V7 = 1
 export const OFFROAD_V7_1 = 1
 export const OFFROAD_V7_2 = 1
+export const OFFROAD_V7_3 = 1
+export const OFFROAD_V8 = 1
 export const REGION_OPEN = { forest: 0, desert: 40, mountain: 120 }
 export function regionUnlocked(save, id) {
   return (save.rep || 0) >= (REGION_OPEN[id] || 0)
@@ -74,9 +76,20 @@ export const VEHICLES = {
     force: 5600, maxSpeed: 4.47, steer: 0.28, wheelR: 0.5,
     track: 0.96, wheelbase: 1.52, rest: 0.34, travel: 0.34, stiff: 28, grip: 1.16,
     liveries: [
-      { color: '#e4e8e2', stripe: '#2a3a32', kind: 'stripe', name: 'Chalk' },
-      { color: '#cfcab8', stripe: '#6a5a3a', kind: 'thick', name: 'Dust' },
+      { color: '#5d7c92', stripe: '#e4e0d4', kind: 'stripe', name: 'Crew blue' },
+      { color: '#f4f1ea', stripe: '#2a2a2a', kind: 'thick', name: 'Bed white' },
       { color: '#3a4a44', stripe: '#d8c07a', kind: 'stripe', name: 'Field' }
+    ]
+  },
+  crawler: {
+    id: 'crawler', name: 'Spine Crawler', need: 260, style: 'crawler', mass: 1180,
+    half: [1.05, 0.42, 1.7], dark: 0x1a1c22, glass: 0x9ec9d4,
+    force: 5400, maxSpeed: 4.15, steer: 0.34, wheelR: 0.52,
+    track: 0.92, wheelbase: 1.15, rest: 0.38, travel: 0.32, stiff: 22, grip: 1.22,
+    liveries: [
+      { color: '#d21f1a', stripe: '#111111', kind: 'stripe', name: 'Cage red' },
+      { color: '#f4f1ea', stripe: '#1a1a1a', kind: 'thick', name: 'Bone' },
+      { color: '#1c1c1c', stripe: '#d21f1a', kind: 'stripe', name: 'Night' }
     ]
   },
   van: {
@@ -346,7 +359,7 @@ export function specWithUpgrades(id, upgrades) {
     stiff: base.stiff * (1 - 0.07 * s),
     winch: 650 + w * 1700,
     clearance: 0.16 + base.wheelR * 0.2 + s * 0.05,
-    wade: 0.48 + base.wheelR * 0.35 + ((base.style === 'jeep' || base.style === 'utility' || base.style === 'pickup') ? 0.28 : 0) + (upgrades.snorkel ? 0.38 : 0),
+    wade: 0.48 + base.wheelR * 0.35 + ((base.style === 'jeep' || base.style === 'utility' || base.style === 'pickup' || base.style === 'crawler') ? 0.28 : 0) + (upgrades.snorkel ? 0.38 : 0),
     bogAt: 0.22 + base.wheelR * 0.72 + s * 0.06 + t * 0.05
   }
 }

@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
-<meta name="oxbow-build" content="OFFROAD_V7_2">
+<meta name="oxbow-build" content="OFFROAD_V8">
 <title>Oxbow — Hollow Creek</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect fill='%23140e0a' width='32' height='32'/%3E%3Cpath fill='%23e4572e' d='M4 22h24l-3-8H7z'/%3E%3Ccircle cx='10' cy='23' r='3' fill='%23f4efe6'/%3E%3Ccircle cx='22' cy='23' r='3' fill='%23f4efe6'/%3E%3C/svg%3E">
 <link rel="stylesheet" href="style.css">
@@ -103,6 +103,7 @@
       <button type="button" id="btn-return" class="ghost">Return to camp</button>
       <button type="button" id="btn-garage">Garage</button>
       <button type="button" id="btn-pause-help" class="ghost">How to drive</button>
+      <button type="button" id="btn-credits" class="ghost">Credits</button>
       <button type="button" id="btn-pause-settings" class="ghost">Settings</button>
       <button type="button" id="btn-quit" class="ghost">Save and quit</button>
     </div>
@@ -125,6 +126,19 @@
     </div>
   </section>
 
+  <section id="credits" class="panel">
+    <div class="sheet wide">
+      <h2>Credits</h2>
+      <div class="prose">
+        <p>Oxbow uses free assets that allow redistribution. Full notes are in <code>offroad/CREDITS.md</code>.</p>
+        <p>Vehicles — Car Kit and Toy Car Kit by Kenney, CC0. The Yard Mule is the flatbed truck, the Ridge Scout and Bluff Runner are the SUVs, the Creek Wagon is the sedan, the Basin Hauler is the pickup, the Lantern Van is the van, and the Spine Crawler is the monster truck.</p>
+        <p>Trees, cactus, palms, grass, and rocks — Nature Kit by Kenney, CC0.</p>
+        <p>Kenney: https://kenney.nl — CC0 1.0 https://creativecommons.org/publicdomain/zero/1.0/</p>
+      </div>
+      <button type="button" id="btn-credits-close" class="ghost">Close</button>
+    </div>
+  </section>
+
   <section id="help" class="panel">
     <div class="sheet wide">
       <h2>How to drive</h2>
@@ -133,7 +147,7 @@
         <p>These are crawlers, not racers. LOW (or K) shortens the gear for torque and a slower crawl. LOCK ties the diffs for mud and rock. Hold WINCH to drag yourself toward a tree or a big rock. Deep mud bogs the chassis. Deep water, past the wading line, stalls the engine. A snorkel and a lift raise that line. RESET only helps when you are upright on firm ground. On your side, roof, or stuck, call for recovery: a yard truck takes about 20 seconds, hooks a line, and pulls you out. That call counts as a reset on an adventure.</p>
         <p>Dirt, trail, sand, mud, rock, and creek water all grip differently. The creek is shallow enough to ford and slow enough to respect.</p>
         <p>Fuel burns while the engine runs, and it is free — but only a general store pump will fill you. The stores also fit a bigger tank and sell jerry cans you can pour from the CAN button anywhere. Both take reputation, not cash.</p>
-        <p>Adventures pay reputation. Ranks open tires, suspension, the engine, the winch, the camp kit, and the rest of the yard: the Ridge Scout, Bluff Runner, Creek Wagon, Basin Hauler, and Lantern Van. At the garage you can change paint and the roof rack. The body shells are original models made for Oxbow. Headlights come on at dusk (AUTO). H cycles them, B is high beam.</p>
+        <p>Adventures pay reputation. Ranks open tires, suspension, the engine, the winch, the camp kit, and the rest of the yard: the Ridge Scout, Bluff Runner, Creek Wagon, Basin Hauler, Spine Crawler, and Lantern Van. At the garage you can change paint and the roof rack. The rigs, trees, and rocks are free CC0 models, listed under Credits. Headlights come on at dusk (AUTO). H cycles them, B is high beam.</p>
         <p>The basin is three countries. Hollow Forest is home. Red Wash opens at 40 reputation, Granite Spine at 120. Each has its own store, camps, and adventures. Stop on flat ground, or at a marked camp, and tap CAMP. Fish only where there is water. Hunt where animals live, and only with a field kit. Cook only when the pantry has a meal. Grey buttons stay on the bar and tell you what is missing.</p>
         <p>The garage lists approach, departure, and breakover. The inclinometer on the dash goes gold, then red, as the truck tips. Low graphics turns off the color grade, the vignette, and the drifting dust.</p>
       </div>

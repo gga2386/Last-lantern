@@ -67,7 +67,7 @@ async function main() {
     fs.writeFileSync(file, Buffer.from(cap.result.data, 'base64'))
     console.log('wrote', file)
   }
-  const rigs = ['mule', 'scout', 'runner', 'wagon', 'hauler', 'van']
+  const rigs = ['mule', 'scout', 'runner', 'wagon', 'hauler', 'crawler', 'van']
   for (const idn of rigs) {
     await send('Runtime.evaluate', { expression: `OX.vista(22, -150, 0.2, 8); OX.use('${idn}'); OX.frameRig(0.75); 'ok'` })
     await shot('rig-' + idn + '-front')

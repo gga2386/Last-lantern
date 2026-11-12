@@ -1,7 +1,7 @@
 // Authored rigs. GlTF shells, shared wheels, paint recolor. OFFROAD_V5
 import { GLTFLoader } from '../vendor/GLTFLoader.js'
 
-const STYLES = ['pickup', 'jeep', 'bronco', 'wagon', 'utility', 'van']
+const STYLES = ['pickup', 'jeep', 'bronco', 'wagon', 'utility', 'van', 'crawler']
 const templates = new Map()
 
 export async function preloadRigs() {
@@ -61,7 +61,9 @@ export function buildRig(THREE, spec, opts) {
         const c = m.clone()
         if (c.name === 'Lamp') return lampMat
         if (c.name === 'Tail') return tailMat
-        return paintOf(c, liv, opts.env || null)
+        const painted = paintOf(c, liv, opts.env || null)
+        if (painted && painted.name === 'Paint' && o.geometry && o.geometry.getAttribute('color')) painted.vertexColors = true
+        return painted
       })
       o.material = Array.isArray(o.material) ? next : next[0]
       if (o.name === 'Body' && opts.shadow) o.castShadow = true

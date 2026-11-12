@@ -1,12 +1,13 @@
-// Oxbow — Hollow Creek. OFFROAD_V7_2
+// Oxbow — Hollow Creek. OFFROAD_V8
 import * as THREE from '../vendor/three.module.js'
 import { createWorld, WORLD_SIZE, HALF, SURF, SURF_NAME } from './world.js'
-import { OFFROAD_V2, OFFROAD_V3, OFFROAD_V4, OFFROAD_V4_1, OFFROAD_V5, OFFROAD_V5_1, OFFROAD_V6, OFFROAD_V7, OFFROAD_V7_1, OFFROAD_V7_2, freshSave, SAVE_KEY, VEHICLES, UPGRADES, AUX, JERRY, ADVENTURES, TANK, coerceSave, buyUpgrade, buyVehicle, buyAux, buyJerry, useJerry, refuel, burnFuel, specWithUpgrades, tankCapacity, jerrySlots, rankFor, isDark, clockLabel, tickAdventure, noteAssist, REGION_OPEN, regionUnlocked, crawlAngles } from './economy.js'
+import { OFFROAD_V2, OFFROAD_V3, OFFROAD_V4, OFFROAD_V4_1, OFFROAD_V5, OFFROAD_V5_1, OFFROAD_V6, OFFROAD_V7, OFFROAD_V7_1, OFFROAD_V7_2, OFFROAD_V7_3, OFFROAD_V8, freshSave, SAVE_KEY, VEHICLES, UPGRADES, AUX, JERRY, ADVENTURES, TANK, coerceSave, buyUpgrade, buyVehicle, buyAux, buyJerry, useJerry, refuel, burnFuel, specWithUpgrades, tankCapacity, jerrySlots, rankFor, isDark, clockLabel, tickAdventure, noteAssist, REGION_OPEN, regionUnlocked, crawlAngles } from './economy.js'
 import { preloadRigs, buildRig, applyLod } from './rigs.js'
+import { preloadScenery } from './scenery.js'
 import { CAMP, campLevel, buyCamp, canPitch, rollFish, reelBand, biteSeconds, aimHit, RECIPES, canCook, cookJudge, applyCook, activityState, gameFor } from './camp.js'
 import { createSim, ROLL_LIMIT, recoveryCopy } from './physics.js'
 
-export { OFFROAD_V2, OFFROAD_V3, OFFROAD_V4, OFFROAD_V4_1, OFFROAD_V5, OFFROAD_V5_1, OFFROAD_V6, OFFROAD_V7, OFFROAD_V7_1, OFFROAD_V7_2 }
+export { OFFROAD_V2, OFFROAD_V3, OFFROAD_V4, OFFROAD_V4_1, OFFROAD_V5, OFFROAD_V5_1, OFFROAD_V6, OFFROAD_V7, OFFROAD_V7_1, OFFROAD_V7_2, OFFROAD_V7_3, OFFROAD_V8 }
 
 const world = createWorld(1)
 const yard = world.pois.find(p => p.id === 'yard')
@@ -321,9 +322,11 @@ function plantGeo() {
   const pale = new THREE.CylinderGeometry(0.1, 0.16, 2.4, 5); pale.translate(0, 1.2, 0)
   return { pine, aspen, cactus, juniper, pale }
 }
-function instanced(geo, color, matrices, roughness) {
+function instanced(geo, color, matrices, roughness, sourceMat) {
   if (!matrices.length) return null
-  const mesh = new THREE.InstancedMesh(geo, new THREE.MeshStandardMaterial({ color, roughness: roughness == null ? 0.86 : roughness }), matrices.length)
+  const mat = sourceMat ? sourceMat.clone() : new THREE.MeshStandardMaterial({ color, roughness: roughness == null ? 0.86 : roughness })
+  if (sourceMat && color) mat.color = new THREE.Color(color)
+  const mesh = new THREE.InstancedMesh(geo, mat, matrices.length)
   matrices.forEach((m, i) => mesh.setMatrixAt(i, m))
   mesh.instanceMatrix.needsUpdate = true
   mesh.frustumCulled = false
@@ -331,10 +334,12 @@ function instanced(geo, color, matrices, roughness) {
   scene.add(mesh)
   return mesh
 }
+let sceneryPack = {}
 function scatter() {
   const dummy = new THREE.Object3D()
   const trees = world.trees.slice(0, gfx().trees)
   const geos = plantGeo()
+  const pack = sceneryPack
   const trunkG = new THREE.CylinderGeometry(0.16, 0.26, 2.2, 5)
   trunkG.translate(0, 1.1, 0)
   const buckets = { trunk: [], pale: [], pine: [], aspen: [], cactus: [], juniper: [] }
@@ -349,23 +354,31 @@ function scatter() {
     else if (t.k === 1) { buckets.pale.push(m); buckets.aspen.push(m) }
     else { buckets.trunk.push(m); buckets.pine.push(m) }
   })
-  instanced(trunkG, 0x5a4030, buckets.trunk)
-  instanced(geos.pale, 0xe4e0d4, buckets.pale, 0.7)
-  instanced(geos.pine, 0x1f4a30, buckets.pine)
-  instanced(geos.aspen, 0xc5d6a4, buckets.aspen, 0.75)
-  instanced(geos.cactus, 0x6d8f48, buckets.cactus, 0.7)
-  instanced(geos.juniper, 0x7d8a58, buckets.juniper, 0.8)
+  if (pack.pine) instanced(pack.pine.geometry, 0xffffff, buckets.pine, 0.86, pack.pine.material)
+  else { instanced(trunkG, 0x5a4030, buckets.trunk); instanced(geos.pine, 0x1f4a30, buckets.pine) }
+  if (pack.oak) instanced(pack.oak.geometry, 0xffffff, buckets.aspen, 0.8, pack.oak.material)
+  else { instanced(geos.pale, 0xe4e0d4, buckets.pale, 0.7); instanced(geos.aspen, 0xc5d6a4, buckets.aspen, 0.75) }
+  if (pack.cactus) instanced(pack.cactus.geometry, 0xffffff, buckets.cactus, 0.7, pack.cactus.material)
+  else instanced(geos.cactus, 0x6d8f48, buckets.cactus, 0.7)
+  if (pack.palm) instanced(pack.palm.geometry, 0xffffff, buckets.juniper, 0.75, pack.palm.material)
+  else instanced(geos.juniper, 0x7d8a58, buckets.juniper, 0.8)
   const rockGeos = [
     new THREE.DodecahedronGeometry(1, 0),
     new THREE.BoxGeometry(1.4, 0.55, 1.1),
     new THREE.ConeGeometry(0.7, 1.8, 5)
   ]
+  const rockPack = [pack.rock_a, pack.rock_b, pack.rock_c]
   const rockCols = { desert: new THREE.Color('#b15a42'), forest: new THREE.Color('#6a6458'), mountain: new THREE.Color('#9aa3ad') }
   const groups = [[], [], []]
   world.rocks.forEach(r => {
     const climb = r.h < 1.75
-    dummy.position.set(r.x, world.height(r.x, r.z) + (climb ? 0.05 : r.h * 0.12), r.z)
-    dummy.scale.set(r.rad * (r.kind === 1 ? 0.62 : 0.46), (climb ? 0.34 : r.h * (r.kind === 2 ? 0.85 : 0.55)), r.rad * 0.44)
+    const span = r.rad * (r.kind === 1 ? 0.55 : 0.42)
+    let seat = world.height(r.x, r.z)
+    for (const [dx, dz] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+      seat = Math.min(seat, world.height(r.x + dx * span * 0.45, r.z + dz * span * 0.45))
+    }
+    dummy.position.set(r.x, seat - span * 0.08, r.z)
+    dummy.scale.set(span, span * (climb ? 0.55 : 0.85), span * 0.9)
     dummy.rotation.set(r.h * 0.2, r.x * 0.2, r.kind === 1 ? 0.3 : 0.15)
     dummy.updateMatrix()
     groups[r.kind] = groups[r.kind] || groups[0]
@@ -373,7 +386,8 @@ function scatter() {
   })
   groups.forEach((list, kind) => {
     if (!list.length) return
-    const mesh = new THREE.InstancedMesh(rockGeos[kind] || rockGeos[0], new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.94 }), list.length)
+    const src = rockPack[kind]
+    const mesh = new THREE.InstancedMesh(src ? src.geometry : (rockGeos[kind] || rockGeos[0]), src ? src.material.clone() : new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.94 }), list.length)
     list.forEach((item, i) => {
       mesh.setMatrixAt(i, item.m)
       mesh.setColorAt(i, rockCols[item.region] || rockCols.forest)
@@ -417,21 +431,23 @@ function scatterGround() {
     buckets[kind].push(dummy.matrix.clone())
     if (kind === 'flower') flowerCol.push(blooms[i % blooms.length])
   }
-  const grass = new THREE.ConeGeometry(0.16, 0.5, 3); grass.translate(0, 0.25, 0)
+  const grass = (sceneryPack.grass && sceneryPack.grass.geometry) || new THREE.ConeGeometry(0.16, 0.5, 3)
+  if (!sceneryPack.grass) grass.translate(0, 0.25, 0)
   const flower = new THREE.SphereGeometry(0.12, 5, 4); flower.translate(0, 0.35, 0)
   const ripple = new THREE.CircleGeometry(0.7, 6)
   const scree = new THREE.DodecahedronGeometry(0.22, 0)
   const snow = new THREE.CircleGeometry(0.85, 6)
-  const paint = (geo, color, list, rough) => {
+  const paint = (geo, color, list, rough, sourceMat) => {
     if (!list.length) return
-    const mesh = new THREE.InstancedMesh(geo, new THREE.MeshStandardMaterial({ color, roughness: rough, metalness: 0 }), list.length)
+    const mat = sourceMat ? sourceMat.clone() : new THREE.MeshStandardMaterial({ color, roughness: rough, metalness: 0 })
+    const mesh = new THREE.InstancedMesh(geo, mat, list.length)
     list.forEach((m, i) => mesh.setMatrixAt(i, m))
     mesh.instanceMatrix.needsUpdate = true
     mesh.frustumCulled = false
     scene.add(mesh)
     return mesh
   }
-  paint(grass, 0x3f6a3a, buckets.grass, 0.95)
+  paint(grass, sceneryPack.grass ? 0xffffff : 0x3f6a3a, buckets.grass, 0.95, sceneryPack.grass && sceneryPack.grass.material)
   const flowers = paint(flower, 0xffffff, buckets.flower, 0.6)
   if (flowers) {
     flowerCol.forEach((c, i) => flowers.setColorAt(i, c))
@@ -529,7 +545,8 @@ function rigLook(id) {
     bronco: { jerry: false, spare: false, kayak: true, bike: false },
     wagon: { jerry: true, spare: false, kayak: false, bike: true },
     utility: { jerry: true, spare: true, kayak: false, bike: false },
-    van: { jerry: false, spare: true, kayak: false, bike: false }
+    van: { jerry: false, spare: true, kayak: false, bike: false },
+    crawler: { jerry: false, spare: false, kayak: false, bike: false }
   }[style] || { jerry: false, spare: true, kayak: false, bike: false }
   return { livery: all.livery || 0, rack: Object.assign({}, base, all.rack || {}) }
 }
@@ -643,13 +660,13 @@ function applyTime(t) {
   const graded = save.settings.gfx !== 'low'
   renderer.toneMappingExposure = 0.78 + day * 0.26 + low * (graded ? 0.34 : 0.12)
   sun.color.copy(sunC)
-  sun.intensity = day * 2.35 + low * 0.45
+  sun.intensity = day * 1.95 + low * 0.4
   hemi.color.copy(hemiC)
   hemi.groundColor.copy(groundC)
-  hemi.intensity = 0.1 + day * 0.48 + low * 0.12
+  hemi.intensity = 0.22 + day * 0.58 + low * 0.16
   fill.color.copy(hemiC)
-  fill.intensity = 0.12 + day * 0.42 + low * 0.36
-  rim.intensity = 0.14 + day * 0.18 + low * 0.85
+  fill.intensity = 0.18 + day * 0.4 + low * 0.32
+  rim.intensity = 0.22 + day * 0.24 + low * 0.7
   rim.color.copy(sunC)
   const dir = new THREE.Vector3(Math.cos(ang), Math.max(-0.05, elev), Math.sin(ang) * 0.55).normalize()
   skyMat.uniforms.sun.value.copy(dir)
@@ -1628,7 +1645,9 @@ $('btn-store-close').onclick = () => closePanels()
 $('btn-map-close').onclick = closePanels
 $('btn-help').onclick = () => showPanel('help')
 $('btn-pause-help').onclick = () => showPanel('help')
+$('btn-credits').onclick = () => showPanel('credits')
 $('btn-help-close').onclick = () => { if (mode === 'title') { document.querySelectorAll('.panel').forEach(p => p.classList.remove('show')) } else showPanel('pause') }
+$('btn-credits-close').onclick = () => showPanel('pause')
 $('btn-settings').onclick = () => { syncSettings(); showPanel('settings') }
 $('btn-pause-settings').onclick = () => { syncSettings(); showPanel('settings') }
 $('btn-settings-close').onclick = () => { if (mode === 'title') { document.querySelectorAll('.panel').forEach(p => p.classList.remove('show')) } else showPanel('pause') }
@@ -1762,6 +1781,7 @@ window.addEventListener('resize', resize)
 resize()
 
 await preloadRigs()
+sceneryPack = await preloadScenery(THREE)
 buildTerrain()
 scatter()
 buildCamps()
@@ -2222,10 +2242,10 @@ window.OX = {
     app.classList.remove('title')
     const c = sim.chassis
     const p = c.position
-    const dist = 5.6
-    camera.position.set(p.x + Math.sin(yaw) * dist, p.y + 2.15, p.z + Math.cos(yaw) * dist)
-    camera.lookAt(p.x, p.y + 0.65, p.z)
-    applyTime(0.48)
+    const dist = 4.35
+    camera.position.set(p.x + Math.sin(yaw) * dist, p.y + 1.65, p.z + Math.cos(yaw) * dist)
+    camera.lookAt(p.x, p.y + 0.72, p.z)
+    applyTime(0.38)
   },
   lineup() {
     const ids = Object.keys(VEHICLES)
@@ -2253,10 +2273,10 @@ window.OX = {
     if (truck) truck.visible = false
     wheels.forEach(w => w.visible = false)
     const gy = world.height(0, zFront)
-    camera.fov = 62
+    camera.fov = 68
     camera.updateProjectionMatrix()
-    camera.position.set(1.6, gy + 3.6, zFront - 9.2)
-    camera.lookAt(0, gy + 0.9, zFront + 2.4)
+    camera.position.set(0.8, gy + 5.4, zFront - 13)
+    camera.lookAt(0, gy + 0.9, zFront + 6)
     holdCam = true
   },
   prep(camp, pantry) { if (camp) Object.assign(save.camp, camp); if (pantry) Object.assign(save.pantry, pantry) }
