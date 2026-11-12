@@ -1,12 +1,12 @@
 // OFFROAD_V2 — terrain, reputation, fuel, and solid trees. Run: node offroad/test/sim.js
 import { createWorld, SURF, FRICTION, DRAG, HALF } from '../js/world.js'
-import { OFFROAD_V2, OFFROAD_V3, OFFROAD_V4, OFFROAD_V4_1, OFFROAD_V5, OFFROAD_V5_1, OFFROAD_V6, OFFROAD_V7, OFFROAD_V7_1, OFFROAD_V7_2, OFFROAD_V7_3, OFFROAD_V8, OFFROAD_V9, VEHICLES, ADVENTURES, freshSave, buyUpgrade, buyVehicle, buyAux, buyJerry, useJerry, refuel, burnFuel, coerceSave, tickAdventure, tankCapacity, jerrySlots, isDark, TANK, specWithUpgrades, noteAssist, crawlAngles, regionUnlocked } from '../js/economy.js'
-import { canPitch, slopeAt, buyCamp, cookJudge, applyCook, rollFish, aimHit, RECIPES, activityState, nearWater, habitat } from '../js/camp.js'
+import { OFFROAD_V2, OFFROAD_V3, OFFROAD_V4, OFFROAD_V4_1, OFFROAD_V5, OFFROAD_V5_1, OFFROAD_V6, OFFROAD_V7, OFFROAD_V7_1, OFFROAD_V7_2, OFFROAD_V7_3, OFFROAD_V8, OFFROAD_V9, OFFROAD_V10, VEHICLES, ADVENTURES, freshSave, buyUpgrade, buyVehicle, buyAux, buyJerry, useJerry, refuel, burnFuel, coerceSave, tickAdventure, tankCapacity, jerrySlots, isDark, TANK, specWithUpgrades, noteAssist, crawlAngles, regionUnlocked } from '../js/economy.js'
+import { canPitch, slopeAt, buyCamp, cookJudge, applyCook, rollFish, aimHit, RECIPES, activityState, nearWater, habitat, CAMP, spotVisual } from '../js/camp.js'
 import { createSim, tractionTrial, ROLL_LIMIT, recoveryCopy } from '../js/physics.js'
 
 const fails = []
 const fail = m => fails.push(m)
-if (OFFROAD_V2 !== 1 || OFFROAD_V3 !== 1 || OFFROAD_V4 !== 1 || OFFROAD_V4_1 !== 1 || OFFROAD_V5 !== 1 || OFFROAD_V5_1 !== 1 || OFFROAD_V6 !== 1 || OFFROAD_V7 !== 1 || OFFROAD_V7_1 !== 1 || OFFROAD_V7_2 !== 1 || OFFROAD_V7_3 !== 1 || OFFROAD_V8 !== 1 || OFFROAD_V9 !== 1) fail('marker missing')
+if (OFFROAD_V2 !== 1 || OFFROAD_V3 !== 1 || OFFROAD_V4 !== 1 || OFFROAD_V4_1 !== 1 || OFFROAD_V5 !== 1 || OFFROAD_V5_1 !== 1 || OFFROAD_V6 !== 1 || OFFROAD_V7 !== 1 || OFFROAD_V7_1 !== 1 || OFFROAD_V7_2 !== 1 || OFFROAD_V7_3 !== 1 || OFFROAD_V8 !== 1 || OFFROAD_V9 !== 1 || OFFROAD_V10 !== 1) fail('marker missing')
 const ids = Object.keys(VEHICLES)
 if (ids.length < 6) fail('roster ' + ids.join(','))
 for (const id of ['mule', 'scout', 'runner', 'wagon', 'hauler', 'crawler', 'van']) if (!VEHICLES[id]) fail('missing ' + id)
@@ -120,7 +120,7 @@ const fuelLeft = burnFuel(TANK, 1, 2)
 if (!(fuelLeft < TANK && fuelLeft > TANK - 1)) fail('fuel burn ' + fuelLeft)
 if (burnFuel(0.01, 1, 5) !== 0) fail('fuel went negative')
 const migrated = coerceSave({ v: 1, money: 400, fuel: 9, vehicle: 'mule', owned: ['mule'], upgrades: { tires: 1, susp: 0, engine: 0, winch: 0 }, discovered: ['yard'], done: ['lookout', 'mill'], settings: { time: 0.2, gfx: 'low' }, x: 1, z: 2, qw: 1 }, 'low')
-if (!migrated || migrated.v !== 6 || migrated.money != null) fail('migration kept cash')
+if (!migrated || migrated.v !== 10 || migrated.money != null) fail('migration kept cash')
 if (!migrated.camp || migrated.camp.tent !== 0 || !migrated.pantry) fail('migration dropped the camp kit')
 if (migrated.rep !== 45 + 50) fail('migration rep ' + migrated.rep)
 if (!migrated.cleared.nightwatch || !migrated.cleared.ford) fail('migration adventures')
@@ -360,4 +360,13 @@ const angles = crawlAngles(specWithUpgrades('mule', { tires: 0, susp: 0, engine:
 if (!(angles.approach > 10 && angles.breakover > 5)) fail('crawl angles ' + JSON.stringify(angles))
 const kinds = new Set(world.trees.map(t => t.k))
 if (!kinds.has(2) || !kinds.has(3)) fail('desert plants missing ' + [...kinds].join(','))
-console.log('OK OFFROAD_V9')
+if (CAMP.tent.max !== 3 || CAMP.tent.labels.length !== 4) fail('tent tiers')
+const legacy = coerceSave({ v: 6, upgrades: { tires: 0, susp: 0, engine: 0, winch: 0, snorkel: 0 }, rep: 200, camp: { tent: 2, pit: 1, chairs: 1, lights: 0, rod: 1, hunt: 2 } }, 'medium')
+if (!legacy || legacy.camp.tent !== 3 || legacy.v !== 10) fail('old rooftop should stay the top tent ' + JSON.stringify(legacy && legacy.camp))
+const dome = coerceSave({ v: 10, upgrades: { tires: 0, susp: 0, engine: 0, winch: 0, snorkel: 0 }, rep: 200, camp: { tent: 2, pit: 0, chairs: 0, lights: 0, rod: 0, hunt: 0 } }, 'medium')
+if (!dome || dome.camp.tent !== 2) fail('family dome should stay')
+const roof = buyCamp(Object.assign(freshSave(), { rep: 400, camp: { tent: 2, pit: 0, chairs: 0, lights: 0, rod: 0, hunt: 0 } }), 'tent')
+if (!roof || roof.camp.tent !== 3) fail('rooftop buy')
+const seen = spotVisual({ id: 'deer', name: 'Deer' }, () => 0.9)
+if (seen.model !== 'doe' && seen.model !== 'stag' && seen.model !== 'elk') fail('deer visual')
+console.log('OK OFFROAD_V10')

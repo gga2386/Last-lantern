@@ -1,11 +1,11 @@
-// Camping rules, fish, fair-chase hunting, and the cook fire. OFFROAD_V3
+// Camping rules, fish, fair-chase spotting, and the cook fire. OFFROAD_V10
 export const CAMP = {
-  tent: { name: 'Tent', max: 2, need: [80, 200], labels: ['Pup tent', 'Cabin tent', 'Rooftop tent'], blurb: 'A pup tent to start. A cabin tent, then one that rides on the roof.' },
+  tent: { name: 'Tent', max: 3, need: [80, 200, 280], labels: ['Ridge tent', 'Two-person dome', 'Four-person dome', 'Rooftop tent'], blurb: 'A ridge tent to start. Two domes, then a shell that rides on the roof with a tarp.' },
   pit: { name: 'Fire', max: 2, need: [40, 140], labels: ['Stone ring', 'Fire pit', 'Cooking grill'], blurb: 'A better pit, then a grill that makes the sweet spot easier.' },
   chairs: { name: 'Camp chairs', max: 1, need: [40], labels: ['None', 'Two chairs'], blurb: 'Somewhere to sit while the basin goes quiet.' },
   lights: { name: 'Lantern lights', max: 1, need: [80], labels: ['None', 'String lights'], blurb: 'A line of lanterns over the camp.' },
   rod: { name: 'Fishing rod', max: 3, need: [40, 120, 220], labels: ['No rod', 'Cane pole', 'Spinning reel', 'Fly rod'], blurb: 'Each rod waits less and forgives a sloppy reel.' },
-  hunt: { name: 'Field kit', max: 3, need: [40, 140, 240], labels: ['No kit', 'Pocket camera', 'Field camera', 'Hunting bow'], blurb: 'Photos first. The bow is a fair shot and brings meat.' }
+  hunt: { name: 'Field kit', max: 3, need: [40, 140, 240], labels: ['No kit', 'Pocket camera', 'Field camera', 'Tracking kit'], blurb: 'Photos first. A careful track still brings meat for the fire.' }
 }
 export const FISH = [
   { id: 'chub', name: 'Creek chub', min: 14, max: 24 },
@@ -106,6 +106,18 @@ export function activityState(world, x, z, save) {
 }
 export function gameFor(region) {
   return GAME_BY_REGION[region] || GAME
+}
+// Which model walks the trail. The reward id stays the animal from gameFor.
+export function spotVisual(animal, rng) {
+  const roll = rng()
+  if (animal.id === 'deer' || animal.id === 'goat') {
+    if (roll < 0.22) return { model: 'elk', label: 'Elk' }
+    if (roll < 0.62) return { model: 'stag', label: animal.name }
+    return { model: 'doe', label: animal.name }
+  }
+  if (animal.id === 'turkey' || animal.id === 'quail') return { model: 'turkey', label: animal.name }
+  if (roll < 0.28) return { model: 'rabbit', label: animal.name }
+  return { model: 'fox', label: 'Fox' }
 }
 export function rollFish(world, x, z, clock, rod, rng) {
   const mill = world.pois.find(p => p.id === 'mill')

@@ -1,13 +1,14 @@
-// Oxbow — Hollow Creek. OFFROAD_V9
+// Oxbow — Hollow Creek. OFFROAD_V10
 import * as THREE from '../vendor/three.module.js'
 import { createWorld, WORLD_SIZE, HALF, SURF, SURF_NAME } from './world.js'
-import { OFFROAD_V2, OFFROAD_V3, OFFROAD_V4, OFFROAD_V4_1, OFFROAD_V5, OFFROAD_V5_1, OFFROAD_V6, OFFROAD_V7, OFFROAD_V7_1, OFFROAD_V7_2, OFFROAD_V7_3, OFFROAD_V8, OFFROAD_V9, freshSave, SAVE_KEY, VEHICLES, UPGRADES, AUX, JERRY, ADVENTURES, TANK, coerceSave, buyUpgrade, buyVehicle, buyAux, buyJerry, useJerry, refuel, burnFuel, specWithUpgrades, tankCapacity, jerrySlots, rankFor, isDark, clockLabel, tickAdventure, noteAssist, REGION_OPEN, regionUnlocked, crawlAngles } from './economy.js'
+import { OFFROAD_V2, OFFROAD_V3, OFFROAD_V4, OFFROAD_V4_1, OFFROAD_V5, OFFROAD_V5_1, OFFROAD_V6, OFFROAD_V7, OFFROAD_V7_1, OFFROAD_V7_2, OFFROAD_V7_3, OFFROAD_V8, OFFROAD_V9, OFFROAD_V10, freshSave, SAVE_KEY, VEHICLES, UPGRADES, AUX, JERRY, ADVENTURES, TANK, coerceSave, buyUpgrade, buyVehicle, buyAux, buyJerry, useJerry, refuel, burnFuel, specWithUpgrades, tankCapacity, jerrySlots, rankFor, isDark, clockLabel, tickAdventure, noteAssist, REGION_OPEN, regionUnlocked, crawlAngles } from './economy.js'
 import { preloadRigs, buildRig, applyLod, poseRig, applyPaint, factoryPaint, PAINT_SWATCHES } from './rigs.js'
 import { preloadScenery, preloadGround } from './scenery.js'
-import { CAMP, campLevel, buyCamp, canPitch, rollFish, reelBand, biteSeconds, aimHit, RECIPES, canCook, cookJudge, applyCook, activityState, gameFor } from './camp.js'
+import { CAMP, campLevel, buyCamp, canPitch, rollFish, reelBand, biteSeconds, aimHit, RECIPES, canCook, cookJudge, applyCook, activityState, gameFor, spotVisual } from './camp.js'
+import { ensureCamp, buildCampSite, buildFishMoment, buildHuntMoment, buildCookMoment } from './campview.js'
 import { createSim, ROLL_LIMIT, recoveryCopy } from './physics.js'
 
-export { OFFROAD_V2, OFFROAD_V3, OFFROAD_V4, OFFROAD_V4_1, OFFROAD_V5, OFFROAD_V5_1, OFFROAD_V6, OFFROAD_V7, OFFROAD_V7_1, OFFROAD_V7_2, OFFROAD_V7_3, OFFROAD_V8, OFFROAD_V9 }
+export { OFFROAD_V2, OFFROAD_V3, OFFROAD_V4, OFFROAD_V4_1, OFFROAD_V5, OFFROAD_V5_1, OFFROAD_V6, OFFROAD_V7, OFFROAD_V7_1, OFFROAD_V7_2, OFFROAD_V7_3, OFFROAD_V8, OFFROAD_V9, OFFROAD_V10 }
 
 const world = createWorld(1)
 const yard = world.pois.find(p => p.id === 'yard')
@@ -620,6 +621,7 @@ function buildTruck(spec) {
   wheels = built.wheels
   scene.add(truck)
   wheels.forEach(w => scene.add(w))
+  if (campView && campView.attachRoof) campView.attachRoof(truck)
 }
 function updateLamps() {
   const ud = truck && truck.userData
@@ -964,8 +966,8 @@ function updateCamera(dt) {
   if (mode === 'camp') {
     orbit += dt * 0.15
     const yaw = orbitYaw + orbit
-    camera.position.set(firePos.x + Math.sin(yaw) * 7.2, firePos.y + 2.4, firePos.z + Math.cos(yaw) * 7.2)
-    camera.lookAt(firePos.x, firePos.y + 0.5, firePos.z)
+    camera.position.set(firePos.x + Math.sin(yaw) * 11.5, firePos.y + 3.5, firePos.z + Math.cos(yaw) * 11.5)
+    camera.lookAt(firePos.x, firePos.y + 0.7, firePos.z)
   } else if (mode === 'title') {
     orbit += dt * 0.22
     camera.position.set(p.x + Math.sin(orbit) * 9.5, p.y + 3.1, p.z + Math.cos(orbit) * 9.5)
@@ -1916,6 +1918,11 @@ buildTerrain()
 scatter()
 buildCamps()
 sim.spawn('mule', { x: yard.x, z: yard.z + 8 }, save.upgrades)
+let campOn = false
+let campBusy = false
+let campView = null
+let moment = null
+let play = null
 buildTruck(sim.spec)
 for (let i = 0; i < 40; i++) sim.step(1 / 60, zeroInput())
 enterTitle()
@@ -1925,57 +1932,59 @@ if (sessionStorage.getItem('oxbow_hot') === '1') {
   if (loaded) startPlay(loaded)
 }
 
-let campOn = false
 const firePos = new THREE.Vector3()
-let campGroup = null
-let fireLight = null
-let play = null
-const embers = new Float32Array(18 * 3)
-const emberLife = new Float32Array(18)
-function pitchCamp() {
+function closeMoment() {
+  if (moment) {
+    if (moment.dispose) moment.dispose()
+    scene.remove(moment.group)
+    moment = null
+  }
+  holdCam = false
+  const el = $('play')
+  if (el) {
+    el.hidden = true
+    el.classList.remove('moment', 'fish', 'hunt', 'cook')
+  }
+  const finder = $('play-finder')
+  if (finder) finder.hidden = true
+  const ret = $('play-reticle')
+  if (ret) ret.hidden = true
+  play = null
+  if (campView && campView.anchor) campView.anchor.visible = true
+  if (campOn) {
+    const bar = $('campbar')
+    if (bar) bar.hidden = false
+  }
+}
+async function pitchCamp() {
   const c = sim.chassis
-  if (!c) return
+  if (!c || campBusy) return
   if (!canPitch(world, c.position.x, c.position.z, sim.upright(), lastSpeed)) { toast('Too steep, or still rolling.'); return }
+  campBusy = true
   packCamp(true)
+  for (let i = 0; i < 90; i++) sim.step(1 / 60, zeroInput())
+  syncTruck()
+  toast('Setting camp…')
+  try {
+    await ensureCamp(THREE)
+  } catch (e) {
+    campBusy = false
+    toast('The camp kit did not unpack.')
+    return
+  }
   campOn = true
   mode = 'camp'
   app.classList.add('camping')
-  q.set(c.quaternion.x, c.quaternion.y, c.quaternion.z, c.quaternion.w)
-  const right = new THREE.Vector3(1, 0, 0).applyQuaternion(q)
-  firePos.set(c.position.x + right.x * 3.4, world.height(c.position.x + right.x * 3.4, c.position.z + right.z * 3.4), c.position.z + right.z * 3.4)
-  campGroup = new THREE.Group()
-  const tentMat = new THREE.MeshStandardMaterial({ color: save.camp.tent >= 1 ? 0xd8c7a2 : 0xc4552e, roughness: 0.85 })
-  const tent = save.camp.tent >= 2
-    ? new THREE.Mesh(new THREE.ConeGeometry(0.7, 0.55, 4), tentMat)
-    : new THREE.Mesh(new THREE.ConeGeometry(save.camp.tent ? 1.5 : 1.05, save.camp.tent ? 1.3 : 0.9, 4), tentMat)
-  if (save.camp.tent >= 2) { tent.position.set(0, 1.25, -0.15); truck.add(tent); tent.userData.roof = true }
-  else { tent.position.set(firePos.x - right.x * 1.6, firePos.y + 0.45, firePos.z - right.z * 1.6); campGroup.add(tent) }
-  const logs = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, 0.7, 5), new THREE.MeshStandardMaterial({ color: 0x4a3424 }))
-  logs.rotation.z = Math.PI / 2
-  logs.position.copy(firePos)
-  logs.position.y += 0.08
-  campGroup.add(logs)
-  const pit = new THREE.Mesh(new THREE.CylinderGeometry(0.55, 0.6, 0.12, 8), new THREE.MeshStandardMaterial({ color: 0x6e675f }))
-  pit.position.copy(firePos); pit.position.y += 0.02
-  campGroup.add(pit)
-  if (save.camp.chairs) {
-    for (const s of [-1, 1]) {
-      const chair = new THREE.Mesh(new THREE.BoxGeometry(0.45, 0.4, 0.45), new THREE.MeshStandardMaterial({ color: 0x2a241c }))
-      chair.position.set(firePos.x + s * 1.1, firePos.y + 0.25, firePos.z + 0.4)
-      campGroup.add(chair)
-    }
-  }
-  if (save.camp.lights) {
-    for (let i = 0; i < 4; i++) {
-      const lamp = new THREE.Mesh(new THREE.SphereGeometry(0.06, 6, 6), new THREE.MeshStandardMaterial({ color: 0xfff1c4, emissive: 0xffe7a0, emissiveIntensity: 1.4 }))
-      lamp.position.set(firePos.x - 1.2 + i * 0.8, firePos.y + 1.6, firePos.z - 0.4)
-      campGroup.add(lamp)
-    }
-  }
-  fireLight = new THREE.PointLight(0xff7a2a, 6, 14, 2)
-  fireLight.position.copy(firePos); fireLight.position.y += 0.4
-  campGroup.add(fireLight)
-  scene.add(campGroup)
+  campView = buildCampSite(THREE, {
+    world,
+    truck,
+    pose: { x: c.position.x, y: c.position.y, z: c.position.z, qx: c.quaternion.x, qy: c.quaternion.y, qz: c.quaternion.z, qw: c.quaternion.w },
+    camp: save.camp || {},
+    low: save.settings.gfx === 'low',
+    shadow: !!gfx().shadow
+  })
+  scene.add(campView.group)
+  firePos.set(campView.fire.x, world.height(campView.fire.x, campView.fire.z), campView.fire.z)
   save.respawn = { x: c.position.x, y: c.position.y, z: c.position.z }
   const adv = tickAdventure(save, { x: c.position.x, z: c.position.z, speed: 0, clock: save.clock, dt: 0, water: false, ford: world.ford, pois: poiById, camped: true })
   if (adv && adv.advanced) toast(adv.step.text)
@@ -1983,6 +1992,7 @@ function pitchCamp() {
   const bar = $('campbar'); if (bar) bar.hidden = false
   refreshCampActs()
   persist()
+  campBusy = false
   toast('Camp is set. The fire is yours.')
 }
 function refreshCampActs() {
@@ -1992,7 +2002,7 @@ function refreshCampActs() {
   for (const id of ['fish', 'hunt', 'cook']) {
     const b = $('camp-' + id)
     if (!b) continue
-    const label = id === 'fish' ? 'Fish' : id === 'hunt' ? 'Hunt' : 'Cook'
+    const label = id === 'fish' ? 'Fish' : id === 'hunt' ? 'Spot' : 'Cook'
     b.classList.toggle('locked', !st[id].ok)
     b.dataset.reason = st[id].reason || ''
     b.replaceChildren(document.createTextNode(label))
@@ -2010,14 +2020,17 @@ function campBlocked(kind) {
   return st[kind] && st[kind].ok ? '' : (st[kind] && st[kind].reason) || 'Not here'
 }
 function packCamp(silent) {
-  if (campGroup) { scene.remove(campGroup); campGroup = null; fireLight = null }
+  closeMoment()
+  if (campView) {
+    scene.remove(campView.group)
+    if (campView.roof && campView.roof.parent) campView.roof.parent.remove(campView.roof)
+    campView = null
+  }
   if (truck) truck.children.filter(ch => ch.userData && ch.userData.roof).forEach(ch => truck.remove(ch))
   campOn = false
   if (mode === 'camp') mode = 'play'
   app.classList.remove('camping')
   const bar = $('campbar'); if (bar) bar.hidden = true
-  const playEl = $('play'); if (playEl) playEl.hidden = true
-  play = null
   if (!silent) toast('Camp packed.')
 }
 function restCamp(which) {
@@ -2026,10 +2039,6 @@ function restCamp(which) {
   if (adv && adv.done) toast(adv.adv.name + '  +' + adv.gain + ' rep')
   else toast(which === 'morning' ? 'Morning on the ridge.' : 'Evening settles in.')
   persist()
-}
-function flickerFire(dt) {
-  if (!fireLight) return
-  fireLight.intensity = 4.2 + Math.sin(performance.now() * 0.012) * 0.7 + Math.random() * 0.5
 }
 function noteCatch(fish) {
   save.log.fish[fish.id] = save.log.fish[fish.id] || { n: 0, best: 0 }
@@ -2040,13 +2049,34 @@ function noteCatch(fish) {
   const adv = tickAdventure(save, { x: sim.chassis.position.x, z: sim.chassis.position.z, speed: 0, clock: save.clock, dt: 0, water: false, ford: world.ford, pois: poiById, catch: fish.id })
   if (adv && adv.done) toast(adv.adv.name + '  +' + adv.gain + ' rep')
 }
-function openPlay(kind) {
-  if (!campOn) return
+async function openPlay(kind) {
+  if (!campOn || !campView) return
   const why = campBlocked(kind)
   if (why) { toast(why); return }
-  const region = world.regionAt(sim.chassis.position.x, sim.chassis.position.z).id
+  try { await ensureCamp(THREE) } catch (e) { toast('The camp kit did not unpack.'); return }
+  closeMoment()
+  const c = sim.chassis
+  const region = world.regionAt(c.position.x, c.position.z).id
   const animals = gameFor(region)
-  play = { kind, phase: kind === 'cook' ? 'pick' : kind === 'hunt' ? 'stalk' : 'cast', t: 0, mark: 0, dir: 1, good: 0, animals: animals.map((g, i) => ({ ...g, x: 0.15 + i * 0.28 })) }
+  const n = Math.max(1, animals.length - 1)
+  play = {
+    kind,
+    phase: kind === 'cook' ? 'pick' : kind === 'hunt' ? 'stalk' : 'cast',
+    t: 0, mark: 0, dir: 1, good: 0, fly: 0, brown: 0, flipT: 0,
+    animals: animals.map((g, i) => Object.assign({ x: 0.12 + i * (0.76 / n) }, g, spotVisual(g, Math.random)))
+  }
+  q.set(c.quaternion.x, c.quaternion.y, c.quaternion.z, c.quaternion.w)
+  const right = new THREE.Vector3(1, 0, 0).applyQuaternion(q)
+  const fwd = new THREE.Vector3(0, 0, 1).applyQuaternion(q)
+  if (kind === 'fish') moment = buildFishMoment(THREE, { world, x: c.position.x, z: c.position.z })
+  else if (kind === 'hunt') moment = buildHuntMoment(THREE, { world, x: c.position.x, z: c.position.z, right, fwd, animals: play.animals, kit: save.camp.hunt || 0 })
+  else {
+    moment = buildCookMoment(THREE, { world, fire: campView.fire })
+    if (campView.anchor) campView.anchor.visible = false
+  }
+  scene.add(moment.group)
+  holdCam = true
+  if (moment.focus) moment.focus(camera)
   const recipes = $('play-recipes')
   recipes.replaceChildren()
   recipes.hidden = kind !== 'cook'
@@ -2054,16 +2084,20 @@ function openPlay(kind) {
     for (const r of RECIPES) {
       const b = document.createElement('button')
       b.type = 'button'
-      b.textContent = r.name + (canCook(save.pantry, r) ? '' : ' — need ingredients')
+      b.textContent = r.name + (canCook(save.pantry, r) ? '' : ' — short')
       b.disabled = !canCook(save.pantry, r)
-      b.onclick = () => { play.recipe = r.id; play.phase = 'heat'; play.mark = 0; play.dir = 1; recipes.hidden = true }
+      b.onclick = () => { play.recipe = r.id; play.phase = 'heat'; play.mark = 0; play.dir = 1; play.brown = 0; recipes.hidden = true }
       recipes.appendChild(b)
     }
   }
-  $('play').hidden = false
-  $('play-title').textContent = kind === 'fish' ? 'Fishing' : kind === 'hunt' ? 'The quiet hunt' : 'Cook fire'
-  $('play-canvas').hidden = kind !== 'hunt'
-  $('play-bar').hidden = kind === 'hunt' || kind === 'cook' && play.phase === 'pick'
+  const el = $('play')
+  el.hidden = false
+  el.classList.add('moment')
+  el.classList.remove('fish', 'hunt', 'cook')
+  el.classList.add(kind)
+  $('play-title').textContent = kind === 'fish' ? 'Fishing' : kind === 'hunt' ? 'On the trail' : 'Cook fire'
+  $('play-canvas').hidden = true
+  const bar = $('campbar'); if (bar) bar.hidden = true
   drawPlay()
 }
 function drawPlay() {
@@ -2072,40 +2106,47 @@ function drawPlay() {
   const bar = $('play-bar')
   const mark = $('play-mark')
   const sweet = $('play-sweet')
-  if (play.kind === 'fish' && play.phase === 'cast') title.textContent = 'Tap as the mark crosses the bright band.'
-  if (play.kind === 'fish' && play.phase === 'wait') title.textContent = 'The line is out. Wait for the bite.'
-  if (play.kind === 'fish' && play.phase === 'bite') title.textContent = 'Bite. Tap now.'
-  if (play.kind === 'fish' && play.phase === 'reel') title.textContent = 'Hold to lift the mark. Keep it in the band.'
-  if (play.kind === 'cook' && play.phase === 'pick') title.textContent = 'Salt and oil are free at a store. Fish and meat come from the creek and the field.'
-  if (play.kind === 'cook' && play.phase === 'heat') title.textContent = 'Tap while the mark sits in the gold.'
-  if (play.kind === 'hunt') title.textContent = save.camp.hunt >= 3 ? 'A fair shot. Tap when the sight covers the animal.' : 'Photos only. Tap when the sight covers the animal.'
+  const act = $('play-act')
+  if (play.kind === 'fish' && play.phase === 'cast') { title.textContent = 'Cast when the mark hits the band.'; act.textContent = 'Cast' }
+  if (play.kind === 'fish' && play.phase === 'wait') { title.textContent = 'Line is out.'; act.textContent = 'Wait' }
+  if (play.kind === 'fish' && play.phase === 'bite') { title.textContent = 'The bobber dipped. Hook it.'; act.textContent = 'Hook' }
+  if (play.kind === 'fish' && play.phase === 'reel') { title.textContent = 'Hold to keep tension in the band.'; act.textContent = 'Reel' }
+  if (play.kind === 'fish' && play.phase === 'land') { title.textContent = play.landText || 'In the bucket.'; act.textContent = 'Nice' }
+  if (play.kind === 'cook' && play.phase === 'pick') { title.textContent = 'Pick a pan. Salt and oil are free at a store.'; act.textContent = 'Cook' }
+  if (play.kind === 'cook' && play.phase === 'heat') { title.textContent = 'Flip while the mark sits in the gold.'; act.textContent = 'Flip' }
+  if (play.kind === 'cook' && play.phase === 'done') { title.textContent = play.doneText || 'Off the fire.'; act.textContent = 'Eat' }
+  if (play.kind === 'hunt') {
+    title.textContent = save.camp.hunt >= 3 ? 'Track it. Snap when the ring covers the animal.' : 'Photos only. Snap when the ring covers the animal.'
+    act.textContent = 'Snap'
+  }
+  const recipes = $('play-recipes')
+  if (recipes) recipes.hidden = !(play.kind === 'cook' && play.phase === 'pick')
   if (mark) mark.style.left = (play.mark * 100) + '%'
   if (sweet && play.kind !== 'hunt') {
-    const w = play.kind === 'fish' && play.phase === 'reel' ? reelBand(save.camp.rod) : 0.09 + save.camp.pit * 0.04
+    const w = play.kind === 'fish' && play.phase === 'reel' ? reelBand(save.camp.rod) : play.phase === 'bite' ? 0.34 : 0.09 + (save.camp.pit || 0) * 0.04
     const c = play.kind === 'fish' && play.phase === 'reel' ? (play.zone || 0.5) : play.phase === 'cast' ? 0.62 : 0.66
     sweet.style.left = ((c - w / 2) * 100) + '%'
     sweet.style.width = (w * 100) + '%'
   }
-  bar.hidden = play.kind === 'hunt' || (play.kind === 'cook' && play.phase === 'pick')
-  if (play.kind === 'hunt') drawHunt()
-}
-function drawHunt() {
-  const cv = $('play-canvas')
-  const g = cv.getContext('2d')
-  g.fillStyle = '#1c2418'; g.fillRect(0, 0, cv.width, cv.height)
-  g.fillStyle = '#3d4a32'; g.fillRect(0, 150, cv.width, 130)
-  play.animals.forEach(a => {
-    const x = a.x * cv.width
-    g.fillStyle = a.id === 'deer' || a.id === 'goat' ? '#c4b49a' : a.id === 'turkey' || a.id === 'quail' ? '#6a4030' : '#d9d3c4'
-    g.fillRect(x, 168, a.size * cv.width, 28)
-  })
-  const ax = play.mark * cv.width
-  g.strokeStyle = '#f0c14a'; g.strokeRect(ax - 14, 160, 28, 40)
+  const showBar = play.kind === 'fish'
+    ? play.phase === 'cast' || play.phase === 'bite' || play.phase === 'reel'
+    : play.kind === 'cook' && (play.phase === 'heat' || play.phase === 'done')
+  bar.hidden = !showBar
+  const finder = $('play-finder')
+  const ret = $('play-reticle')
+  if (finder) finder.hidden = play.kind !== 'hunt'
+  if (ret) {
+    ret.hidden = play.kind !== 'hunt'
+    if (play.kind === 'hunt' && play.aimX != null) {
+      ret.style.left = play.aimX + '%'
+      ret.style.top = play.aimY + '%'
+    }
+  }
 }
 function tickPlay(dt) {
   if (!play) return
   if (play.phase === 'cast' || play.phase === 'heat') {
-    play.mark += play.dir * dt * (play.phase === 'heat' ? 0.55 - save.camp.pit * 0.08 : 0.7)
+    play.mark += play.dir * dt * (play.phase === 'heat' ? 0.55 - (save.camp.pit || 0) * 0.08 : 0.7)
     if (play.mark > 1) { play.mark = 1; play.dir = -1 }
     if (play.mark < 0) { play.mark = 0; play.dir = 1 }
   }
@@ -2115,26 +2156,43 @@ function tickPlay(dt) {
   }
   if (play.phase === 'bite') {
     play.t += dt
-    if (play.t > biteSeconds(save.camp.rod)) { play = null; $('play').hidden = true; toast('The fish slipped off.'); return }
+    if (play.t > biteSeconds(save.camp.rod)) { closeMoment(); toast('The fish slipped off.'); return }
   }
   if (play.phase === 'reel') {
+    play.band = reelBand(save.camp.rod)
     play.zone += play.dir * dt * 0.35
     if (play.zone > 0.85) play.dir = -1
     if (play.zone < 0.15) play.dir = 1
     play.mark += ((play.hold ? 1 : 0) - 0.35) * dt * 0.8
     play.mark = Math.max(0, Math.min(1, play.mark))
-    if (Math.abs(play.mark - play.zone) < reelBand(save.camp.rod) / 2) play.good += dt
+    if (Math.abs(play.mark - play.zone) < play.band / 2) play.good += dt
     else play.good = Math.max(0, play.good - dt * 0.5)
     if (play.good > 2.2) {
       const fish = rollFish(world, sim.chassis.position.x, sim.chassis.position.z, save.clock, save.camp.rod, Math.random)
       noteCatch(fish)
-      toast(fish.name + ', ' + fish.cm + ' cm')
-      play = null; $('play').hidden = true; persist(); return
+      play.phase = 'land'
+      play.fishId = fish.id
+      play.landT = 0
+      play.landText = fish.name + ', ' + fish.cm + ' cm'
+      toast(play.landText)
+      persist()
     }
+  }
+  if (play.phase === 'land') {
+    play.landT += dt
+    if (play.landT > 1.25) { closeMoment(); return }
+  }
+  if (play.phase === 'done') {
+    play.t += dt
+    if (play.t > 1.05) { closeMoment(); return }
   }
   if (play.phase === 'stalk') {
     play.animals.forEach(a => { a.x += a.speed * dt * 0.15; if (a.x > 1.05) a.x = -0.05 })
     play.mark = 0.5 + Math.sin(performance.now() * 0.0015) * 0.28
+  }
+  if (moment) {
+    if (moment.focus) moment.focus(camera)
+    if (moment.tick) moment.tick(dt, play, camera)
   }
   drawPlay()
 }
@@ -2142,11 +2200,12 @@ function playTap() {
   if (!play) return
   if (play.phase === 'cast') {
     const ok = Math.abs(play.mark - 0.62) < 0.12
-    play.phase = 'wait'; play.t = ok ? 0.6 : 0
+    play.phase = 'wait'; play.t = ok ? 0.6 : 0; play.fly = 0
     return
   }
   if (play.phase === 'bite') {
     play.phase = 'reel'; play.zone = 0.5; play.mark = 0.3; play.good = 0; play.dir = 1
+    play.band = reelBand(save.camp.rod)
     return
   }
   if (play.phase === 'heat') {
@@ -2154,8 +2213,13 @@ function playTap() {
     const recipe = RECIPES.find(r => r.id === play.recipe)
     const res = applyCook(save, recipe, grade)
     save = res.save
+    play.phase = 'done'
+    play.grade = grade
+    play.t = 0
+    play.flipT = 0.35
+    play.doneText = res.text
     toast(res.text)
-    play = null; $('play').hidden = true; persist()
+    persist()
     return
   }
   if (play.phase === 'stalk') {
@@ -2166,20 +2230,22 @@ function playTap() {
     }
     if (!best) { toast('The grass moved. Nothing else.'); return }
     save.log.photos[best.a.id] = (save.log.photos[best.a.id] || 0) + 1
-    if (best.hit.meat) { save.pantry.meat++; toast('A fair shot. ' + best.a.name + ' for the fire.') }
-    else toast('A clean photo of a ' + best.a.name.toLowerCase() + '.')
+    const word = (best.a.label || best.a.name).toLowerCase()
+    const article = /^[aeiou]/.test(word) ? 'an ' : 'a '
+    if (best.hit.meat) { save.pantry.meat++; toast('A fair track. ' + word + ' for the fire.') }
+    else toast('A clean photo of ' + article + word + '.')
     best.a.x = 1.2
     persist()
   }
 }
-$('btn-camp').onclick = () => pitchCamp()
+$('btn-camp').onclick = () => { pitchCamp() }
 $('camp-pack').onclick = () => packCamp(false)
 $('camp-morn').onclick = () => restCamp('morning')
 $('camp-eve').onclick = () => restCamp('evening')
-$('camp-fish').onclick = () => openPlay('fish')
-$('camp-hunt').onclick = () => openPlay('hunt')
-$('camp-cook').onclick = () => openPlay('cook')
-$('play-close').onclick = () => { play = null; $('play').hidden = true }
+$('camp-fish').onclick = () => { openPlay('fish') }
+$('camp-hunt').onclick = () => { openPlay('hunt') }
+$('camp-cook').onclick = () => { openPlay('cook') }
+$('play-close').onclick = () => closeMoment()
 $('play-act').addEventListener('pointerdown', e => { e.preventDefault(); if (play) play.hold = 1; playTap() })
 $('play-act').addEventListener('pointerup', () => { if (play) play.hold = 0 })
 $('btn-return').onclick = () => {
@@ -2251,7 +2317,7 @@ function frame(now) {
   tickMotes(dt)
   updateCamera(dt)
   if (mode === 'play' || mode === 'camp') updateGame(dt)
-  if (mode === 'camp') flickerFire(dt)
+  if (mode === 'camp' && campView) campView.tick(dt, isDark(save.clock), camera)
   renderer.render(scene, camera)
   if (mode === 'play' || mode === 'camp') updateHud()
   rev()
@@ -2269,6 +2335,7 @@ requestAnimationFrame(frame)
 
 window.OX = {
   OFFROAD_V2,
+  OFFROAD_V10,
   get mode() { return mode },
   get speed() { return lastSpeed },
   get pos() { const c = sim.chassis; return c ? { x: c.position.x, y: c.position.y, z: c.position.z } : null },
@@ -2307,8 +2374,63 @@ window.OX = {
     camera.lookAt(x + Math.sin(yawN) * 28, y + 2.2, z + Math.cos(yawN) * 28)
     applyTime(save.clock)
   },
-  pitch() { pitchCamp() },
-  showPlay(kind) { openPlay(kind) },
+  pitch() { return pitchCamp() },
+  showPlay(kind) { return openPlay(kind) },
+  kit(partial) {
+    if (!partial) return { camp: save.camp, pantry: save.pantry }
+    const keys = ['tent', 'pit', 'chairs', 'lights', 'rod', 'hunt']
+    if (partial.camp) Object.assign(save.camp, partial.camp)
+    if (partial.pantry) Object.assign(save.pantry, partial.pantry)
+    for (const k of keys) if (partial[k] != null) save.camp[k] = partial[k]
+    if (partial.rep != null) save.rep = partial.rep
+    return { camp: save.camp, pantry: save.pantry }
+  },
+  frameCamp(yaw, dist, height) {
+    holdCam = true
+    const d = dist || 12
+    const h = height == null ? 3.6 : height
+    const yy = yaw == null ? 0.85 : yaw
+    camera.position.set(firePos.x + Math.sin(yy) * d, firePos.y + h, firePos.z + Math.cos(yy) * d)
+    camera.lookAt(firePos.x, firePos.y + 0.65, firePos.z)
+    applyTime(save.clock)
+  },
+  audit() { return campView ? campView.audit() : { ok: false, issues: ['no camp'] } },
+  async playMid(kind) {
+    if (kind === 'cook') {
+      save.pantry.trout = Math.max(1, save.pantry.trout || 0)
+      save.pantry.fish = Math.max(1, save.pantry.fish || 0)
+      save.pantry.salt = Math.max(1, save.pantry.salt || 0)
+      save.pantry.meat = Math.max(1, save.pantry.meat || 0)
+      save.pantry.oil = Math.max(1, save.pantry.oil || 0)
+    }
+    if (kind === 'fish') save.camp.rod = Math.max(1, save.camp.rod || 0)
+    if (kind === 'hunt') save.camp.hunt = Math.max(1, save.camp.hunt || 0)
+    await openPlay(kind)
+    if (!play) return false
+    if (kind === 'fish') {
+      play.phase = 'reel'
+      play.zone = 0.55
+      play.mark = 0.52
+      play.good = 0.3
+      play.fly = 1
+      play.dir = 1
+      play.band = reelBand(save.camp.rod)
+    }
+    if (kind === 'hunt' && play.animals[0]) play.mark = play.animals[0].x
+    if (kind === 'cook') {
+      play.recipe = 'breakfast'
+      play.phase = 'heat'
+      play.mark = 0.62
+      play.dir = 1
+      play.brown = 0.78
+      const recipes = $('play-recipes')
+      if (recipes) recipes.hidden = true
+    }
+    if (moment && moment.focus) moment.focus(camera)
+    if (moment && moment.tick) moment.tick(0.05, play, camera)
+    drawPlay()
+    return play.phase
+  },
   get hazard() { return hazard },
   get rolled() { return rolled() },
   get recovery() { return recovery ? recovery.phase : '' },
