@@ -882,16 +882,16 @@ function buildCrawler(THREE, body, spec, kit) {
   flareMat.side = THREE.DoubleSide
   const lipMat = keepMat(THREE, '#141414', 0.55, 0.2)
   const innerArc = [
-    [0.62, rocker + 0.14, zF + 0.02],
-    [0.64, rocker + 0.18, zF + 0.16],
-    [0.64, rocker + 0.12, zF + 0.32],
-    [0.62, rocker + 0.04, nose - 0.04]
+    [0.64, rocker + 0.16, zF - 0.06],
+    [0.66, rocker + 0.18, zF + 0.1],
+    [0.66, rocker + 0.14, zF + 0.26],
+    [0.64, rocker + 0.06, nose - 0.02]
   ]
   const outerArc = [
-    [1.12, rocker - 0.02, zF + 0.04],
-    [1.38, rocker + 0.04, zF + 0.16],
-    [1.50, rocker, zF + 0.32],
-    [1.22, rocker - 0.14, nose - 0.02]
+    [1.22, rocker - 0.12, zF - 0.04],
+    [1.46, rocker + 0.02, zF + 0.08],
+    [1.52, rocker - 0.02, zF + 0.24],
+    [1.28, rocker - 0.18, nose - 0.02]
   ]
   const lipArc = outerArc.map(p => [p[0] + 0.07, p[1] - 0.06, p[2] + 0.01])
   const ribbon = (s, a, b, mat) => {
