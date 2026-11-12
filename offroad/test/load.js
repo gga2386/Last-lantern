@@ -32,6 +32,8 @@ async function main() {
   const chrome = spawn('google-chrome', [
     '--headless=new', '--disable-gpu', '--no-sandbox', '--disable-dev-shm-usage',
     '--use-angle=swiftshader', '--enable-unsafe-swiftshader',
+    '--disable-background-timer-throttling', '--disable-renderer-backgrounding',
+    '--disable-backgrounding-occluded-windows',
     '--user-data-dir=/tmp/chrome-oxbow-load', '--remote-debugging-port=9348', 'about:blank'
   ], { stdio: 'ignore' })
   const get = u => new Promise((res, rej) => http.get(u, r => { let d = ''; r.on('data', c => d += c); r.on('end', () => res(d)) }).on('error', rej))
@@ -59,6 +61,7 @@ async function main() {
   const send = (m, p) => new Promise(res => { const i = ++id; pending.set(i, res); ws.send(JSON.stringify({ id: i, method: m, params: p || {} })) })
   await send('Runtime.enable')
   await send('Page.enable')
+  await send('Emulation.setFocusEmulationEnabled', { enabled: true })
   await send('Emulation.setDeviceMetricsOverride', { width: 915, height: 412, deviceScaleFactor: 1, mobile: false })
   await send('Page.navigate', { url: 'http://127.0.0.1:' + PORT + '/offroad/index.html' })
   await sleep(2200)
@@ -74,12 +77,17 @@ async function main() {
   const fails = []
   if (info.title !== 'OXBOW') fails.push('title missing')
   if (info.mode !== 'title' || !info.ready) fails.push('game did not boot ' + JSON.stringify(info))
-  if (info.marker !== 'OFFROAD_V10_3') fails.push('marker ' + info.marker)
+  if (info.marker !== 'OFFROAD_V10_4') fails.push('marker ' + info.marker)
   await send('Runtime.evaluate', { expression: `document.getElementById('btn-new').click()` })
   await sleep(400)
   const before = await send('Runtime.evaluate', { expression: `JSON.stringify(OX.pos)`, returnByValue: true })
   await send('Input.dispatchKeyEvent', { type: 'keyDown', code: 'KeyW', key: 'w', windowsVirtualKeyCode: 87, nativeVirtualKeyCode: 87 })
-  await sleep(8000)
+  // Headless Chrome stalls requestAnimationFrame unless the page is touched.
+  const driveStart = Date.now()
+  while (Date.now() - driveStart < 11000) {
+    await send('Runtime.evaluate', { expression: 'OX.frames', returnByValue: true })
+    await sleep(20)
+  }
   await send('Input.dispatchKeyEvent', { type: 'keyUp', code: 'KeyW', key: 'w', windowsVirtualKeyCode: 87, nativeVirtualKeyCode: 87 })
   const after = await send('Runtime.evaluate', { expression: `JSON.stringify({pos:OX.pos, speed:OX.speed, mode:OX.mode, frames:OX.frames, hud:getComputedStyle(document.getElementById('hud')).display})`, returnByValue: true })
   const a = JSON.parse(before.result.result.value)
@@ -95,6 +103,6 @@ async function main() {
     fails.forEach(f => console.error(' -', f))
     process.exit(1)
   }
-  console.log('OK OFFROAD_V10_3 load')
+  console.log('OK OFFROAD_V10_4 load')
 }
 main().catch(e => { console.error(e); process.exit(1) })

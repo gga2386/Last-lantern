@@ -189,6 +189,140 @@ function tagMaterials(mesh, meshRole) {
   mesh.material = Array.isArray(mesh.material) ? next : next[0]
 }
 
+let chevronMap = null
+function vanChevronTexture(THREE) {
+  if (chevronMap) return chevronMap
+  const W = 1024
+  const H = 256
+  const canvas = document.createElement('canvas')
+  canvas.width = W
+  canvas.height = H
+  const ctx = canvas.getContext('2d')
+  const img = ctx.createImageData(W, H)
+  const data = img.data
+  const zRear = -1.92
+  const zFront = 1.72
+  const yLow = 0.42
+  const yHigh = 1.34
+  const orange = [240, 160, 74]
+  const mid = [226, 90, 34]
+  const red = [196, 50, 42]
+  for (let py = 0; py < H; py++) {
+    const v = 1 - (py + 0.5) / H
+    const y = yLow + v * (yHigh - yLow)
+    for (let px = 0; px < W; px++) {
+      const u = (px + 0.5) / W
+      const z = zRear + u * (zFront - zRear)
+      const yc = 0.50 + (1.60 - z) * (0.86 / 2.75)
+      const p = y - yc
+      const o = (py * W + px) * 4
+      if (p < -0.22 || p > 0.22) continue
+      const col = p < -0.073 ? orange : p < 0.073 ? mid : red
+      let a = 1
+      if (p < -0.20) a = (p + 0.22) / 0.02
+      else if (p > 0.20) a = (0.22 - p) / 0.02
+      data[o] = col[0]
+      data[o + 1] = col[1]
+      data[o + 2] = col[2]
+      data[o + 3] = Math.max(0, Math.min(255, Math.round(a * 255)))
+    }
+  }
+  ctx.putImageData(img, 0, 0)
+  const tex = new THREE.CanvasTexture(canvas)
+  tex.colorSpace = THREE.SRGBColorSpace
+  tex.wrapS = THREE.ClampToEdgeWrapping
+  tex.wrapT = THREE.ClampToEdgeWrapping
+  tex.needsUpdate = true
+  chevronMap = tex
+  return tex
+}
+
+function vanChevron(THREE, body) {
+  body.updateWorldMatrix(true, true)
+  const invBody = new THREE.Matrix4().copy(body.matrixWorld).invert()
+  const toBody = new THREE.Matrix4()
+  const A = new THREE.Vector3()
+  const B = new THREE.Vector3()
+  const C = new THREE.Vector3()
+  const ab = new THREE.Vector3()
+  const ac = new THREE.Vector3()
+  const nrm = new THREE.Vector3()
+  const mid = new THREE.Vector3()
+  const positions = []
+  const normals = []
+  const uvs = []
+  const zRear = -1.92
+  const zFront = 1.72
+  const yLow = 0.42
+  const yHigh = 1.34
+  const meshes = []
+  body.traverse(o => {
+    if (o.isMesh && o.geometry && o.geometry.attributes && o.geometry.attributes.position) meshes.push(o)
+  })
+  for (const mesh of meshes) {
+    mesh.updateWorldMatrix(true, true)
+    toBody.copy(invBody).multiply(mesh.matrixWorld)
+    const pos = mesh.geometry.attributes.position
+    const index = mesh.geometry.index
+    const triCount = index ? index.count / 3 : Math.floor(pos.count / 3)
+    const read = (i, out) => {
+      out.fromBufferAttribute(pos, index ? index.getX(i) : i).applyMatrix4(toBody)
+    }
+    for (let t = 0; t < triCount; t++) {
+      read(t * 3, A)
+      read(t * 3 + 1, B)
+      read(t * 3 + 2, C)
+      ab.subVectors(B, A)
+      ac.subVectors(C, A)
+      nrm.crossVectors(ab, ac)
+      if (nrm.lengthSq() < 1e-8) continue
+      nrm.normalize()
+      mid.copy(A).add(B).add(C).multiplyScalar(1 / 3)
+      if (Math.abs(nrm.x) < 0.9 || Math.abs(nrm.y) > 0.22) continue
+      if (mid.y < 0.48 || mid.y > 1.32) continue
+      if (Math.abs(mid.x) < 0.78 || Math.abs(mid.x) > 1.02) continue
+      if (mid.z < -1.95 || mid.z > 1.75) continue
+      let v1 = B
+      let v2 = C
+      if (nrm.x * mid.x < 0) {
+        nrm.negate()
+        v1 = C
+        v2 = B
+      }
+      const push = 0.01
+      for (const v of [A, v1, v2]) {
+        positions.push(v.x + nrm.x * push, v.y + nrm.y * push, v.z + nrm.z * push)
+        normals.push(nrm.x, nrm.y, nrm.z)
+        uvs.push((v.z - zRear) / (zFront - zRear), (v.y - yLow) / (yHigh - yLow))
+      }
+    }
+  }
+  if (positions.length < 9) return
+  const g = new THREE.BufferGeometry()
+  g.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3))
+  g.setAttribute('normal', new THREE.Float32BufferAttribute(normals, 3))
+  g.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2))
+  const mat = new THREE.MeshStandardMaterial({
+    map: vanChevronTexture(THREE),
+    color: 0xffffff,
+    roughness: 0.48,
+    metalness: 0.02,
+    transparent: true,
+    alphaTest: 0.15,
+    side: THREE.DoubleSide,
+    depthWrite: true,
+    polygonOffset: true,
+    polygonOffsetFactor: -8,
+    polygonOffsetUnits: -8
+  })
+  mat.userData.paintRole = 'keep'
+  const mesh = new THREE.Mesh(g, mat)
+  mesh.name = 'van-chevron'
+  mesh.userData.paintRole = 'keep'
+  mesh.renderOrder = 2
+  body.add(mesh)
+}
+
 function accessory(key, scale, role) {
   const src = extras.get(key)
   if (!src) return null
@@ -284,19 +418,7 @@ function dress(THREE, body, spec, paint, rack) {
     }
   }
   if (spec.style === 'van') {
-    const bands = ['#c4322a', '#e25a22', '#f0a04a']
-    for (const side of [-1, 1]) {
-      bands.forEach((hex, i) => {
-        const stripeMat = new THREE.MeshStandardMaterial({ color: hex, roughness: 0.42, metalness: 0.02 })
-        stripeMat.userData.paintRole = 'keep'
-        const band = new THREE.Mesh(new THREE.BoxGeometry(0.035, 0.48, 1.35), stripeMat)
-        band.position.set(side * 0.93, 1.22, -0.15 + i * 0.18)
-        band.rotation.x = side * 0.85
-        band.userData.paintRole = 'keep'
-        band.castShadow = true
-        body.add(band)
-      })
-    }
+    vanChevron(THREE, body)
     const railMat = new THREE.MeshStandardMaterial({ color: '#f4f1ea', roughness: 0.4, metalness: 0.2 })
     railMat.userData.paintRole = 'keep'
     for (const x of [-0.55, 0.55]) {
@@ -314,25 +436,41 @@ function dress(THREE, body, spec, paint, rack) {
     }
   }
   if (spec.style === 'crawler') {
-    body.updateWorldMatrix(true, true)
-    const bb = new THREE.Box3().setFromObject(body)
-    const roof = bb.max.y - body.position.y + 0.08
-    const cageMat = new THREE.MeshStandardMaterial({ color: paint.cage, roughness: 0.35, metalness: 0.45 })
+    const cageMat = new THREE.MeshStandardMaterial({ color: paint.cage, roughness: 0.32, metalness: 0.55 })
     cageMat.userData.paintRole = 'cage'
-    const tube = (r, len, x, y, z, rot) => {
-      const m = new THREE.Mesh(new THREE.CylinderGeometry(r, r, len, 8), cageMat)
-      m.position.set(x, y, z)
-      if (rot) m.rotation.set(rot[0], rot[1], rot[2])
+    const up = new THREE.Vector3(0, 1, 0)
+    const span = (ax, ay, az, bx, by, bz, r) => {
+      const a = new THREE.Vector3(ax, ay, az)
+      const b = new THREE.Vector3(bx, by, bz)
+      const dir = b.clone().sub(a)
+      const len = dir.length()
+      if (len < 0.05) return
+      dir.multiplyScalar(1 / len)
+      const m = new THREE.Mesh(new THREE.CylinderGeometry(r, r, len, 10), cageMat)
+      m.position.copy(a).add(b).multiplyScalar(0.5)
+      m.quaternion.setFromUnitVectors(up, dir)
       m.userData.paintRole = 'cage'
+      m.castShadow = true
       body.add(m)
-      return m
     }
-    for (const x of [-0.78, 0.78]) {
-      tube(0.04, 0.72, x, roof + 0.28, 0.35, null)
-      tube(0.036, 0.78, x, roof + 0.22, -0.55, [0.35, 0, 0])
+    const X = 1.30
+    const roofY = 3.92
+    for (const s of [-1, 1]) {
+      const x = s * X
+      span(x, roofY, 0.78, x, roofY, -0.68, 0.05)
+      span(x, 2.55, 1.05, x, roofY, 0.72, 0.048)
+      span(x, 2.15, -0.82, x, roofY, -0.62, 0.048)
+      span(x, 2.55, 1.05, x, 2.15, -0.82, 0.036)
+      span(x, roofY, 0.55, x, 2.35, -0.55, 0.034)
+      span(x, roofY, -0.62, s * 1.22, 2.40, -1.65, 0.046)
+      span(s * 1.22, 2.40, -0.82, s * 1.22, 2.40, -1.65, 0.036)
+      span(x, 2.15, -0.82, s * 1.22, 2.40, -1.55, 0.032)
     }
-    tube(0.038, 1.7, 0, roof + 0.62, 0.35, [0, 0, Math.PI / 2])
-    tube(0.034, 1.55, 0, roof + 0.48, -0.15, [Math.PI / 2, 0, 0])
+    span(-X, roofY, 0.78, X, roofY, 0.78, 0.05)
+    span(-X, roofY, -0.68, X, roofY, -0.68, 0.05)
+    span(-X, roofY, 0.05, X, roofY, 0.05, 0.038)
+    span(-1.22, 2.40, -1.65, 1.22, 2.40, -1.65, 0.042)
+    span(-X, 2.62, 1.02, X, 2.62, 1.02, 0.036)
     const coils = []
     const shockMat = new THREE.MeshStandardMaterial({ color: paint.cage, roughness: 0.3, metalness: 0.35 })
     shockMat.userData.paintRole = 'cage'

@@ -1,14 +1,14 @@
-// Oxbow — Hollow Creek. OFFROAD_V10_3
+// Oxbow — Hollow Creek. OFFROAD_V10_4
 import * as THREE from '../vendor/three.module.js'
 import { createWorld, WORLD_SIZE, HALF, SURF, SURF_NAME } from './world.js'
-import { OFFROAD_V2, OFFROAD_V3, OFFROAD_V4, OFFROAD_V4_1, OFFROAD_V5, OFFROAD_V5_1, OFFROAD_V6, OFFROAD_V7, OFFROAD_V7_1, OFFROAD_V7_2, OFFROAD_V7_3, OFFROAD_V8, OFFROAD_V9, OFFROAD_V10, OFFROAD_V10_1, OFFROAD_V10_2, OFFROAD_V10_3, freshSave, SAVE_KEY, VEHICLES, UPGRADES, AUX, JERRY, ADVENTURES, TANK, coerceSave, buyUpgrade, buyVehicle, buyAux, buyJerry, useJerry, refuel, burnFuel, specWithUpgrades, tankCapacity, jerrySlots, rankFor, isDark, clockLabel, tickAdventure, noteAssist, REGION_OPEN, regionUnlocked, crawlAngles } from './economy.js'
+import { OFFROAD_V2, OFFROAD_V3, OFFROAD_V4, OFFROAD_V4_1, OFFROAD_V5, OFFROAD_V5_1, OFFROAD_V6, OFFROAD_V7, OFFROAD_V7_1, OFFROAD_V7_2, OFFROAD_V7_3, OFFROAD_V8, OFFROAD_V9, OFFROAD_V10, OFFROAD_V10_1, OFFROAD_V10_2, OFFROAD_V10_3, OFFROAD_V10_4, freshSave, SAVE_KEY, VEHICLES, UPGRADES, AUX, JERRY, ADVENTURES, TANK, coerceSave, buyUpgrade, buyVehicle, buyAux, buyJerry, useJerry, refuel, burnFuel, specWithUpgrades, tankCapacity, jerrySlots, rankFor, isDark, clockLabel, tickAdventure, noteAssist, REGION_OPEN, regionUnlocked, crawlAngles } from './economy.js'
 import { preloadRigs, buildRig, applyLod, poseRig, applyPaint, factoryPaint, PAINT_SWATCHES, setWoodMap } from './rigs.js'
 import { preloadScenery, preloadGround } from './scenery.js'
 import { CAMP, campLevel, buyCamp, canPitch, rollFish, reelBand, biteSeconds, aimHit, RECIPES, canCook, cookJudge, applyCook, activityState, gameFor, spotVisual, roastGrade, roastColor, roastStamp, applyRoast } from './camp.js'
 import { ensureCamp, buildCampSite, buildFishMoment, buildHuntMoment, buildCookMoment, buildRoastMoment } from './campview.js'
 import { createSim, ROLL_LIMIT, recoveryCopy } from './physics.js'
 
-export { OFFROAD_V2, OFFROAD_V3, OFFROAD_V4, OFFROAD_V4_1, OFFROAD_V5, OFFROAD_V5_1, OFFROAD_V6, OFFROAD_V7, OFFROAD_V7_1, OFFROAD_V7_2, OFFROAD_V7_3, OFFROAD_V8, OFFROAD_V9, OFFROAD_V10, OFFROAD_V10_1, OFFROAD_V10_2, OFFROAD_V10_3 }
+export { OFFROAD_V2, OFFROAD_V3, OFFROAD_V4, OFFROAD_V4_1, OFFROAD_V5, OFFROAD_V5_1, OFFROAD_V6, OFFROAD_V7, OFFROAD_V7_1, OFFROAD_V7_2, OFFROAD_V7_3, OFFROAD_V8, OFFROAD_V9, OFFROAD_V10, OFFROAD_V10_1, OFFROAD_V10_2, OFFROAD_V10_3, OFFROAD_V10_4 }
 
 const world = createWorld(1)
 const yard = world.pois.find(p => p.id === 'yard')
@@ -2585,6 +2585,7 @@ window.OX = {
   OFFROAD_V10_1,
   OFFROAD_V10_2,
   OFFROAD_V10_3,
+  OFFROAD_V10_4,
   get mode() { return mode },
   get speed() { return lastSpeed },
   get pos() { const c = sim.chassis; return c ? { x: c.position.x, y: c.position.y, z: c.position.z } : null },
@@ -2781,7 +2782,7 @@ window.OX = {
     camera.position.set((p.x + c.x) / 2 + 3, Math.max(p.y, c.y) + 4.5, (p.z + c.z) / 2 + 12)
     camera.lookAt((p.x + c.x) / 2, c.y + 0.8, (p.z + c.z) / 2)
   },
-  frameRig(yaw) {
+  frameRig(yaw, dist, lift) {
     holdCam = true
     freeze = true
     mode = 'play'
@@ -2789,9 +2790,10 @@ window.OX = {
     app.classList.remove('title')
     const c = sim.chassis
     const p = c.position
-    const dist = 4.35
-    camera.position.set(p.x + Math.sin(yaw) * dist, p.y + 1.65, p.z + Math.cos(yaw) * dist)
-    camera.lookAt(p.x, p.y + 0.72, p.z)
+    const d = dist || 4.35
+    const up = lift || 0
+    camera.position.set(p.x + Math.sin(yaw) * d, p.y + 1.65 + up, p.z + Math.cos(yaw) * d)
+    camera.lookAt(p.x, p.y + 0.72 + up, p.z)
     applyTime(0.38)
   },
   lineup() {
