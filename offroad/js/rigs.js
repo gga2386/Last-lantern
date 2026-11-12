@@ -878,45 +878,26 @@ function buildCrawler(THREE, body, spec, kit) {
   for (let i = 0; i < 3; i++) {
     add(new THREE.Mesh(new THREE.BoxGeometry(0.66, 0.025, 0.02), steel)).position.set(0, rocker + 0.18 + i * 0.08, nose + 0.07)
   }
-  const flareMat = bodyMat.clone()
-  flareMat.side = THREE.DoubleSide
   const lipMat = keepMat(THREE, '#141414', 0.55, 0.2)
-  const innerArc = [
-    [0.64, rocker + 0.16, zF - 0.06],
-    [0.66, rocker + 0.18, zF + 0.1],
-    [0.66, rocker + 0.14, zF + 0.26],
-    [0.64, rocker + 0.06, nose - 0.02]
-  ]
-  const outerArc = [
-    [1.22, rocker - 0.12, zF - 0.04],
-    [1.46, rocker + 0.02, zF + 0.08],
-    [1.52, rocker - 0.02, zF + 0.24],
-    [1.28, rocker - 0.18, nose - 0.02]
-  ]
-  const lipArc = outerArc.map(p => [p[0] + 0.07, p[1] - 0.06, p[2] + 0.01])
-  const ribbon = (s, a, b, mat) => {
-    const pos = []
-    const idx = []
-    for (let i = 0; i < a.length; i++) {
-      pos.push(s * a[i][0], a[i][1], a[i][2], s * b[i][0], b[i][1], b[i][2])
-    }
-    for (let i = 0; i < a.length - 1; i++) {
-      const v = i * 2
-      idx.push(v, v + 1, v + 2, v + 1, v + 3, v + 2)
-    }
-    const geo = new THREE.BufferGeometry()
-    geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3))
-    geo.setIndex(idx)
-    geo.computeVertexNormals()
-    return add(new THREE.Mesh(geo, mat))
-  }
   for (const s of [-1, 1]) {
     const light = add(new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.12, 0.06), lamp))
     light.position.set(s * 0.5, rocker + 0.3, nose + 0.05)
-    const cheek = add(new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.28, 0.7), bodyMat))
-    cheek.position.set(s * 0.7, rocker + 0.16, zF + 0.22)
-    ribbon(s, innerArc, outerArc, flareMat)
-    ribbon(s, outerArc, lipArc, lipMat)
+    const cheek = add(new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.26, 0.62), bodyMat))
+    cheek.position.set(s * 0.7, rocker + 0.14, zF + 0.2)
+    const rise = add(new THREE.Mesh(new THREE.BoxGeometry(0.36, 0.07, 0.5), bodyMat))
+    rise.position.set(s * 1.02, rocker + 0.1, zF + 0.16)
+    rise.rotation.z = s * -0.35
+    const crown = add(new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.07, 0.46), bodyMat))
+    crown.position.set(s * 1.4, rocker + 0.08, zF + 0.2)
+    crown.rotation.z = s * 0.12
+    const brow = add(new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.06, 0.22), bodyMat))
+    brow.position.set(s * 1.28, rocker - 0.02, zF + 0.42)
+    brow.rotation.x = -0.45
+    const skin = add(new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.18, 0.5), bodyMat))
+    skin.position.set(s * 1.6, rocker - 0.02, zF + 0.2)
+    skin.rotation.z = s * 0.4
+    const lip = add(new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.035, 0.58), lipMat))
+    lip.position.set(s * 1.64, rocker - 0.12, zF + 0.22)
     const seam = keepMat(THREE, '#161616', 0.62, 0.12)
     const tint = keepMat(THREE, '#07090c', 0.18, 0.25)
     const xOut = s * (half + 0.035)
