@@ -80,13 +80,13 @@ export function createRidges(THREE, scene) {
           let rgb
           if (region === 'desert') {
             const band = Math.floor(t * 4) % 3
-            rgb = band === 0 ? [0.55, 0.22, 0.12] : band === 1 ? [0.78, 0.42, 0.2] : [0.4, 0.16, 0.1]
+            rgb = band === 0 ? [0.14, 0.035, 0.015] : band === 1 ? [0.26, 0.08, 0.03] : [0.08, 0.02, 0.01]
           } else if (region === 'mountain') {
-            rgb = t > 0.72 ? [0.82, 0.85, 0.88] : [0.36, 0.35, 0.34]
+            rgb = t > 0.72 ? [0.7, 0.73, 0.76] : [0.065, 0.064, 0.068]
           } else if (ring.kind >= 2) {
-            rgb = [0.38, 0.5, 0.7]
+            rgb = [0.08, 0.12, 0.22]
           } else {
-            rgb = [0.22 + t * 0.08, 0.34 + t * 0.06, 0.2]
+            rgb = [0.035, 0.07, 0.028]
           }
           return tint(rgb, ring.kind, shade * (y > ring.base + 2 ? 1 : 0.72))
         }
