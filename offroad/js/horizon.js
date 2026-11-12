@@ -32,7 +32,7 @@ export function createRidges(THREE, scene) {
   ]
   const sky = [0.58, 0.7, 0.86]
   function tint(rgb, kind, shade) {
-    const fade = [0.06, 0.22, 0.4, 0.58][kind]
+    const fade = [0.02, 0.1, 0.22, 0.4][kind]
     return rgb.map((c, i) => (c * (1 - fade) + sky[i] * fade) * shade)
   }
   for (const ring of rings) {
@@ -73,7 +73,7 @@ export function createRidges(THREE, scene) {
         nx /= nl; ny /= nl; nz /= nl
         if (ny < 0) { nx = -nx; ny = -ny; nz = -nz }
         const nd = Math.max(0, nx * sun.x + ny * sun.y + nz * sun.z)
-        const shade = 0.22 + 0.95 * nd
+        const shade = 0.38 + 0.62 * nd
         const top = (h0 + h1) * 0.5
         const paint = (y) => {
           const t = Math.max(0, Math.min(1, (y - ring.base) / Math.max(8, top - ring.base)))
@@ -82,7 +82,7 @@ export function createRidges(THREE, scene) {
             const band = Math.floor(t * 4) % 3
             rgb = band === 0 ? [0.55, 0.22, 0.12] : band === 1 ? [0.78, 0.42, 0.2] : [0.4, 0.16, 0.1]
           } else if (region === 'mountain') {
-            rgb = t > 0.84 ? [0.9, 0.93, 0.96] : t > 0.4 ? [0.46, 0.44, 0.42] : [0.28, 0.27, 0.26]
+            rgb = t > 0.9 ? [0.86, 0.89, 0.92] : [0.33, 0.32, 0.31]
           } else if (ring.kind >= 2) {
             rgb = [0.38, 0.5, 0.7]
           } else {
