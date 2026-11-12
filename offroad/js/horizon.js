@@ -1,4 +1,4 @@
-// Distant ridgelines, well outside the map. OFFROAD_V10_9
+// Distant ridgelines, well outside the map. OFFROAD_V10_10
 export function createRidges(THREE, scene) {
   const regions = ['forest', 'desert', 'mountain']
   const layers = []
@@ -75,35 +75,41 @@ export function createRidges(THREE, scene) {
         const nd = Math.max(0, nx * sun.x + ny * sun.y + nz * sun.z)
         const shade = 0.16 + 0.84 * nd
         const top = (h0 + h1) * 0.5
-        const paint = (y) => {
+        const tall = region === 'mountain' && Math.max(h0, h1) > maxH * 0.55
+        const paint = (y, snow) => {
           const t = Math.max(0, Math.min(1, (y - ring.base) / Math.max(8, top - ring.base)))
           let rgb
+          let face = shade * (y > ring.base + 2 ? 1 : 0.72)
           if (region === 'desert') {
             const band = Math.floor(t * 4) % 3
             rgb = band === 0 ? [0.14, 0.035, 0.015] : band === 1 ? [0.26, 0.08, 0.03] : [0.08, 0.02, 0.01]
           } else if (region === 'mountain') {
-            rgb = t > 0.84 ? [0.55, 0.58, 0.62] : [0.045, 0.055, 0.072]
+            if (snow) {
+              rgb = [0.93, 0.95, 0.98]
+              face = 0.82 + 0.18 * nd
+            } else rgb = [0.045, 0.055, 0.072]
           } else if (ring.kind >= 2) {
             rgb = [0.08, 0.12, 0.22]
           } else {
             rgb = [0.035, 0.07, 0.028]
           }
-          return tint(rgb, ring.kind, shade * (y > ring.base + 2 ? 1 : 0.72))
+          return tint(rgb, ring.kind, face)
         }
-        const cut = region === 'mountain' ? 0.84 : 0.7
+        const cut = region === 'mountain' ? 0.75 : 0.7
         const mid = (a, b) => a.map((v, k) => v + (b[k] - v) * cut)
         const m0 = mid(p[0], p[1])
         const m1 = mid(p[2], p[3])
-        const rockY = Math.max(m0[1], m1[1])
         const base = pos.length / 3
-        push(p[0][0], p[0][1], p[0][2], paint(p[0][1]))
-        push(m0[0], m0[1], m0[2], paint(Math.min(m0[1], rockY * 0.98)))
-        push(p[2][0], p[2][1], p[2][2], paint(p[2][1]))
-        push(m1[0], m1[1], m1[2], paint(Math.min(m1[1], rockY * 0.98)))
-        push(p[1][0], p[1][1], p[1][2], paint(p[1][1]))
-        push(p[3][0], p[3][1], p[3][2], paint(p[3][1]))
+        push(p[0][0], p[0][1], p[0][2], paint(p[0][1], false))
+        push(m0[0], m0[1], m0[2], paint(m0[1], false))
+        push(p[2][0], p[2][1], p[2][2], paint(p[2][1], false))
+        push(m1[0], m1[1], m1[2], paint(m1[1], false))
+        push(m0[0], m0[1], m0[2], paint(m0[1], tall))
+        push(p[1][0], p[1][1], p[1][2], paint(p[1][1], tall))
+        push(m1[0], m1[1], m1[2], paint(m1[1], tall))
+        push(p[3][0], p[3][1], p[3][2], paint(p[3][1], tall))
         idx.push(base, base + 1, base + 2, base + 1, base + 3, base + 2)
-        idx.push(base + 1, base + 4, base + 3, base + 4, base + 5, base + 3)
+        idx.push(base + 4, base + 5, base + 6, base + 5, base + 7, base + 6)
       }
       const geo = new THREE.BufferGeometry()
       geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3))

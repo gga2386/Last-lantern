@@ -103,7 +103,11 @@ button.danger { background: #6a2418; border-color: #e4572e; }
 #btn-store, #btn-jerry {
   position: absolute; pointer-events: auto; z-index: 4;
 }
-#btn-camp { left: calc(16px + var(--safe-l)); bottom: calc(250px + var(--safe-b)); background: #6a3a22; }
+#btn-camp {
+  position: absolute; pointer-events: auto; z-index: 4;
+  left: calc(12px + var(--safe-l)); top: calc(152px + var(--safe-t)); bottom: auto;
+  min-height: 36px; padding: 4px 12px; background: #6a3a22;
+}
 #btn-store { right: calc(16px + var(--safe-r)); top: calc(78px + var(--safe-t)); background: #1d4e5a; }
 #app.camping .cockpit { display: none; }
 #campbar {
@@ -174,11 +178,11 @@ button.danger { background: #6a2418; border-color: #e4572e; }
 }
 #roast-card b { letter-spacing: 0.04em; }
 #roast-card span { color: var(--muted); font-size: 14px; }
-#btn-jerry { left: calc(108px + var(--safe-l)); bottom: calc(250px + var(--safe-b)); }
+#btn-jerry { left: calc(12px + var(--safe-l)); top: calc(196px + var(--safe-t)); bottom: auto; }
 .up.locked b { opacity: 0.7; }
 #minimap {
-  position: absolute; top: calc(148px + var(--safe-t)); left: calc(12px + var(--safe-l));
-  width: 108px; height: 108px; border-radius: 12px; border: 1px solid var(--line);
+  position: absolute; top: calc(96px + var(--safe-t)); left: auto; right: calc(12px + var(--safe-r));
+  width: 84px; height: 84px; border-radius: 12px; border: 1px solid var(--line);
   background: rgba(18, 16, 14, 0.72); pointer-events: none;
 }
 #fliphint {
@@ -239,8 +243,8 @@ button.danger { background: #6a2418; border-color: #e4572e; }
 .dial svg { width: 58px; height: 58px; display: block; }
 .dial span { display: block; font-size: 9px; letter-spacing: 0.12em; color: var(--gold); margin-top: -2px; }
 .drive-side {
-  position: absolute; right: calc(10px + var(--safe-r)); bottom: calc(8px + var(--safe-b));
-  display: flex; align-items: flex-end; gap: 8px;
+  position: absolute; right: calc(16px + var(--safe-r)); bottom: calc(10px + var(--safe-b));
+  display: flex; align-items: flex-end; gap: 6px;
 }
 .gears {
   display: flex; flex-direction: column; gap: 4px; padding: 4px;
@@ -255,31 +259,32 @@ button.danger { background: #6a2418; border-color: #e4572e; }
 .gears button.on[data-gear="R"] { background: #c62828; color: #f4efe6; }
 .pedal-row { display: flex; align-items: flex-end; gap: 8px; }
 .pedal {
-  color: #1c1e20; font-weight: 800; letter-spacing: 0.08em; border: 1px solid #f4efe6;
+  color: #1c1e20; font-weight: 800; letter-spacing: 0.04em; border: 1px solid #f4efe6;
   border-radius: 8px 8px 14px 14px; text-shadow: 0 1px 0 rgba(255,255,255,0.35);
   box-shadow: 0 8px 0 #3c4348, 0 12px 14px rgba(0,0,0,0.4);
+  padding: 4px 2px; white-space: nowrap;
   transition: transform 0.05s linear, box-shadow 0.05s linear;
 }
 .pedal.down { transform: translateY(7px); box-shadow: 0 1px 0 #3c4348; }
 .pedal.stop {
-  width: 78px; height: 96px; font-size: 13px;
+  width: 68px; height: 88px; font-size: 12px;
   background:
     repeating-linear-gradient(180deg, transparent 0 10px, rgba(20,24,28,0.28) 10px 14px),
     linear-gradient(160deg, #e8eef2, #9aa4ae 42%, #d5dde3 68%, #7d868e);
 }
 .pedal.drive {
-  width: 54px; height: 132px; font-size: 12px;
+  width: 68px; height: 118px; font-size: 12px;
   background:
     repeating-linear-gradient(115deg, transparent 0 7px, rgba(20,24,28,0.28) 7px 10px),
     linear-gradient(180deg, #f2f5f7, #aeb6be 40%, #dfe4e8 62%, #8b949c);
 }
 .toolrow {
-  position: absolute; left: 50%; bottom: calc(118px + var(--safe-b)); transform: translateX(-50%);
-  display: flex; gap: 6px; max-width: 52vw; flex-wrap: wrap; justify-content: center;
+  position: static; transform: none;
+  display: flex; flex-direction: column; gap: 4px;
 }
 .toolrow button {
-  min-height: 34px; min-width: 52px; padding: 4px 8px; font-size: 10px; letter-spacing: 0.08em;
-  background: rgba(12, 12, 14, 0.62); border: 1px solid rgba(240, 193, 74, 0.65); border-radius: 10px;
+  min-height: 26px; height: 26px; min-width: 54px; padding: 0 6px; font-size: 9px; letter-spacing: 0.06em;
+  background: rgba(12, 12, 14, 0.62); border: 1px solid rgba(240, 193, 74, 0.65); border-radius: 8px;
 }
 #btn-lock.on { background: var(--teal); border-color: #8fd0c8; }
 #btn-low.on { background: #6a3a12; border-color: var(--gold); color: var(--gold); }
@@ -357,13 +362,13 @@ h1 {
   .gauges { left: 86px; transform: none; bottom: 12px; gap: 2px; }
   .speedo { width: 70px; height: 70px; }
   .dial, .dial svg { width: 40px; height: 40px; }
-  .drive-side { right: 4px; bottom: 8px; gap: 4px; }
-  .pedal.drive { width: 52px; height: 92px; font-size: 9px; letter-spacing: 0.02em; }
-  .pedal.stop { width: 50px; height: 68px; font-size: 11px; }
-  #btn-camp { left: auto; right: calc(8px + var(--safe-r)); top: calc(168px + var(--safe-t)); bottom: auto; }
-  #btn-jerry { left: auto; right: calc(8px + var(--safe-r)); top: calc(220px + var(--safe-t)); bottom: auto; }
+  .drive-side { right: calc(10px + var(--safe-r)); bottom: 8px; gap: 4px; }
+  .pedal.drive { width: 58px; height: 92px; font-size: 10px; letter-spacing: 0.02em; }
+  .pedal.stop { width: 52px; height: 68px; font-size: 11px; }
+  #btn-camp { top: calc(168px + var(--safe-t)); }
+  #btn-jerry { top: calc(212px + var(--safe-t)); }
   .gears button { width: 30px; height: 30px; min-height: 30px; }
-  .toolrow { max-width: 96vw; bottom: calc(112px + var(--safe-b)); }
+  .toolrow button { min-width: 46px; height: 22px; min-height: 22px; font-size: 8px; }
   .corner.left { width: 96px; }
   #rotate { top: 24%; max-width: 210px; font-size: 12px; }
 }
@@ -375,8 +380,8 @@ h1 {
   .wheel { width: 104px; height: 104px; }
   .speedo { width: 96px; height: 96px; }
   .dial, .dial svg { width: 50px; height: 50px; }
-  .pedal.drive { height: 112px; }
-  .pedal.stop { height: 82px; }
+  .pedal.drive { width: 64px; height: 104px; }
+  .pedal.stop { width: 62px; height: 78px; }
   .engine { width: 60px; height: 60px; min-height: 60px; }
   .sq { width: 40px; height: 40px; min-height: 40px; }
   h1 { font-size: 68px; }
