@@ -47,6 +47,10 @@ let lastSpeed = 0
 let lastSurf = 0
 let lastRegion = ''
 let steerSm = 0
+let gear = 'D'
+let engineOn = true
+let wheelSteer = 0
+let wheelHold = false
 let orbit = 0.8
 let orbitYaw = 0.4
 let orbitPitch = 0.35
@@ -927,19 +931,49 @@ function startPlay(fromSave) {
 function zeroInput() {
   return { throttle: 0, brake: 0, steer: 0, handbrake: false, lock: false, winch: false, fuel: TANK }
 }
+function readPad() {
+  const out = { steer: 0, gas: 0, brake: 0, hand: 0 }
+  const list = navigator.getGamepads ? navigator.getGamepads() : []
+  const gp = list && list[0]
+  if (!gp) return out
+  const ax = gp.axes && gp.axes[0] ? gp.axes[0] : 0
+  if (Math.abs(ax) > 0.15) out.steer = Math.max(-1, Math.min(1, ax))
+  const btn = i => (gp.buttons && gp.buttons[i]) ? (gp.buttons[i].value || (gp.buttons[i].pressed ? 1 : 0)) : 0
+  out.gas = btn(7)
+  out.brake = btn(6)
+  out.hand = btn(0) > 0.5 ? 1 : 0
+  return out
+}
 function sampleInput(dt) {
-  let target = (pad.right - pad.left) + (keys.d - keys.a)
+  const gp = readPad()
+  if (!wheelHold) wheelSteer += (0 - wheelSteer) * Math.min(1, dt * 7)
+  let target = wheelSteer + (keys.d - keys.a) + gp.steer
   if (save.settings.tilt) target += tiltV
   target = Math.max(-1, Math.min(1, target))
-  steerSm += (target - steerSm) * Math.min(1, dt * 3.2)
-  const rawT = Math.max(keys.w, pad.gas)
+  steerSm += (target - steerSm) * Math.min(1, dt * 8)
+  const wheelEl = $('wheel')
+  if (wheelEl) {
+    const shown = wheelHold ? wheelSteer : steerSm
+    wheelEl.style.transform = 'rotate(' + (shown * 110) + 'deg)'
+    wheelEl.setAttribute('aria-valuenow', String(Math.round(shown * 100)))
+  }
+  const driveIn = Math.max(keys.w, pad.gas, gp.gas)
+  const stopIn = Math.max(keys.s, pad.brake, gp.brake)
+  const parked = gear === 'P'
+  const running = engineOn && !parked
+  let rawT = 0
+  let rawB = stopIn
+  if (running && gear === 'R') rawB = Math.max(stopIn, driveIn)
+  else if (running) rawT = driveIn
   const rise = rawT > throttleSm ? 1.8 : 4.2
   throttleSm += (rawT - throttleSm) * Math.min(1, dt * rise)
   return {
     throttle: throttleSm,
-    brake: Math.max(keys.s, pad.brake),
+    brake: rawB,
     steer: steerSm,
-    handbrake: !!(keys.space || pad.hand),
+    handbrake: parked || !!(keys.space || gp.hand),
+    gear,
+    engine: engineOn,
     lock: lockOn,
     low: lowOn,
     winch: !!(keys.f || pad.winch),
@@ -1164,8 +1198,18 @@ function truckAngles() {
 }
 function updateHud() {
   const mph = Math.abs(lastSpeed) * 2.237
-  $('speed').textContent = String(Math.round(mph))
-  $('gear').textContent = lastSpeed < -0.35 ? 'R' : lowOn ? 'L' : 'D'
+  const shownMph = String(Math.round(mph))
+  $('speed').textContent = shownMph
+  const read = $('speed-read')
+  if (read) read.textContent = shownMph
+  const needle = $('needle')
+  if (needle) {
+    const ang = -120 + Math.max(0, Math.min(1, mph / 40)) * 240
+    needle.setAttribute('transform', 'rotate(' + ang.toFixed(1) + ' 60 60)')
+  }
+  const rollRig = $('roll-rig')
+  const pitchRig = $('pitch-rig')
+  $('gear').textContent = gear === 'P' ? 'P' : gear === 'R' ? 'R' : (lowOn ? 'L' : 'D')
   const cap = tankCapacity(save)
   const fuelPct = Math.max(0, save.fuel / cap) * 100
   $('fuelbar').style.width = fuelPct + '%'
@@ -1189,6 +1233,8 @@ function updateHud() {
   if (pitchEl && rollEl && tiltBox) {
     pitchEl.textContent = 'P ' + tilt.pitch.toFixed(0) + '°'
     rollEl.textContent = 'R ' + tilt.roll.toFixed(0) + '°'
+    if (rollRig) rollRig.setAttribute('transform', 'rotate(' + tilt.roll.toFixed(1) + ' 32 32)')
+    if (pitchRig) pitchRig.setAttribute('transform', 'rotate(' + (-tilt.pitch).toFixed(1) + ' 32 32)')
     const worst = Math.max(Math.abs(tilt.pitch), Math.abs(tilt.roll))
     tiltBox.classList.toggle('warn', worst >= 22 && worst < 36)
     tiltBox.classList.toggle('bad', worst >= 36)
@@ -1901,19 +1947,89 @@ function cycleLights() {
 }
 function hold(id, key) {
   const el = $(id)
-  const down = e => { e.preventDefault(); pad[key] = 1 }
-  const up = e => { e.preventDefault(); pad[key] = 0 }
+  if (!el) return
+  const down = e => {
+    e.preventDefault()
+    e.stopPropagation()
+    try { el.setPointerCapture(e.pointerId) } catch (err) {}
+    pad[key] = 1
+    el.classList.add('down')
+  }
+  const up = e => {
+    e.preventDefault()
+    pad[key] = 0
+    el.classList.remove('down')
+  }
   el.addEventListener('pointerdown', down)
   el.addEventListener('pointerup', up)
   el.addEventListener('pointercancel', up)
-  el.addEventListener('pointerleave', up)
 }
 hold('btn-gas', 'gas')
 hold('btn-brake', 'brake')
-hold('btn-left', 'left')
-hold('btn-right', 'right')
 hold('btn-winch', 'winch')
-hold('btn-hand', 'hand')
+function setGear(next) {
+  gear = next
+  for (const id of ['gear-d', 'gear-p', 'gear-r']) {
+    const el = $(id)
+    if (el) el.classList.toggle('on', el.dataset.gear === next)
+  }
+}
+function crank(on) {
+  try {
+    ensureAudio()
+    if (!audio) return
+    const o = audio.ctx.createOscillator()
+    const g = audio.ctx.createGain()
+    o.type = on ? 'sawtooth' : 'square'
+    o.frequency.value = on ? 70 : 140
+    g.gain.value = 0.03
+    o.connect(g); g.connect(audio.ctx.destination)
+    o.start()
+    g.gain.exponentialRampToValueAtTime(0.0001, audio.ctx.currentTime + (on ? 0.35 : 0.12))
+    o.stop(audio.ctx.currentTime + (on ? 0.36 : 0.14))
+  } catch (e) {}
+}
+$('gear-d').onclick = () => setGear('D')
+$('gear-p').onclick = () => setGear('P')
+$('gear-r').onclick = () => setGear('R')
+$('btn-engine').onclick = () => {
+  engineOn = !engineOn
+  $('btn-engine').classList.toggle('on', engineOn)
+  $('btn-engine').setAttribute('aria-pressed', engineOn ? 'true' : 'false')
+  crank(engineOn)
+  toast(engineOn ? 'Engine on' : 'Engine off')
+}
+$('btn-horn').onclick = () => crank(false)
+const wheelEl = $('wheel')
+if (wheelEl) {
+  let pid = null
+  let base = 0
+  let origin = 0
+  const ang = e => {
+    const r = wheelEl.getBoundingClientRect()
+    return Math.atan2(e.clientX - (r.left + r.width / 2), (r.top + r.height / 2) - e.clientY)
+  }
+  wheelEl.addEventListener('pointerdown', e => {
+    e.preventDefault()
+    e.stopPropagation()
+    try { wheelEl.setPointerCapture(e.pointerId) } catch (err) {}
+    pid = e.pointerId
+    wheelHold = true
+    base = ang(e)
+    origin = wheelSteer
+  })
+  wheelEl.addEventListener('pointermove', e => {
+    if (e.pointerId !== pid) return
+    let d = ang(e) - base
+    while (d > Math.PI) d -= Math.PI * 2
+    while (d < -Math.PI) d += Math.PI * 2
+    const max = 110 * Math.PI / 180
+    wheelSteer = Math.max(-1, Math.min(1, origin + d / max))
+  })
+  const end = e => { if (e.pointerId === pid) { pid = null; wheelHold = false } }
+  wheelEl.addEventListener('pointerup', end)
+  wheelEl.addEventListener('pointercancel', end)
+}
 $('btn-lock').onclick = () => { lockOn = !lockOn }
 $('btn-low').onclick = () => { lowOn = !lowOn }
 $('btn-reset').onclick = () => doReset()
@@ -2047,7 +2163,7 @@ function ensureAudio() {
 }
 function rev() {
   if (!audio) return
-  const throttle = mode === 'play' ? Math.max(keys.w, pad.gas) : 0
+  const throttle = mode === 'play' && engineOn ? Math.max(keys.w, pad.gas) : 0
   const freq = 42 + Math.abs(lastSpeed) * 3 + throttle * 36
   audio.osc.frequency.setTargetAtTime(freq, audio.ctx.currentTime, 0.08)
   const vol = save.settings.sound && mode === 'play' ? 0.012 + throttle * 0.02 : 0

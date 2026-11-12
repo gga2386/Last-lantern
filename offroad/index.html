@@ -20,7 +20,7 @@
   <div id="hud">
     <header class="top">
       <div class="cluster">
-        <div class="speed"><b id="speed">0</b><span>mph <em id="gear">D</em></span></div>
+        <div class="speed" hidden><b id="speed">0</b><span>mph <em id="gear">D</em></span></div>
         <div class="fuel"><div class="track"><div id="fuelbar"></div></div><span id="fuellabel">18 gal</span></div>
         <div id="surface">DIRT</div>
         <div id="region">Hollow Forest</div>
@@ -34,9 +34,7 @@
         <div class="iconrow">
           <button type="button" id="btn-lights" title="Headlights">AUTO</button>
           <button type="button" id="btn-beam" title="High beam">BEAM</button>
-          <button type="button" id="btn-cam" title="Camera">CAM</button>
           <button type="button" id="btn-map" title="Map">MAP</button>
-          <button type="button" id="btn-menu" title="Menu">MENU</button>
         </div>
       </div>
     </header>
@@ -53,23 +51,75 @@
     <button type="button" id="btn-camp" hidden>CAMP</button>
     <button type="button" id="btn-store" hidden>STORE</button>
     <button type="button" id="btn-jerry" hidden>CAN 0</button>
-    <footer class="controls">
-      <div class="steer">
-        <button type="button" id="btn-left" aria-label="Steer left">◀</button>
-        <button type="button" id="btn-right" aria-label="Steer right">▶</button>
-        <button type="button" id="btn-lock" aria-pressed="false">LOCK</button>
-        <button type="button" id="btn-low" aria-pressed="false">LOW</button>
+    <div class="cockpit">
+      <div class="corner left">
+        <button type="button" id="btn-menu" class="sq" title="Pause" aria-label="Pause">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 5h3v14H7zM14 5h3v14h-3z"/></svg>
+        </button>
+        <button type="button" id="btn-cam" class="sq" title="Camera" aria-label="Camera">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 8h3l2-2h6l2 2h3v10H4z"/><circle cx="12" cy="13" r="3.2" fill="#1a140c" stroke="#f0c14a" stroke-width="1.4"/></svg>
+        </button>
+        <button type="button" id="btn-engine" class="engine on" aria-pressed="true" title="Engine">
+          <b>ENGINE</b><span>START</span><span>STOP</span>
+        </button>
       </div>
-      <div class="mid">
-        <button type="button" id="btn-winch">WINCH</button>
-        <button type="button" id="btn-hand">BRAKE</button>
-        <button type="button" id="btn-reset">RESET</button>
+      <div id="wheel" class="wheel" role="slider" aria-label="Steering" aria-valuemin="-100" aria-valuemax="100" aria-valuenow="0">
+        <svg viewBox="0 0 120 120" aria-hidden="true">
+          <circle cx="60" cy="60" r="52" fill="#1a1c1e" stroke="#f0c14a" stroke-width="3"/>
+          <circle cx="60" cy="60" r="44" fill="none" stroke="#3a3e42" stroke-width="10"/>
+          <path d="M60 18 v28 M22 74 l24-10 M98 74 l-24-10" stroke="#d7dde3" stroke-width="7" stroke-linecap="round"/>
+          <circle cx="60" cy="60" r="8" fill="#2a2e32" stroke="#f0c14a" stroke-width="2"/>
+        </svg>
       </div>
-      <div class="pedals">
-        <button type="button" id="btn-brake">REV</button>
-        <button type="button" id="btn-gas">GAS</button>
+      <div class="gauges">
+        <div class="speedo">
+          <svg viewBox="0 0 120 120" aria-hidden="true">
+            <circle cx="60" cy="60" r="54" fill="#121416" stroke="#f0c14a" stroke-width="2"/>
+            <g stroke="#c8cdd2" stroke-width="2">
+              <path d="M28 78 l8-6 M24 60 h10 M28 42 l8 6 M60 18 v10 M92 42 l-8 6 M96 60 h-10 M92 78 l-8-6"/>
+            </g>
+            <g id="needle"><path d="M60 64 L60 26" stroke="#e4572e" stroke-width="3" stroke-linecap="round"/></g>
+            <circle cx="60" cy="60" r="5" fill="#f0c14a"/>
+            <text id="speed-read" x="60" y="84" text-anchor="middle" fill="#f4efe6" font-size="16" font-family="Impact, sans-serif">0</text>
+            <text x="60" y="98" text-anchor="middle" fill="#d9cbb6" font-size="8" font-family="sans-serif">MPH</text>
+          </svg>
+        </div>
+        <div class="inclines">
+          <div class="dial" id="roll-dial">
+            <svg viewBox="0 0 64 64" aria-hidden="true">
+              <circle cx="32" cy="32" r="29" fill="#121416" stroke="#f0c14a" stroke-width="1.5"/>
+              <g id="roll-rig"><path d="M10 36 h8 l4-8 h16 l4 8 h8 v4 H10z" fill="#d7dde3"/><circle cx="20" cy="42" r="4" fill="#1a1c1e"/><circle cx="44" cy="42" r="4" fill="#1a1c1e"/></g>
+            </svg>
+            <span>ROLL</span>
+          </div>
+          <div class="dial" id="pitch-dial">
+            <svg viewBox="0 0 64 64" aria-hidden="true">
+              <circle cx="32" cy="32" r="29" fill="#121416" stroke="#f0c14a" stroke-width="1.5"/>
+              <g id="pitch-rig"><path d="M8 34 h10 l6-10 h18 l4 6 h8 v6 H8z" fill="#d7dde3"/><circle cx="18" cy="40" r="4" fill="#1a1c1e"/><circle cx="46" cy="40" r="4" fill="#1a1c1e"/></g>
+            </svg>
+            <span>PITCH</span>
+          </div>
+        </div>
       </div>
-    </footer>
+      <div class="drive-side">
+        <div class="gears" role="group" aria-label="Gear">
+          <button type="button" id="gear-d" data-gear="D" class="on">D</button>
+          <button type="button" id="gear-p" data-gear="P">P</button>
+          <button type="button" id="gear-r" data-gear="R">R</button>
+        </div>
+        <div class="pedal-row">
+          <button type="button" id="btn-brake" class="pedal stop">STOP</button>
+          <button type="button" id="btn-gas" class="pedal drive">DRIVE</button>
+        </div>
+      </div>
+      <div class="toolrow">
+        <button type="button" id="btn-winch" title="Winch">WINCH</button>
+        <button type="button" id="btn-lock" aria-pressed="false" title="Diff lock">LOCK</button>
+        <button type="button" id="btn-low" aria-pressed="false" title="Low range">LOW</button>
+        <button type="button" id="btn-horn" title="Horn">HORN</button>
+        <button type="button" id="btn-reset" title="Reset">RESET</button>
+      </div>
+    </div>
     <div id="campbar" hidden>
       <button type="button" id="camp-morn">Morning</button>
       <button type="button" id="camp-eve">Evening</button>
@@ -188,7 +238,7 @@
     <div class="sheet wide">
       <h2>How to drive</h2>
       <div class="prose">
-        <p>Gas is on the right. Brake at a stop puts you in reverse. Steer with the arrows, or A and D on a keyboard. Space is the handbrake.</p>
+        <p>The wheel on the left steers and springs back to center. DRIVE is the throttle. STOP brakes, and at a stop it backs you up. D, P, and R are drive, park, and reverse. Park is the parking brake. A keyboard still uses W, A, S, D, and Space, and a gamepad uses the left stick and the triggers. The round button starts and stops the engine.</p>
         <p>These are crawlers, not racers. LOW (or K) shortens the gear for torque and a slower crawl. LOCK ties the diffs for mud and rock. Hold WINCH to drag yourself toward a tree or a big rock. Deep mud bogs the chassis. Deep water, past the wading line, stalls the engine. A snorkel and a lift raise that line. RESET only helps when you are upright on firm ground. On your side, roof, or stuck, call for recovery: a yard truck takes about 20 seconds, hooks a line, and pulls you out. That call counts as a reset on an adventure.</p>
         <p>Dirt, trail, sand, mud, rock, and creek water all grip differently. The creek is shallow enough to ford and slow enough to respect.</p>
         <p>Fuel burns while the engine runs, and it is free — but only a general store pump will fill you. The stores also fit a bigger tank and sell jerry cans you can pour from the CAN button anywhere. Both take reputation, not cash.</p>

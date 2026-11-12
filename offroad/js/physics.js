@@ -129,7 +129,8 @@ export function createSim(world) {
       vehicle.setSteeringValue(steer, i)
       let engine = 0
       let brake = 0
-      const fueled = input.fuel > 0.02
+      const fueled = input.fuel > 0.02 && input.engine !== false
+      if (input.gear === 'P') brake = 40
       if (input.handbrake && i >= 2) brake = 42
       if (brakeIn > 0.05 && speed > 0.35) brake = Math.max(brake, 16 * brakeIn)
       else if (brakeIn > 0.05 && fueled) engine = -torque * 0.72 * brakeIn
