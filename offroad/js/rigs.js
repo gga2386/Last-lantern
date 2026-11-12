@@ -887,7 +887,7 @@ function buildCrawler(THREE, body, spec, kit) {
   const hoodH = Math.max(0.46, sill - hoodBottom)
   const hoodLen = Math.max(0.7, nose - hoodRear)
   slab(bodyMat, hoodW, hoodH, hoodLen, 0, hoodBottom + hoodH / 2, (nose + hoodRear) / 2)
-  slab(bodyMat, hoodW * 0.42, 0.05, hoodLen * 0.38, 0, sill + 0.01, cabF + hoodLen * 0.22)
+  slab(bodyMat, hoodW * 0.5, 0.07, hoodLen * 0.46, 0, sill + 0.018, cabF + hoodLen * 0.26)
   slab(bodyMat, half * 2 - 0.02, 0.08, 0.18, 0, sill - 0.03, cabF + 0.01)
 
   const grilleH = 0.16
