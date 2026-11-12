@@ -593,7 +593,7 @@ function buildCamps() {
   sign.width = 256; sign.height = 64
   const sg = sign.getContext('2d')
   sg.fillStyle = '#1a120c'; sg.fillRect(0, 0, 256, 64)
-  sg.fillStyle = '#f0c14a'; sg.font = '700 28px Impact, sans-serif'; sg.fillText('OXBOW YARD', 18, 42)
+  sg.fillStyle = '#f0c14a'; sg.font = '700 28px Impact, sans-serif'; sg.fillText('CAMP YARD', 28, 42)
   const tex = new THREE.CanvasTexture(sign)
   tex.colorSpace = THREE.SRGBColorSpace
   const board = new THREE.Mesh(new THREE.PlaneGeometry(4.2, 1.05), new THREE.MeshBasicMaterial({ map: tex }))
@@ -1457,7 +1457,7 @@ function openPaint() {
 }
 function fillGarage() {
   const here = atYard()
-  $('garage-note').textContent = here ? rankFor(save.rep).name + ' · ' + save.rep + ' rep. The yard will fit what your name allows.' : 'Look around. Parts are fitted only at Oxbow Yard. Fuel and cans are at the general stores.'
+  $('garage-note').textContent = here ? rankFor(save.rep).name + ' · ' + save.rep + ' rep. The yard will fit what your name allows.' : 'Look around. Parts are fitted only at Camp Yard. Fuel and cans are at the general stores.'
   const box = $('garage-body')
   box.replaceChildren()
   for (const id of Object.keys(UPGRADES)) {
@@ -2103,7 +2103,7 @@ $('btn-new').onclick = () => {
   save = freshSave({ settings })
   save.x = yard.x; save.z = yard.z + 8; save.y = yard.y + 2
   startPlay(null)
-  toast('Hollow Creek. The yard is behind you.')
+  toast('Crawl Camp. Adventure starts here.')
 }
 $('btn-continue').onclick = () => {
   const loaded = loadSave()

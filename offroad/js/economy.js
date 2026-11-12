@@ -211,7 +211,7 @@ export const ADVENTURES = [
       { kind: 'reach', poi: 'cabin', text: 'Reach Wren Cabin' },
       { kind: 'reach', poi: 'mill', text: 'Reach Crow Mill' },
       { kind: 'reach', poi: 'lookout', text: 'Reach the Fire Lookout' },
-      { kind: 'reach', poi: 'yard', text: 'Return to Oxbow Yard' }
+      { kind: 'reach', poi: 'yard', text: 'Return to Camp Yard' }
     ]
   },
   {

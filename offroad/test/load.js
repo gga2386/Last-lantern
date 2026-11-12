@@ -75,7 +75,7 @@ async function main() {
   }
   const info = JSON.parse(boot.result.result.value)
   const fails = []
-  if (info.title !== 'OXBOW') fails.push('title missing')
+  if (info.title !== 'Crawl Camp') fails.push('title missing')
   if (info.mode !== 'title' || !info.ready) fails.push('game did not boot ' + JSON.stringify(info))
   if (info.marker !== 'OFFROAD_V10_14') fails.push('marker ' + info.marker)
   await send('Runtime.evaluate', { expression: `document.getElementById('btn-new').click()` })

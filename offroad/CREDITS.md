@@ -1,4 +1,4 @@
-# Oxbow asset credits
+# Crawl Camp asset credits
 
 Used inside the game. CC-BY 3.0 items require this attribution. Do not republish these files as a standalone asset pack.
 
@@ -12,7 +12,7 @@ Used inside the game. CC-BY 3.0 items require this attribution. Do not republish
 | Creek Wagon | Range Rover | IvOfficial | https://poly.pizza/m/8zk4o6nALW | CC-BY 3.0 |
 | Basin Hauler | L200 crew cab | Muhammad Reyhan | https://poly.pizza/m/4qjS9tFhsJg | CC-BY 3.0 |
 | Lantern Van | UAZ-452 utility van | mehozavr | https://opengameart.org/content/uaz-452-utility-van-lowpoly | CC0 |
-| Spine Crawler | Procedural short-cab crawler | made for Oxbow | made for this game | original |
+| Spine Crawler | Procedural short-cab crawler | made for Crawl Camp | made for this game | original |
 
 ## Accessories
 
@@ -20,8 +20,8 @@ Used inside the game. CC-BY 3.0 items require this attribution. Do not republish
 | --- | --- | --- | --- | --- |
 | Spare tyres | Truck Tire | Jarlan Perez | https://poly.pizza/m/2GuaLHL6p5g | CC-BY 3.0 |
 | Kayak | Kayak | Poly by Google | https://poly.pizza/m/8d-cgFdVEVN | CC-BY 3.0 |
-| Jerry cans, snorkel, winch bumper, racks, distant ridgelines, sky | Original procedural parts | made for Oxbow | made for this game | original |
-| Snorkel, winch, bumper, auxiliary tank, tire knobs | Original procedural parts | made for Oxbow | made for this game | original |
+| Jerry cans, snorkel, winch bumper, racks, distant ridgelines, sky | Original procedural parts | made for Crawl Camp | made for this game | original |
+| Snorkel, winch, bumper, auxiliary tank, tire knobs | Original procedural parts | made for Crawl Camp | made for this game | original |
 
 ## Scenery
 
@@ -44,22 +44,22 @@ ambientCG, CC0 1.0. https://docs.ambientcg.com/license/
 
 ## Camp
 
-Original models were built for Oxbow and contain no third-party content. Treat them as CC0.
+Original models were built for Crawl Camp and contain no third-party content. Treat them as CC0.
 
 | Use | Title | Author | Source | License |
 | --- | --- | --- | --- | --- |
 | Tent tier 1 | Lowpoly Survival Pack tent | Quaternius | https://opengameart.org/content/lowpoly-survival-pack | CC0 |
-| Tent tier 2 | Two-person dome tent | Original, made for Oxbow | made for this game | original |
-| Tent tier 3 | Four-person dome tent | Original, made for Oxbow | made for this game | original |
-| Tent tier 4 | Rooftop tent | Original, made for Oxbow | made for this game | original |
-| Awning | Tarp awning | Original, made for Oxbow | made for this game | original |
+| Tent tier 2 | Two-person dome tent | Original, made for Crawl Camp | made for this game | original |
+| Tent tier 3 | Four-person dome tent | Original, made for Crawl Camp | made for this game | original |
+| Tent tier 4 | Rooftop tent | Original, made for Crawl Camp | made for this game | original |
+| Awning | Tarp awning | Original, made for Crawl Camp | made for this game | original |
 | Fire ring | Campfire stones and logs | CircuitZ | https://poly.pizza/m/DsQslCOoz0 | CC0 1.0 |
-| Grill | Grill grate | Original, made for Oxbow | made for this game | original |
+| Grill | Grill grate | Original, made for Crawl Camp | made for this game | original |
 | Chair | Folding camp chair | saraskau | https://opengameart.org/content/low-poly-camping-assets | CC0 |
 | Table | Folding table | S. Paul Michael | https://poly.pizza/m/96Vhd1riedz | CC-BY 3.0 |
 | Cooler | Red cooler | S. Paul Michael | https://poly.pizza/m/f7q6m6IL8UI | CC-BY 3.0 |
 | Lantern | Lantern | Nick Slough | https://poly.pizza/m/h1HBWwsIGk | CC-BY 3.0 |
-| String lights | String lights | Original, made for Oxbow | made for this game | original |
+| String lights | String lights | Original, made for Crawl Camp | made for this game | original |
 | Stove | Camp stove | Kay Lousberg | https://poly.pizza/m/XV1rkrPaxX | CC0 1.0 |
 | Propane | Propane tank | Quaternius | https://opengameart.org/content/lowpoly-survival-pack | CC0 |
 | Firewood | Firewood pile | K H (Kash) | https://poly.pizza/m/8ueXsvnRjC1 | CC-BY 3.0 |
@@ -68,7 +68,7 @@ Original models were built for Oxbow and contain no third-party content. Treat t
 | Pack | Backpack | Quaternius | https://opengameart.org/content/lowpoly-survival-pack | CC0 |
 | Axe | Axe | Quaternius | https://opengameart.org/content/lowpoly-survival-pack | CC0 |
 | Rod | Fishing rod | Quaternius | https://poly.pizza/m/9AOHhRPHE7 | CC0 1.0 |
-| Bobber | Bobber | Original, made for Oxbow | made for this game | original |
+| Bobber | Bobber | Original, made for Crawl Camp | made for this game | original |
 | Trout | Trout | Poly by Google | https://poly.pizza/m/0HCLwTdxvz5 | CC-BY 3.0 |
 | Fish | Animated fish | Quaternius | https://poly.pizza/m/XWl86YFtpF | CC0 1.0 |
 | Bucket | Bucket of fish | Quaternius | https://poly.pizza/m/G61jVPof0G | CC0 1.0 |
@@ -81,8 +81,8 @@ Original models were built for Oxbow and contain no third-party content. Treat t
 | Rabbit | Rabbit | Noah Lewis | https://poly.pizza/m/3SWesLY5grk | CC-BY 3.0 |
 | Binoculars | Binoculars | Poly by Google | https://poly.pizza/m/6nj5FdUlsEW | CC-BY 3.0 |
 | Camera | Camera | Poly by Google | https://poly.pizza/m/0nfSsetwy0Z | CC-BY 3.0 |
-| Trail post | Trail marker post | Original, made for Oxbow | made for this game | original |
-| Cairn | Trail cairn | Original, made for Oxbow | made for this game | original |
+| Trail post | Trail marker post | Original, made for Crawl Camp | made for this game | original |
+| Cairn | Trail cairn | Original, made for Crawl Camp | made for this game | original |
 | Trail sign | Wooden trail sign | iPoly3D | https://poly.pizza/m/ir1ipUXgGE | CC0 1.0 |
 | Skillet | Cast iron skillet | MilkAndBanana | https://poly.pizza/m/uaK6rZF78p | CC0 1.0 |
 | Pot | Pot | Quaternius | https://opengameart.org/content/lowpoly-survival-pack | CC0 |

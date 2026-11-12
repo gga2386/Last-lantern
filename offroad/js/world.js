@@ -76,7 +76,7 @@ export function createWorld(seed = 1) {
     return Math.sin(x * 0.009) * 38 + Math.sin(x * 0.02 + 1.1) * 14
   }
   const pois = [
-    { id: 'yard', name: 'Oxbow Yard', x: 0, z: -168, r: 18, kind: 'yard' },
+    { id: 'yard', name: 'Camp Yard', x: 0, z: -168, r: 18, kind: 'yard' },
     { id: 'cabin', name: 'Wren Cabin', x: -168, z: -78, r: 13, kind: 'cabin' },
     { id: 'quarry', name: 'Quarry Camp', x: 168, z: 78, r: 13, kind: 'quarry' },
     { id: 'mill', name: 'Crow Mill', x: -78, z: 96, r: 12, kind: 'mill' },
