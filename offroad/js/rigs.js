@@ -5,6 +5,9 @@ const STYLES = ['pickup', 'jeep', 'bronco', 'wagon', 'utility', 'van', 'crawler'
 const WHEEL_ORDER = ['wheel_FL', 'wheel_FR', 'wheel_RL', 'wheel_RR']
 const templates = new Map()
 const extras = new Map()
+let woodMap = null
+
+export function setWoodMap(tex) { woodMap = tex }
 
 export const PAINT_SWATCHES = [
   '#f4f1ea', '#e4d8c4', '#c4b49a', '#8a6a42', '#6a4a32', '#5c4632',
@@ -79,8 +82,8 @@ function bindPaintShader(mat) {
         #ifdef USE_MAP
           vec4 sampledDiffuseColor = texture2D(map, vMapUv);
           float luma = dot(sampledDiffuseColor.rgb, vec3(0.299, 0.587, 0.114));
-          float mask = smoothstep(0.15, 0.40, luma);
-          vec3 painted = uBody * (0.5 + luma * 0.75);
+          float mask = smoothstep(0.02, 0.18, luma);
+          vec3 painted = uBody * (0.82 + luma * 0.28);
           sampledDiffuseColor.rgb = mix(sampledDiffuseColor.rgb, painted, mask * uMix);
           diffuseColor *= sampledDiffuseColor;
         #endif
@@ -209,6 +212,33 @@ function dress(THREE, body, spec, paint, rack) {
     body.add(mesh)
     return mesh
   }
+  if (spec.style === 'bronco') {
+    const roof = 2.05
+    const railMat = new THREE.MeshStandardMaterial({ color: '#d7d2c6', roughness: 0.45, metalness: 0.35 })
+    railMat.userData.paintRole = 'keep'
+    for (const x of [-0.72, 0.72]) {
+      const rail = new THREE.Mesh(new THREE.CylinderGeometry(0.028, 0.028, 2.15, 8), railMat)
+      rail.rotation.x = Math.PI / 2
+      rail.position.set(x, roof, -0.05)
+      rail.userData.paintRole = 'keep'
+      rail.castShadow = true
+      body.add(rail)
+    }
+    for (const z of [-0.85, 0.15, 0.85]) {
+      const bar = new THREE.Mesh(new THREE.CylinderGeometry(0.022, 0.022, 1.5, 8), railMat)
+      bar.rotation.z = Math.PI / 2
+      bar.position.set(0, roof, z)
+      bar.castShadow = true
+      body.add(bar)
+    }
+    const bag = new THREE.Mesh(
+      new THREE.BoxGeometry(0.55, 0.28, 0.34),
+      new THREE.MeshStandardMaterial({ color: '#6a4a32', roughness: 0.8 })
+    )
+    bag.position.set(-0.15, roof + 0.2, -0.35)
+    bag.castShadow = true
+    body.add(bag)
+  }
   if ((spec.style === 'jeep' || spec.style === 'bronco') && rack.kayak) {
     const kayak = accessory('kayak', spec.style === 'jeep' ? 0.55 : 0.5)
     if (kayak) {
@@ -221,18 +251,25 @@ function dress(THREE, body, spec, paint, rack) {
     for (const x of spec.style === 'pickup' ? [-0.35, 0.15] : [-0.28, 0.22]) {
       const can = accessory('gascan', 0.55)
       if (!can) continue
-      can.position.set(x, spec.style === 'pickup' ? 1.35 : 1.95, -0.15)
+      can.position.set(x, spec.style === 'pickup' ? 1.35 : 2.22, spec.style === 'pickup' ? -0.15 : 0.42)
       can.scale.setScalar(0.22)
       body.add(can)
     }
   }
   if (spec.style === 'wagon') {
-    const wood = new THREE.MeshStandardMaterial({ color: paint.accent, roughness: 0.78, metalness: 0.02 })
+    const wood = new THREE.MeshStandardMaterial({
+      color: '#c4a06a',
+      map: woodMap,
+      roughness: 0.84,
+      metalness: 0.02
+    })
+    wood.userData.paintRole = 'keep'
+    if (woodMap) woodMap.colorSpace = woodMap.colorSpace
     for (const side of [-1, 1]) {
-      const panel = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.42, 1.7), wood)
-      panel.position.set(side * 0.95, 0.95, 0.05)
-      panel.userData.paintRole = 'accent'
-      panel.material.userData.paintRole = 'accent'
+      const panel = new THREE.Mesh(new THREE.BoxGeometry(0.02, 0.3, 1.15), wood)
+      panel.position.set(side * 0.96, 1.22, 0.2)
+      panel.userData.paintRole = 'keep'
+      panel.material.userData.paintRole = 'keep'
       panel.castShadow = true
       body.add(panel)
     }
@@ -247,15 +284,18 @@ function dress(THREE, body, spec, paint, rack) {
     }
   }
   if (spec.style === 'van') {
-    const stripeMat = new THREE.MeshStandardMaterial({ color: paint.accent, roughness: 0.4, metalness: 0.04 })
-    stripeMat.userData.paintRole = 'accent'
+    const bands = ['#c4322a', '#e25a22', '#f0a04a']
     for (const side of [-1, 1]) {
-      const band = new THREE.Mesh(new THREE.BoxGeometry(0.02, 0.22, 1.55), stripeMat)
-      band.position.set(side * 1.12, 1.12, 0.05)
-      band.rotation.z = side * 0.08
-      band.userData.paintRole = 'accent'
-      band.castShadow = true
-      body.add(band)
+      bands.forEach((hex, i) => {
+        const stripeMat = new THREE.MeshStandardMaterial({ color: hex, roughness: 0.42, metalness: 0.02 })
+        stripeMat.userData.paintRole = 'keep'
+        const band = new THREE.Mesh(new THREE.BoxGeometry(0.035, 0.48, 1.35), stripeMat)
+        band.position.set(side * 0.93, 1.22, -0.15 + i * 0.18)
+        band.rotation.x = side * 0.85
+        band.userData.paintRole = 'keep'
+        band.castShadow = true
+        body.add(band)
+      })
     }
     const railMat = new THREE.MeshStandardMaterial({ color: '#f4f1ea', roughness: 0.4, metalness: 0.2 })
     railMat.userData.paintRole = 'keep'
@@ -274,6 +314,9 @@ function dress(THREE, body, spec, paint, rack) {
     }
   }
   if (spec.style === 'crawler') {
+    body.updateWorldMatrix(true, true)
+    const bb = new THREE.Box3().setFromObject(body)
+    const roof = bb.max.y - body.position.y + 0.08
     const cageMat = new THREE.MeshStandardMaterial({ color: paint.cage, roughness: 0.35, metalness: 0.45 })
     cageMat.userData.paintRole = 'cage'
     const tube = (r, len, x, y, z, rot) => {
@@ -284,12 +327,12 @@ function dress(THREE, body, spec, paint, rack) {
       body.add(m)
       return m
     }
-    for (const x of [-0.72, 0.72]) {
-      tube(0.035, 1.15, x, 1.85, 0.15, null)
-      tube(0.03, 1.35, x, 1.7, -0.85, [0.5, 0, 0])
+    for (const x of [-0.78, 0.78]) {
+      tube(0.04, 0.72, x, roof + 0.28, 0.35, null)
+      tube(0.036, 0.78, x, roof + 0.22, -0.55, [0.35, 0, 0])
     }
-    tube(0.032, 1.5, 0, 2.35, 0.15, [0, 0, Math.PI / 2])
-    tube(0.03, 1.6, 0, 2.15, -0.35, [Math.PI / 2, 0, 0])
+    tube(0.038, 1.7, 0, roof + 0.62, 0.35, [0, 0, Math.PI / 2])
+    tube(0.034, 1.55, 0, roof + 0.48, -0.15, [Math.PI / 2, 0, 0])
     const coils = []
     const shockMat = new THREE.MeshStandardMaterial({ color: paint.cage, roughness: 0.3, metalness: 0.35 })
     shockMat.userData.paintRole = 'cage'

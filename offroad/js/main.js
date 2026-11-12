@@ -1,14 +1,14 @@
-// Oxbow — Hollow Creek. OFFROAD_V10_2
+// Oxbow — Hollow Creek. OFFROAD_V10_3
 import * as THREE from '../vendor/three.module.js'
 import { createWorld, WORLD_SIZE, HALF, SURF, SURF_NAME } from './world.js'
-import { OFFROAD_V2, OFFROAD_V3, OFFROAD_V4, OFFROAD_V4_1, OFFROAD_V5, OFFROAD_V5_1, OFFROAD_V6, OFFROAD_V7, OFFROAD_V7_1, OFFROAD_V7_2, OFFROAD_V7_3, OFFROAD_V8, OFFROAD_V9, OFFROAD_V10, OFFROAD_V10_1, OFFROAD_V10_2, freshSave, SAVE_KEY, VEHICLES, UPGRADES, AUX, JERRY, ADVENTURES, TANK, coerceSave, buyUpgrade, buyVehicle, buyAux, buyJerry, useJerry, refuel, burnFuel, specWithUpgrades, tankCapacity, jerrySlots, rankFor, isDark, clockLabel, tickAdventure, noteAssist, REGION_OPEN, regionUnlocked, crawlAngles } from './economy.js'
-import { preloadRigs, buildRig, applyLod, poseRig, applyPaint, factoryPaint, PAINT_SWATCHES } from './rigs.js'
+import { OFFROAD_V2, OFFROAD_V3, OFFROAD_V4, OFFROAD_V4_1, OFFROAD_V5, OFFROAD_V5_1, OFFROAD_V6, OFFROAD_V7, OFFROAD_V7_1, OFFROAD_V7_2, OFFROAD_V7_3, OFFROAD_V8, OFFROAD_V9, OFFROAD_V10, OFFROAD_V10_1, OFFROAD_V10_2, OFFROAD_V10_3, freshSave, SAVE_KEY, VEHICLES, UPGRADES, AUX, JERRY, ADVENTURES, TANK, coerceSave, buyUpgrade, buyVehicle, buyAux, buyJerry, useJerry, refuel, burnFuel, specWithUpgrades, tankCapacity, jerrySlots, rankFor, isDark, clockLabel, tickAdventure, noteAssist, REGION_OPEN, regionUnlocked, crawlAngles } from './economy.js'
+import { preloadRigs, buildRig, applyLod, poseRig, applyPaint, factoryPaint, PAINT_SWATCHES, setWoodMap } from './rigs.js'
 import { preloadScenery, preloadGround } from './scenery.js'
 import { CAMP, campLevel, buyCamp, canPitch, rollFish, reelBand, biteSeconds, aimHit, RECIPES, canCook, cookJudge, applyCook, activityState, gameFor, spotVisual, roastGrade, roastColor, roastStamp, applyRoast } from './camp.js'
 import { ensureCamp, buildCampSite, buildFishMoment, buildHuntMoment, buildCookMoment, buildRoastMoment } from './campview.js'
 import { createSim, ROLL_LIMIT, recoveryCopy } from './physics.js'
 
-export { OFFROAD_V2, OFFROAD_V3, OFFROAD_V4, OFFROAD_V4_1, OFFROAD_V5, OFFROAD_V5_1, OFFROAD_V6, OFFROAD_V7, OFFROAD_V7_1, OFFROAD_V7_2, OFFROAD_V7_3, OFFROAD_V8, OFFROAD_V9, OFFROAD_V10, OFFROAD_V10_1, OFFROAD_V10_2 }
+export { OFFROAD_V2, OFFROAD_V3, OFFROAD_V4, OFFROAD_V4_1, OFFROAD_V5, OFFROAD_V5_1, OFFROAD_V6, OFFROAD_V7, OFFROAD_V7_1, OFFROAD_V7_2, OFFROAD_V7_3, OFFROAD_V8, OFFROAD_V9, OFFROAD_V10, OFFROAD_V10_1, OFFROAD_V10_2, OFFROAD_V10_3 }
 
 const world = createWorld(1)
 const yard = world.pois.find(p => p.id === 'yard')
@@ -372,7 +372,7 @@ function plantGeo() {
 function instanced(geo, color, matrices, roughness, sourceMat) {
   if (!matrices.length) return null
   const mat = sourceMat ? sourceMat.clone() : new THREE.MeshStandardMaterial({ color, roughness: roughness == null ? 0.86 : roughness })
-  if (sourceMat && color) mat.color = new THREE.Color(color)
+  if (!sourceMat && color) mat.color = new THREE.Color(color)
   const mesh = new THREE.InstancedMesh(geo, mat, matrices.length)
   matrices.forEach((m, i) => mesh.setMatrixAt(i, m))
   mesh.instanceMatrix.needsUpdate = true
@@ -383,11 +383,15 @@ function instanced(geo, color, matrices, roughness, sourceMat) {
 }
 let sceneryPack = {}
 let groundTex = null
-function scatterVariants(items, matrices) {
-  if (!items || !items.length || !matrices.length) return
-  const buckets = items.map(() => [])
-  matrices.forEach((m, i) => buckets[i % items.length].push(m))
-  buckets.forEach((list, i) => instanced(items[i].geometry, 0xffffff, list, 0.86, items[i].material))
+function scatterVariants(models, matrices) {
+  if (!models || !models.length || !matrices.length) return
+  const buckets = models.map(() => [])
+  matrices.forEach((m, i) => buckets[i % models.length].push(m))
+  buckets.forEach((list, i) => {
+    const model = models[i]
+    const parts = model.parts || [{ geometry: model.geometry, material: model.material }]
+    parts.forEach(part => instanced(part.geometry, 0xffffff, list, 0.86, part.material))
+  })
 }
 function scatter() {
   const dummy = new THREE.Object3D()
@@ -401,9 +405,26 @@ function scatter() {
     dummy.updateMatrix()
     const m = dummy.matrix.clone()
     if (t.region === 'desert') (t.k === 2 ? groups.cactus : groups.dead).push(m)
-    else if (t.region === 'mountain') (t.y > 14 ? groups.snow : groups.pine).push(m)
-    else (t.k === 1 ? groups.broad : groups.pine).push(m)
+    else if (t.region === 'mountain') (t.y > 12 ? groups.snow : groups.pine).push(m)
+    else if (t.k === 0) groups.pine.push(m)
+    else groups.broad.push(m)
   })
+  const bush = []
+  for (let i = 0; i < 260; i++) {
+    const hx = ((Math.imul(i + 3, 196613) ^ 0x27d4eb2d) >>> 0) / 4294967296
+    const hz = ((Math.imul(i + 11, 83492791) ^ 0x165667b1) >>> 0) / 4294967296
+    const x = (hx * 2 - 1) * (HALF - 30)
+    const z = (hz * 2 - 1) * (HALF - 30)
+    if (world.regionAt(x, z).id !== 'forest') continue
+    const s = world.surface(x, z)
+    if (s === SURF.water || s === SURF.rock) continue
+    dummy.position.set(x, world.height(x, z), z)
+    dummy.rotation.set(0, hx * 6, 0)
+    dummy.scale.setScalar(0.55 + hz * 0.7)
+    dummy.updateMatrix()
+    bush.push(dummy.matrix.clone())
+  }
+  scatterVariants(pack.bush, bush)
   scatterVariants(pack.pine, groups.pine)
   scatterVariants(pack.snow, groups.snow)
   scatterVariants(pack.broad, groups.broad)
@@ -445,17 +466,20 @@ function scatter() {
     buckets.forEach((bucket, i) => {
       if (!bucket.length) return
       const src = srcs[i]
-      const mesh = new THREE.InstancedMesh(src.geometry, src.material.clone(), bucket.length)
-      bucket.forEach((item, n) => {
-        mesh.setMatrixAt(n, item.m)
-        mesh.setColorAt(n, rockCols[item.region] || rockCols.forest)
+      const parts = src.parts || [{ geometry: src.geometry, material: src.material }]
+      parts.forEach(part => {
+        const mesh = new THREE.InstancedMesh(part.geometry, part.material.clone(), bucket.length)
+        bucket.forEach((item, n) => {
+          mesh.setMatrixAt(n, item.m)
+          mesh.setColorAt(n, rockCols[item.region] || rockCols.forest)
+        })
+        mesh.instanceMatrix.needsUpdate = true
+        if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true
+        mesh.frustumCulled = false
+        mesh.castShadow = gfx().shadow > 0
+        mesh.receiveShadow = true
+        scene.add(mesh)
       })
-      mesh.instanceMatrix.needsUpdate = true
-      if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true
-      mesh.frustumCulled = false
-      mesh.castShadow = gfx().shadow > 0
-      mesh.receiveShadow = true
-      scene.add(mesh)
     })
   })
   scatterGround()
@@ -491,7 +515,8 @@ function scatterGround() {
     if (kind === 'flower') flowerCol.push(blooms[i % blooms.length])
   }
   const grassSrc = sceneryPack.grass && sceneryPack.grass[0]
-  const grass = grassSrc ? grassSrc.geometry : new THREE.ConeGeometry(0.16, 0.5, 3)
+  const grassPart = grassSrc && (grassSrc.parts ? grassSrc.parts[0] : grassSrc)
+  const grass = grassPart ? grassPart.geometry : new THREE.ConeGeometry(0.16, 0.5, 3)
   if (!grassSrc) grass.translate(0, 0.25, 0)
   const flower = new THREE.SphereGeometry(0.12, 5, 4); flower.translate(0, 0.35, 0)
   const ripple = new THREE.CircleGeometry(0.7, 6)
@@ -507,7 +532,7 @@ function scatterGround() {
     scene.add(mesh)
     return mesh
   }
-  paint(grass, grassSrc ? 0xffffff : 0x3f6a3a, buckets.grass, 0.95, grassSrc && grassSrc.material)
+  paint(grass, grassPart ? 0xffffff : 0x3f6a3a, buckets.grass, 0.95, grassPart && grassPart.material)
   const flowers = paint(flower, 0xffffff, buckets.flower, 0.6)
   if (flowers) {
     flowerCol.forEach((c, i) => flowers.setColorAt(i, c))
@@ -1998,6 +2023,13 @@ window.addEventListener('resize', resize)
 resize()
 
 await preloadRigs()
+try {
+  const wood = await new THREE.TextureLoader().loadAsync('textures/wood_color.jpg')
+  wood.colorSpace = THREE.SRGBColorSpace
+  wood.wrapS = wood.wrapT = THREE.RepeatWrapping
+  wood.repeat.set(1.4, 0.55)
+  setWoodMap(wood)
+} catch (e) {}
 sceneryPack = await preloadScenery(THREE)
 groundTex = await preloadGround(THREE)
 buildTerrain()
@@ -2552,6 +2584,7 @@ window.OX = {
   OFFROAD_V10,
   OFFROAD_V10_1,
   OFFROAD_V10_2,
+  OFFROAD_V10_3,
   get mode() { return mode },
   get speed() { return lastSpeed },
   get pos() { const c = sim.chassis; return c ? { x: c.position.x, y: c.position.y, z: c.position.z } : null },

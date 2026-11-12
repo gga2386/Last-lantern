@@ -1,4 +1,6 @@
-// Quaternius nature kit, instanced by region. OFFROAD_V9
+// Quaternius nature kit, instanced by region. OFFROAD_V10_3
+// Each mesh piece keeps its own material. Indexed pines are wood plus leaves;
+// merging them onto the trunk material turned the canopy into white shards.
 import { GLTFLoader } from '../vendor/GLTFLoader.js'
 
 const FILES = {
@@ -16,15 +18,23 @@ const FILES = {
   rockSnow: ['qn_Rock_Snow_1']
 }
 
-function prepare(THREE, geo, kind) {
-  const g = geo.clone()
-  g.computeBoundingBox()
-  const bb = g.boundingBox
+function expand(geo) {
+  const src = geo.index ? geo.toNonIndexed() : geo
+  const g = src.clone()
+  if (!g.getAttribute('normal')) g.computeVertexNormals()
+  return g
+}
+
+function fitParts(THREE, parts, kind) {
+  const box = new THREE.Box3()
+  parts.forEach(p => {
+    p.geometry.computeBoundingBox()
+    box.union(p.geometry.boundingBox)
+  })
   const size = new THREE.Vector3()
-  bb.getSize(size)
+  box.getSize(size)
   const center = new THREE.Vector3()
-  bb.getCenter(center)
-  g.translate(-center.x, -bb.min.y, -center.z)
+  box.getCenter(center)
   const tall = Math.max(0.05, size.y)
   const wide = Math.max(size.x, size.z, 0.05)
   let s = 1
@@ -32,44 +42,31 @@ function prepare(THREE, geo, kind) {
   else if (kind === 'grass' || kind === 'flower') s = 0.7 / tall
   else if (kind === 'scrub' || kind === 'bush') s = 1.4 / tall
   else s = 5.2 / tall
-  g.scale(s, s, s)
-  g.computeVertexNormals()
-  return g
+  parts.forEach(p => {
+    p.geometry.translate(-center.x, -box.min.y, -center.z)
+    p.geometry.scale(s, s, s)
+    p.geometry.computeBoundingSphere()
+  })
+  return parts
 }
 
 async function loadOne(THREE, loader, file, kind) {
   const gltf = await loader.loadAsync('models/scenery/' + file + '.glb')
   gltf.scene.updateMatrixWorld(true)
-  const geos = []
-  let material = null
+  const parts = []
   gltf.scene.traverse(o => {
     if (!o.isMesh) return
-    const g = o.geometry.clone()
+    const g = expand(o.geometry)
     g.applyMatrix4(o.matrixWorld)
-    geos.push(g)
-    if (!material) material = o.material
+    const material = o.material && o.material.clone ? o.material.clone() : o.material
+    if (material) {
+      material.vertexColors = false
+      material.side = THREE.FrontSide
+    }
+    parts.push({ geometry: g, material })
   })
-  if (!geos.length) return null
-  const merged = geos.length === 1 ? geos[0] : merge(THREE, geos)
-  return { geometry: prepare(THREE, merged, kind), material }
-}
-
-function merge(THREE, geos) {
-  let count = 0
-  geos.forEach(g => { count += g.attributes.position.count })
-  const pos = new Float32Array(count * 3)
-  const nrm = new Float32Array(count * 3)
-  let o = 0
-  for (const g of geos) {
-    const p = g.attributes.position.array
-    pos.set(p, o)
-    if (g.attributes.normal) nrm.set(g.attributes.normal.array, o)
-    o += p.length
-  }
-  const geo = new THREE.BufferGeometry()
-  geo.setAttribute('position', new THREE.BufferAttribute(pos, 3))
-  geo.setAttribute('normal', new THREE.BufferAttribute(nrm, 3))
-  return geo
+  if (!parts.length) return null
+  return { parts: fitParts(THREE, parts, kind) }
 }
 
 export async function preloadScenery(THREE) {

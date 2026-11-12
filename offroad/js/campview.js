@@ -327,40 +327,69 @@ function glowLantern(root) {
   return best
 }
 
+let flameMap = null
+function flameTexture(THREE) {
+  if (flameMap) return flameMap
+  const c = document.createElement('canvas')
+  c.width = 64
+  c.height = 64
+  const g = c.getContext('2d')
+  const grd = g.createRadialGradient(32, 32, 0, 32, 32, 30)
+  grd.addColorStop(0, 'rgba(255,244,210,1)')
+  grd.addColorStop(0.28, 'rgba(255,196,70,0.9)')
+  grd.addColorStop(0.62, 'rgba(255,96,16,0.28)')
+  grd.addColorStop(1, 'rgba(255,40,0,0)')
+  g.fillStyle = grd
+  g.fillRect(0, 0, 64, 64)
+  flameMap = new THREE.CanvasTexture(c)
+  flameMap.colorSpace = THREE.SRGBColorSpace
+  return flameMap
+}
+
 function makeFlames(THREE, low) {
-  const n = low ? 16 : 40
-  const pos = new Float32Array(n * 3)
-  const col = new Float32Array(n * 3)
-  const seeds = []
+  const group = new THREE.Group()
+  const map = flameTexture(THREE)
+  const n = low ? 16 : 28
+  const sprites = []
   for (let i = 0; i < n; i++) {
-    seeds.push({
-      a: Math.random() * Math.PI * 2,
-      r: 0.04 + Math.random() * 0.18,
-      h: Math.random(),
-      s: 0.45 + Math.random() * 0.9,
-      ember: i > n * 0.62
+    const ember = i > n * 0.7
+    const mat = new THREE.SpriteMaterial({
+      map,
+      color: ember ? 0xff7a22 : (i % 2 ? 0xffe28a : 0xffb03a),
+      transparent: true,
+      depthWrite: false,
+      blending: THREE.AdditiveBlending,
+      opacity: ember ? 0.55 : 0.8
     })
-    const ember = seeds[i].ember
-    col[i * 3] = 1
-    col[i * 3 + 1] = ember ? 0.28 : 0.45 + Math.random() * 0.45
-    col[i * 3 + 2] = ember ? 0.05 : 0.08
+    const s = new THREE.Sprite(mat)
+    const sc = ember ? 0.07 + Math.random() * 0.04 : 0.12 + Math.random() * 0.1
+    s.scale.setScalar(sc)
+    group.add(s)
+    sprites.push({
+      s, sc,
+      a: Math.random() * Math.PI * 2,
+      r: ember ? 0.04 + Math.random() * 0.1 : 0.015 + Math.random() * 0.07,
+      h: Math.random(),
+      speed: 0.45 + Math.random() * 0.9,
+      ember
+    })
   }
-  const geo = new THREE.BufferGeometry()
-  geo.setAttribute('position', new THREE.BufferAttribute(pos, 3))
-  geo.setAttribute('color', new THREE.BufferAttribute(col, 3))
-  const mat = new THREE.PointsMaterial({
-    size: low ? 0.14 : 0.18,
-    vertexColors: true,
-    transparent: true,
-    depthWrite: false,
-    blending: THREE.AdditiveBlending,
-    sizeAttenuation: true
-  })
-  const pts = new THREE.Points(geo, mat)
-  pts.frustumCulled = false
-  pts.userData.seeds = seeds
-  pts.userData.n = n
-  return pts
+  group.userData.sprites = sprites
+  return group
+}
+
+function tickFlames(flames, time, scale) {
+  const sprites = flames && flames.userData && flames.userData.sprites
+  if (!sprites) return
+  const k = scale || 1
+  for (const p of sprites) {
+    const h = (p.h + time * p.speed * (p.ember ? 0.55 : 1)) % 1
+    const rad = p.r * (p.ember ? 1.3 : (1 - h * 0.65)) * k
+    p.s.position.set(Math.cos(p.a + time * 0.7) * rad, (p.ember ? 0.2 + h * 0.7 : h * 0.55) * k, Math.sin(p.a + time * 0.5) * rad)
+    const fade = p.ember ? 0.35 + (1 - h) * 0.4 : 0.45 + (1 - h) * 0.5
+    p.s.material.opacity = fade
+    p.s.scale.setScalar(p.sc * (0.75 + h * 0.5) * k)
+  }
 }
 
 function makeSmoke(THREE, parent, count) {
@@ -406,14 +435,8 @@ export function buildCampSite(THREE, opts) {
     anchor.add(grill)
   }
   const flames = makeFlames(THREE, low)
-  flames.position.y = 0.22
+  flames.position.y = 0.2
   anchor.add(flames)
-  const coreMat = new THREE.MeshBasicMaterial({ color: 0xff6a1f, transparent: true, opacity: 0.92, depthWrite: false })
-  const core = new THREE.Mesh(new THREE.ConeGeometry(0.18, 0.62, 6), coreMat)
-  core.position.y = 0.48
-  const inner = new THREE.Mesh(new THREE.ConeGeometry(0.09, 0.4, 5), new THREE.MeshBasicMaterial({ color: 0xffe7a0, transparent: true, opacity: 0.95, depthWrite: false }))
-  inner.position.y = 0.4
-  anchor.add(core, inner)
   const smoke = low ? [] : makeSmoke(THREE, anchor, 6)
   const fireLight = new THREE.PointLight(0xff7a2a, 5.5, 12, 2)
   fireLight.position.set(0, 0.55, 0)
@@ -529,21 +552,7 @@ export function buildCampSite(THREE, opts) {
   function tick(dt, dark, camera) {
     const time = performance.now() * 0.001
     fireLight.intensity = (dark ? 7.2 : 4.4) + Math.sin(time * 11) * 0.55 + Math.random() * 0.4
-    const flicker = 0.85 + Math.sin(time * 17) * 0.12 + Math.sin(time * 9) * 0.08
-    core.scale.set(0.85 + Math.sin(time * 13) * 0.12, flicker, 0.85 + Math.cos(time * 15) * 0.1)
-    inner.scale.set(1, 0.75 + Math.sin(time * 21) * 0.18, 1)
-    const seeds = flames.userData.seeds
-    const arr = flames.geometry.attributes.position.array
-    for (let i = 0; i < seeds.length; i++) {
-      const s = seeds[i]
-      const h = (s.h + time * s.s * (s.ember ? 0.55 : 1)) % 1
-      const rise = s.ember ? 0.35 + h * 1.35 : h * 0.95
-      const rad = s.r * (s.ember ? 1.4 : (1 - h * 0.75))
-      arr[i * 3] = Math.cos(s.a + time * 0.6) * rad
-      arr[i * 3 + 1] = rise
-      arr[i * 3 + 2] = Math.sin(s.a + time * 0.6) * rad
-    }
-    flames.geometry.attributes.position.needsUpdate = true
+    tickFlames(flames, time, 1)
     for (const p of smoke) {
       p.life += dt * 0.18
       if (p.life > 1) p.life -= 1
@@ -867,8 +876,7 @@ export function buildCookMoment(THREE, opts) {
   grill.position.y = 0.1
   anchor.add(grill)
   const flames = makeFlames(THREE, true)
-  flames.material.size = 0.07
-  flames.material.opacity = 0.8
+  flames.material.size = 0.05
   flames.position.y = 0.16
   anchor.add(flames)
   const skillet = cloneProp(scenes.skillet)
@@ -931,16 +939,7 @@ export function buildCookMoment(THREE, opts) {
 
   function tick(dt, play) {
     const time = performance.now() * 0.001
-    const seeds = flames.userData.seeds
-    const arr = flames.geometry.attributes.position.array
-    for (let i = 0; i < seeds.length; i++) {
-      const s = seeds[i]
-      const h = (s.h + time * s.s) % 1
-      arr[i * 3] = Math.cos(s.a) * s.r * (1 - h)
-      arr[i * 3 + 1] = h * 0.7
-      arr[i * 3 + 2] = Math.sin(s.a) * s.r * (1 - h)
-    }
-    flames.geometry.attributes.position.needsUpdate = true
+    tickFlames(flames, time, 0.55)
     if (play.recipe && play.recipe !== recipeId && play.phase !== 'pick') showRecipe(play.recipe)
     if (play.phase === 'heat' || play.phase === 'done') {
       play.brown = Math.min(1, (play.brown || 0) + dt * 0.16)
@@ -995,7 +994,7 @@ export function buildRoastMoment(THREE, opts) {
   stick.add(wood, mallow)
   group.add(stick)
   const flame = makeFlames(THREE, true)
-  flame.material.size = 0.05
+  flame.material.size = 0.035
   flame.scale.setScalar(0.28)
   flame.position.set(0.36, 0.1, 0)
   flame.visible = false
@@ -1029,16 +1028,7 @@ export function buildRoastMoment(THREE, opts) {
     flame.visible = !!play.onFire
     if (play.onFire) {
       const time = performance.now() * 0.001
-      const seeds = flame.userData.seeds
-      const arr = flame.geometry.attributes.position.array
-      for (let i = 0; i < seeds.length; i++) {
-        const s = seeds[i]
-        const h = (s.h + time * s.s * 1.4) % 1
-        arr[i * 3] = Math.cos(s.a + time) * s.r * (1 - h) * 0.45
-        arr[i * 3 + 1] = h * 0.22
-        arr[i * 3 + 2] = Math.sin(s.a + time) * s.r * (1 - h) * 0.45
-      }
-      flame.geometry.attributes.position.needsUpdate = true
+      tickFlames(flame, time, 0.35)
     }
     const smoking = play.onFire || (play.smoke || 0) > 0 || (play.heat || 0) > 0.4
     if (play.smoke > 0) play.smoke = Math.max(0, play.smoke - dt)

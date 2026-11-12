@@ -15,6 +15,7 @@ export const OFFROAD_V9 = 1
 export const OFFROAD_V10 = 1
 export const OFFROAD_V10_1 = 1
 export const OFFROAD_V10_2 = 1
+export const OFFROAD_V10_3 = 1
 export const REGION_OPEN = { forest: 0, desert: 40, mountain: 120 }
 export function regionUnlocked(save, id) {
   return (save.rep || 0) >= (REGION_OPEN[id] || 0)
@@ -65,7 +66,7 @@ export const VEHICLES = {
     track: 0.85, wheelbase: 1.46, axleF: 1.474, axleR: 1.451,
     axles: [[0.854, 0.447, 1.474], [-0.854, 0.447, 1.474], [0.854, 0.447, -1.451], [-0.854, 0.447, -1.451]],
     rest: 0.32, travel: 0.3, stiff: 26, grip: 0.96, visualDrop: -0.92, wheelScale: 1,
-    paint: { body: '#f4f1ea', accent: '#6d6758', wheel: '#2a2a2a', cage: '#d8d8d8', mud: 0.18, repaint: true },
+    paint: { body: '#f4f1ea', accent: '#6d6758', wheel: '#2a2a2a', cage: '#d8d8d8', mud: 0.34, repaint: true },
     liveries: [
       { color: '#2f6fbe', stripe: '#f4efe6', kind: 'thick', name: 'Creek blue' },
       { color: '#e8e4dc', stripe: '#2f6fbe', kind: 'stripe', name: 'Two-tone' },
@@ -106,7 +107,7 @@ export const VEHICLES = {
     force: 5400, maxSpeed: 4.15, steer: 0.34, wheelR: 0.57,
     track: 1.58, wheelbase: 1.37, axleF: 1.349, axleR: 1.387,
     axles: [[1.575, 0.76, 1.349], [-1.575, 0.76, 1.349], [1.575, 0.76, -1.387], [-1.575, 0.76, -1.387]],
-    rest: 0.42, travel: 0.38, stiff: 20, grip: 1.22, visualDrop: -1.55, wheelScale: 0.75,
+    rest: 0.42, travel: 0.38, stiff: 20, grip: 1.22, visualDrop: -1.28, wheelScale: 0.62,
     paint: { body: '#d21f1a', accent: '#1a1a1a', wheel: '#e6e6e6', cage: '#f2f2f2', mud: 0.06, repaint: true },
     liveries: [
       { color: '#d21f1a', stripe: '#111111', kind: 'stripe', name: 'Cage red' },

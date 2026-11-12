@@ -56,7 +56,7 @@ export function lakeAt(x, z, pad = 0) {
 }
 export function regionWeights(x, z) {
   const mtn = smooth((z - 88) / 78)
-  const des = smooth((x - 18) / 95) * (1 - mtn * 0.92)
+  const des = smooth((x - 55) / 88) * (1 - mtn * 0.92)
   const forest = Math.max(0, 1 - mtn - des)
   const sum = mtn + des + forest || 1
   return { forest: forest / sum, desert: des / sum, mountain: mtn / sum }
@@ -327,11 +327,11 @@ export function createWorld(seed = 1) {
         k = tr() < 0.62 ? 2 : 3
         scale = 0.7 + tr() * 0.7
       } else if (reg === 'mountain') {
-        if (y > 18 || tr() < 0.48) continue
+        if (y > 16 || tr() < 0.22) continue
         k = tr() < 0.72 ? 0 : 1
         scale = 0.65 + tr() * 0.9
-      } else if (tr() < 0.22) continue
-      else k = tr() < 0.58 ? 0 : 1
+      } else if (tr() < 0.06) continue
+      else k = tr() < 0.42 ? 0 : tr() < 0.72 ? 1 : 2
       trees.push({ x, z, s: scale, k, y, region: reg })
     }
   }

@@ -39,6 +39,7 @@ ambientCG, CC0 1.0. https://docs.ambientcg.com/license/
 | Red Wash dirt | Ground067 — https://ambientcg.com/a/Ground067 |
 | Mud | Ground109 — https://ambientcg.com/a/Ground109 |
 | Granite Spine gravel | Ground110 — https://ambientcg.com/a/Ground110 |
+| Wagon woodgrain | Wood049 — https://ambientcg.com/a/Wood049 |
 
 ## Camp
 
