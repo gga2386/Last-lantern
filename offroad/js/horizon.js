@@ -1,4 +1,4 @@
-// Distant ridgelines, well outside the map. OFFROAD_V10_8
+// Distant ridgelines, well outside the map. OFFROAD_V10_9
 export function createRidges(THREE, scene) {
   const regions = ['forest', 'desert', 'mountain']
   const layers = []
@@ -73,7 +73,7 @@ export function createRidges(THREE, scene) {
         nx /= nl; ny /= nl; nz /= nl
         if (ny < 0) { nx = -nx; ny = -ny; nz = -nz }
         const nd = Math.max(0, nx * sun.x + ny * sun.y + nz * sun.z)
-        const shade = 0.38 + 0.62 * nd
+        const shade = 0.16 + 0.84 * nd
         const top = (h0 + h1) * 0.5
         const paint = (y) => {
           const t = Math.max(0, Math.min(1, (y - ring.base) / Math.max(8, top - ring.base)))
@@ -82,7 +82,7 @@ export function createRidges(THREE, scene) {
             const band = Math.floor(t * 4) % 3
             rgb = band === 0 ? [0.14, 0.035, 0.015] : band === 1 ? [0.26, 0.08, 0.03] : [0.08, 0.02, 0.01]
           } else if (region === 'mountain') {
-            rgb = t > 0.72 ? [0.7, 0.73, 0.76] : [0.065, 0.064, 0.068]
+            rgb = t > 0.84 ? [0.55, 0.58, 0.62] : [0.045, 0.055, 0.072]
           } else if (ring.kind >= 2) {
             rgb = [0.08, 0.12, 0.22]
           } else {
@@ -90,7 +90,7 @@ export function createRidges(THREE, scene) {
           }
           return tint(rgb, ring.kind, shade * (y > ring.base + 2 ? 1 : 0.72))
         }
-        const cut = 0.7
+        const cut = region === 'mountain' ? 0.84 : 0.7
         const mid = (a, b) => a.map((v, k) => v + (b[k] - v) * cut)
         const m0 = mid(p[0], p[1])
         const m1 = mid(p[2], p[3])
@@ -160,18 +160,17 @@ export function createRidges(THREE, scene) {
   function update(weights, elev, hor) {
     const night = Math.max(0, Math.min(1, (-elev + 0.04) / 0.3))
     const lift = 0.28 + (1 - night) * 0.72
-    treeline.visible = weights.forest > 0.08
-    treeline.material.opacity = Math.min(0.85, weights.forest)
-    treeline.material.color.setRGB(lift, lift, lift)
+    treeline.visible = false
     const warm = Math.max(0, Math.min(1, (0.32 - elev) / 0.32))
     for (const layer of layers) {
       tmp.setRGB(lift, lift, lift)
-      if (warm > 0.2) tmp.lerp(hor, warm * 0.22)
+      if (warm > 0.2) tmp.lerp(hor, warm * 0.08)
       for (const region of regions) {
         const mesh = layer.meshes[region]
         const w = weights[region] || 0
-        mesh.visible = w > 0.05
-        mesh.material.color.copy(tmp)
+        mesh.visible = region !== 'forest' && w > 0.05
+        mesh.material.color.setRGB(lift, lift, lift)
+        if (region !== 'mountain') mesh.material.color.copy(tmp)
       }
     }
   }
