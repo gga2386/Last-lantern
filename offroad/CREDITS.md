@@ -89,3 +89,4 @@ Original models were built for Oxbow and contain no third-party content. Treat t
 | Sausage | Bratwurst | Poly by Google | https://poly.pizza/m/1SiMnBpAP6w | CC-BY 3.0 |
 | Corn | Corn | Poly by Google | https://poly.pizza/m/3zsUEPnTdFt | CC-BY 3.0 |
 | Can | Open beans can | Quaternius | https://opengameart.org/content/lowpoly-survival-pack | CC0 |
+| Marshmallow | Roasting stick and marshmallow | Original, built in the game | made for this game | original |

@@ -13,6 +13,7 @@ export const OFFROAD_V7_3 = 1
 export const OFFROAD_V8 = 1
 export const OFFROAD_V9 = 1
 export const OFFROAD_V10 = 1
+export const OFFROAD_V10_1 = 1
 export const REGION_OPEN = { forest: 0, desert: 40, mountain: 120 }
 export function regionUnlocked(save, id) {
   return (save.rep || 0) >= (REGION_OPEN[id] || 0)
@@ -256,7 +257,8 @@ export function freshSave(partial) {
     qw: 1, qx: 0, qy: 0, qz: 0,
     clock: 0.42,
     camp: { tent: 0, pit: 0, chairs: 0, lights: 0, rod: 0, hunt: 0 },
-    pantry: { trout: 0, fish: 0, meat: 0, salt: 0, oil: 0 },
+    pantry: { trout: 0, fish: 0, meat: 0, salt: 0, oil: 0, chocolate: 0, crackers: 0 },
+    roastStamp: '',
     log: { fish: {}, photos: {} },
     respawn: null,
     buff: null,
@@ -275,7 +277,8 @@ export function coerceSave(raw, gfx) {
     s.camp = Object.assign({ tent: 0, pit: 0, chairs: 0, lights: 0, rod: 0, hunt: 0 }, raw.camp || {})
     // v9 rooftop (tent 2 of 2) stays the top shell. A new run buys the four-person dome at 2, then the roof at 3.
     if ((raw.v || 0) < 10 && s.camp.tent >= 2) s.camp.tent = 3
-    s.pantry = Object.assign({ trout: 0, fish: 0, meat: 0, salt: 0, oil: 0 }, raw.pantry || {})
+    s.pantry = Object.assign({ trout: 0, fish: 0, meat: 0, salt: 0, oil: 0, chocolate: 0, crackers: 0 }, raw.pantry || {})
+    s.roastStamp = raw.roastStamp || ''
     s.log = raw.log || { fish: {}, photos: {} }
     s.upgrades = Object.assign({ tires: 0, susp: 0, engine: 0, winch: 0, snorkel: 0 }, raw.upgrades)
     s.settings = Object.assign(base.settings, raw.settings || {})

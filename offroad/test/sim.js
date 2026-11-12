@@ -1,12 +1,12 @@
 // OFFROAD_V2 — terrain, reputation, fuel, and solid trees. Run: node offroad/test/sim.js
 import { createWorld, SURF, FRICTION, DRAG, HALF } from '../js/world.js'
-import { OFFROAD_V2, OFFROAD_V3, OFFROAD_V4, OFFROAD_V4_1, OFFROAD_V5, OFFROAD_V5_1, OFFROAD_V6, OFFROAD_V7, OFFROAD_V7_1, OFFROAD_V7_2, OFFROAD_V7_3, OFFROAD_V8, OFFROAD_V9, OFFROAD_V10, VEHICLES, ADVENTURES, freshSave, buyUpgrade, buyVehicle, buyAux, buyJerry, useJerry, refuel, burnFuel, coerceSave, tickAdventure, tankCapacity, jerrySlots, isDark, TANK, specWithUpgrades, noteAssist, crawlAngles, regionUnlocked } from '../js/economy.js'
-import { canPitch, slopeAt, buyCamp, cookJudge, applyCook, rollFish, aimHit, RECIPES, activityState, nearWater, habitat, CAMP, spotVisual } from '../js/camp.js'
+import { OFFROAD_V2, OFFROAD_V3, OFFROAD_V4, OFFROAD_V4_1, OFFROAD_V5, OFFROAD_V5_1, OFFROAD_V6, OFFROAD_V7, OFFROAD_V7_1, OFFROAD_V7_2, OFFROAD_V7_3, OFFROAD_V8, OFFROAD_V9, OFFROAD_V10, OFFROAD_V10_1, VEHICLES, ADVENTURES, freshSave, buyUpgrade, buyVehicle, buyAux, buyJerry, useJerry, refuel, burnFuel, coerceSave, tickAdventure, tankCapacity, jerrySlots, isDark, TANK, specWithUpgrades, noteAssist, crawlAngles, regionUnlocked } from '../js/economy.js'
+import { canPitch, slopeAt, buyCamp, cookJudge, applyCook, rollFish, aimHit, RECIPES, activityState, nearWater, habitat, CAMP, spotVisual, roastGrade, roastStamp, applyRoast } from '../js/camp.js'
 import { createSim, tractionTrial, ROLL_LIMIT, recoveryCopy } from '../js/physics.js'
 
 const fails = []
 const fail = m => fails.push(m)
-if (OFFROAD_V2 !== 1 || OFFROAD_V3 !== 1 || OFFROAD_V4 !== 1 || OFFROAD_V4_1 !== 1 || OFFROAD_V5 !== 1 || OFFROAD_V5_1 !== 1 || OFFROAD_V6 !== 1 || OFFROAD_V7 !== 1 || OFFROAD_V7_1 !== 1 || OFFROAD_V7_2 !== 1 || OFFROAD_V7_3 !== 1 || OFFROAD_V8 !== 1 || OFFROAD_V9 !== 1 || OFFROAD_V10 !== 1) fail('marker missing')
+if (OFFROAD_V2 !== 1 || OFFROAD_V3 !== 1 || OFFROAD_V4 !== 1 || OFFROAD_V4_1 !== 1 || OFFROAD_V5 !== 1 || OFFROAD_V5_1 !== 1 || OFFROAD_V6 !== 1 || OFFROAD_V7 !== 1 || OFFROAD_V7_1 !== 1 || OFFROAD_V7_2 !== 1 || OFFROAD_V7_3 !== 1 || OFFROAD_V8 !== 1 || OFFROAD_V9 !== 1 || OFFROAD_V10 !== 1 || OFFROAD_V10_1 !== 1) fail('marker missing')
 const ids = Object.keys(VEHICLES)
 if (ids.length < 6) fail('roster ' + ids.join(','))
 for (const id of ['mule', 'scout', 'runner', 'wagon', 'hauler', 'crawler', 'van']) if (!VEHICLES[id]) fail('missing ' + id)
@@ -369,4 +369,19 @@ const roof = buyCamp(Object.assign(freshSave(), { rep: 400, camp: { tent: 2, pit
 if (!roof || roof.camp.tent !== 3) fail('rooftop buy')
 const seen = spotVisual({ id: 'deer', name: 'Deer' }, () => 0.9)
 if (seen.model !== 'doe' && seen.model !== 'stag' && seen.model !== 'elk') fail('deer visual')
-console.log('OK OFFROAD_V10')
+if (roastGrade(0.1) !== 'raw' || roastGrade(0.48) !== 'golden' || roastGrade(0.7) !== 'toasted' || roastGrade(0.9) !== 'burnt') fail('roast grades')
+if (roastStamp(0.73) === roastStamp(0.3)) fail('evening and morning should be different roasts')
+if (roastStamp(0.8) !== roastStamp(1.04)) fail('a night should last until morning')
+const cold = activityState(world, yard.x, yard.z, freshSave(), false)
+if (cold.roast.ok || cold.roast.reason !== 'Fire is out') fail('unlit fire ' + cold.roast.reason)
+const eve = Object.assign(freshSave(), { clock: 0.73 })
+if (!activityState(world, yard.x, yard.z, eve, true).roast.ok) fail('lit fire should roast')
+const gold = applyRoast(Object.assign(freshSave(), { clock: 0.73, pantry: { trout: 0, fish: 0, meat: 0, salt: 0, oil: 0, chocolate: 1, crackers: 1 } }), 'golden', 0.73)
+if (gold.grade !== 'golden' || gold.save.buff.rep !== 3 || gold.save.buff.grip < 1.06 || gold.save.pantry.chocolate !== 0 || gold.save.pantry.crackers !== 0) fail('golden s’more ' + gold.text)
+if (gold.save.roastStamp !== roastStamp(0.73)) fail('roast stamp')
+if (activityState(world, yard.x, yard.z, gold.save, true).roast.ok) fail('second roast the same night')
+const raw = applyRoast(freshSave(), 'raw', 0.42)
+if (raw.save.buff) fail('raw marshmallow paid a buff')
+const oldPantry = coerceSave({ v: 10, upgrades: { tires: 0, susp: 0, engine: 0, winch: 0, snorkel: 0 }, pantry: { trout: 1 } }, 'medium')
+if (!oldPantry || oldPantry.pantry.chocolate !== 0 || oldPantry.roastStamp !== '') fail('old save pantry')
+console.log('OK OFFROAD_V10_1')

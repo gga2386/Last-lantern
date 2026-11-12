@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
-<meta name="oxbow-build" content="OFFROAD_V10">
+<meta name="oxbow-build" content="OFFROAD_V10_1">
 <title>Oxbow — Hollow Creek</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect fill='%23140e0a' width='32' height='32'/%3E%3Cpath fill='%23e4572e' d='M4 22h24l-3-8H7z'/%3E%3Ccircle cx='10' cy='23' r='3' fill='%23f4efe6'/%3E%3Ccircle cx='22' cy='23' r='3' fill='%23f4efe6'/%3E%3C/svg%3E">
 <link rel="stylesheet" href="style.css">
@@ -76,6 +76,7 @@
       <button type="button" id="camp-fish">Fish</button>
       <button type="button" id="camp-hunt">Hunt</button>
       <button type="button" id="camp-cook">Cook</button>
+      <button type="button" id="camp-roast">Roast</button>
       <button type="button" id="camp-pack" class="ghost">Pack up</button>
     </div>
   </div>
@@ -164,6 +165,7 @@
         <p>Doe by Quaternius (https://poly.pizza/m/T6Cs7tmMHJ), CC0 1.0. Stag by Quaternius (https://poly.pizza/m/tQdzbZ1Cmw), CC0 1.0. Fox by Quaternius (https://poly.pizza/m/Bc97C66HKi), CC0 1.0. Elk by Poly by Google (https://poly.pizza/m/bO8XPdrAb5G), CC-BY 3.0. Turkey by Poly by Google (https://poly.pizza/m/4f31_AG9Iap), CC-BY 3.0. Rabbit by Noah Lewis (https://poly.pizza/m/3SWesLY5grk), CC-BY 3.0.</p>
         <p>Binoculars by Poly by Google (https://poly.pizza/m/6nj5FdUlsEW), CC-BY 3.0. Camera by Poly by Google (https://poly.pizza/m/0nfSsetwy0Z), CC-BY 3.0. Wooden trail sign by iPoly3D (https://poly.pizza/m/ir1ipUXgGE), CC0 1.0.</p>
         <p>Fish fillet by Quaternius (https://poly.pizza/m/nQVHa5aYfP), CC0 1.0. Steak by Quaternius (https://poly.pizza/m/abCzZiCgB0), CC0 1.0. Bratwurst by Poly by Google (https://poly.pizza/m/1SiMnBpAP6w), CC-BY 3.0. Corn by Poly by Google (https://poly.pizza/m/3zsUEPnTdFt), CC-BY 3.0.</p>
+        <p>Marshmallow and roasting stick are original, built in the game. No third-party content.</p>
       </div>
       <button type="button" id="btn-credits-close" class="ghost">Close</button>
     </div>
@@ -178,7 +180,7 @@
         <p>Dirt, trail, sand, mud, rock, and creek water all grip differently. The creek is shallow enough to ford and slow enough to respect.</p>
         <p>Fuel burns while the engine runs, and it is free — but only a general store pump will fill you. The stores also fit a bigger tank and sell jerry cans you can pour from the CAN button anywhere. Both take reputation, not cash.</p>
         <p>Adventures pay reputation. Ranks open tires, suspension, the engine, the winch, the camp kit, and the rest of the yard: the Ridge Scout, Bluff Runner, Creek Wagon, Basin Hauler, Spine Crawler, and Lantern Van. Paint in the garage is free. Credits lists every model and texture. Headlights come on at dusk (AUTO). H cycles them, B is high beam.</p>
-        <p>The basin is three countries. Hollow Forest is home. Red Wash opens at 40 reputation, Granite Spine at 120. Each has its own store, camps, and adventures. Stop on flat ground, or at a marked camp, and tap CAMP. The tent follows the kit, up to a rooftop shell and a tarp. Fish only where there is water. Spot wildlife on the trail with the field kit. Cook only when the pantry has a meal. Grey buttons stay on the bar and tell you what is missing.</p>
+        <p>The basin is three countries. Hollow Forest is home. Red Wash opens at 40 reputation, Granite Spine at 120. Each has its own store, camps, and adventures. Stop on flat ground, or at a marked camp, and tap CAMP. The tent follows the kit, up to a rooftop shell and a tarp. Fish only where there is water. Spot wildlife on the trail with the field kit. Cook only when the pantry has a meal. Roast a marshmallow over a lit fire, once each camp night. Chocolate and crackers from the store turn a good one into a s’more. Grey buttons stay on the bar and tell you what is missing.</p>
         <p>The garage lists approach, departure, and breakover. The inclinometer on the dash goes gold, then red, as the truck tips. Low graphics turns off the color grade, the vignette, and the drifting dust.</p>
       </div>
       <button type="button" id="btn-help-close" class="ghost">Close</button>
@@ -231,7 +233,19 @@
       <div id="play-bar"><div id="play-sweet"></div><div id="play-mark"></div></div>
       <canvas id="play-canvas" width="640" height="280" hidden></canvas>
       <button type="button" id="play-act">Tap</button>
+      <button type="button" id="roast-done" hidden>Pull it</button>
+      <div id="roast-card" hidden>
+        <i id="roast-swatch"></i>
+        <b id="roast-grade">Golden</b>
+        <span id="roast-line"></span>
+      </div>
+      <i id="roast-live" hidden></i>
       <button type="button" id="play-close" class="ghost">Back to the fire</button>
+    </div>
+    <div id="roast-drag" hidden>
+      <span class="far">Back</span>
+      <i id="roast-knob"></i>
+      <span class="near">Closer</span>
     </div>
   </div>
 

@@ -1,4 +1,4 @@
-// Camping rules, fish, fair-chase spotting, and the cook fire. OFFROAD_V10
+// Camping rules, fish, fair-chase spotting, and the cook fire. OFFROAD_V10_1
 export const CAMP = {
   tent: { name: 'Tent', max: 3, need: [80, 200, 280], labels: ['Ridge tent', 'Two-person dome', 'Four-person dome', 'Rooftop tent'], blurb: 'A ridge tent to start. Two domes, then a shell that rides on the roof with a tarp.' },
   pit: { name: 'Fire', max: 2, need: [40, 140], labels: ['Stone ring', 'Fire pit', 'Cooking grill'], blurb: 'A better pit, then a grill that makes the sweet spot easier.' },
@@ -90,7 +90,7 @@ export function habitat(world, x, z) {
   }
   return { ok: true, reason: '' }
 }
-export function activityState(world, x, z, save) {
+export function activityState(world, x, z, save, fireLit) {
   const camp = (save && save.camp) || {}
   const pantry = (save && save.pantry) || {}
   const water = nearWater(world, x, z)
@@ -98,11 +98,46 @@ export function activityState(world, x, z, save) {
   const kit = camp.hunt || 0
   const home = habitat(world, x, z)
   const cook = RECIPES.some(r => canCook(pantry, r))
+  const roast = roastReady(save, fireLit)
   return {
     fish: { ok: !!(water && rod), reason: !water ? 'Needs water nearby' : !rod ? 'Needs a rod' : '' },
     hunt: { ok: !!(home.ok && kit), reason: !home.ok ? home.reason : !kit ? 'Needs a field kit' : '' },
-    cook: { ok: cook, reason: cook ? '' : 'Needs ingredients' }
+    cook: { ok: cook, reason: cook ? '' : 'Needs ingredients' },
+    roast
   }
+}
+// One roast for each camp night. Evening and the dark hours after midnight share a stamp.
+export function roastStamp(clock) {
+  const t = Number(clock) || 0
+  const days = Math.floor(t)
+  const h = ((t % 1) + 1) % 1 * 24
+  if (h < 6.5) return (days - 1) + '-eve'
+  if (h >= 17.5) return days + '-eve'
+  return days + '-day'
+}
+export function roastReady(save, fireLit) {
+  if (!fireLit) return { ok: false, reason: 'Fire is out' }
+  const stamp = roastStamp(save && save.clock)
+  if (save && save.roastStamp && save.roastStamp === stamp) return { ok: false, reason: 'Already roasted tonight' }
+  return { ok: true, reason: '' }
+}
+export function roastGrade(heat) {
+  const h = Math.max(0, Math.min(1, heat || 0))
+  if (h < 0.34) return 'raw'
+  if (h < 0.58) return 'golden'
+  if (h < 0.8) return 'toasted'
+  return 'burnt'
+}
+export function roastColor(heat) {
+  const h = Math.max(0, Math.min(1, heat || 0))
+  const stops = [[0, [244, 239, 230]], [0.36, [240, 193, 74]], [0.58, [196, 122, 58]], [0.8, [90, 42, 24]], [1, [22, 14, 10]]]
+  let i = 0
+  while (i < stops.length - 2 && h > stops[i + 1][0]) i++
+  const a = stops[i]
+  const b = stops[i + 1]
+  const t = (h - a[0]) / ((b[0] - a[0]) || 1)
+  const c = a[1].map((v, k) => Math.round(v + (b[1][k] - v) * t))
+  return '#' + c.map(v => v.toString(16).padStart(2, '0')).join('')
 }
 export function gameFor(region) {
   return GAME_BY_REGION[region] || GAME
@@ -166,4 +201,30 @@ export function applyCook(save, recipe, grade) {
   if (recipe.buff === 'rep') next.buff.rep = (next.buff.rep || 0) + (grade === 'perfect' ? 8 : 5)
   const word = grade === 'perfect' ? 'Perfect.' : 'Cooked.'
   return { save: next, grade, text: word + ' ' + recipe.name }
+}
+export function applyRoast(save, grade, clock) {
+  const next = structuredClone(save)
+  next.pantry = next.pantry || {}
+  next.roastStamp = roastStamp(clock)
+  if (grade === 'raw') return { save: next, grade, text: 'Raw. That is a cold cloud on a stick.' }
+  if (grade === 'burnt') return { save: next, grade, text: 'Burnt. The night air tastes like regret.' }
+  next.buff = next.buff || { left: 0, grip: 1, fuel: 1, rep: 0 }
+  let text = 'Toasted. A little dark, still yours.'
+  if (grade === 'golden') {
+    next.buff.left = Math.max(next.buff.left || 0, 90)
+    next.buff.grip = Math.max(next.buff.grip || 1, 1.06)
+    next.buff.rep = (next.buff.rep || 0) + 3
+    text = 'Golden. The fire did you a favor.'
+  } else {
+    next.buff.left = Math.max(next.buff.left || 0, 60)
+    next.buff.grip = Math.max(next.buff.grip || 1, 1.03)
+  }
+  if ((next.pantry.chocolate || 0) > 0 && (next.pantry.crackers || 0) > 0) {
+    next.pantry.chocolate -= 1
+    next.pantry.crackers -= 1
+    next.buff.fuel = Math.min(next.buff.fuel || 1, grade === 'golden' ? 0.88 : 0.92)
+    next.buff.left = Math.max(next.buff.left || 0, 110)
+    text += ' That is a s’more.'
+  }
+  return { save: next, grade, text }
 }

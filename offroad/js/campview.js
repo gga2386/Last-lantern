@@ -2,7 +2,7 @@
 // Assets load the first time camp is pitched, not with the driving boot.
 import { GLTFLoader } from '../vendor/GLTFLoader.js'
 import { SURF } from './world.js'
-import { slopeAt } from './camp.js'
+import { slopeAt, roastColor } from './camp.js'
 
 const FILES = {
   tent0: 'tent_small_quaternius',
@@ -853,4 +853,96 @@ export function buildCookMoment(THREE, opts) {
   }
   function dispose() {}
   return { group, tick, focus, dispose, showRecipe }
+}
+
+export function buildRoastMoment(THREE, opts) {
+  const { world, fire } = opts
+  const group = new THREE.Group()
+  group.name = 'roast-moment'
+  const y0 = world.height(fire.x, fire.z)
+  const sugar = new THREE.MeshBasicMaterial({ color: 0xf4efe6 })
+  const wood = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.008, 0.01, 0.72, 8),
+    new THREE.MeshStandardMaterial({ color: 0x6b4428, roughness: 0.84 })
+  )
+  wood.rotation.z = Math.PI / 2
+  const body = new THREE.Mesh(new THREE.CylinderGeometry(0.058, 0.058, 0.09, 16), sugar)
+  const capA = new THREE.Mesh(new THREE.SphereGeometry(0.058, 16, 12), sugar)
+  const capB = new THREE.Mesh(new THREE.SphereGeometry(0.058, 16, 12), sugar)
+  capA.position.y = 0.044
+  capB.position.y = -0.044
+  const mallow = new THREE.Group()
+  mallow.add(body, capA, capB)
+  mallow.position.x = 0.36
+  const stick = new THREE.Group()
+  stick.add(wood, mallow)
+  group.add(stick)
+  const flame = makeFlames(THREE, true)
+  flame.material.size = 0.05
+  flame.scale.setScalar(0.28)
+  flame.position.set(0.36, 0.1, 0)
+  flame.visible = false
+  stick.add(flame)
+  const puffGeo = new THREE.PlaneGeometry(0.12, 0.12)
+  const puffs = []
+  for (let i = 0; i < 5; i++) {
+    const mat = new THREE.MeshBasicMaterial({ color: 0xc8c2b8, transparent: true, opacity: 0, depthWrite: false })
+    const m = new THREE.Mesh(puffGeo, mat)
+    m.visible = false
+    mallow.add(m)
+    puffs.push({ m, life: 0 })
+  }
+  const restTip = new THREE.Vector3(fire.x + 0.62, y0 + 0.5, fire.z + 0.28)
+  const hotTip = new THREE.Vector3(fire.x + 0.06, y0 + 0.4, fire.z + 0.04)
+  const tip = new THREE.Vector3()
+  const dir = new THREE.Vector3()
+  const axis = new THREE.Vector3(1, 0, 0)
+  const color = new THREE.Color()
+
+  function tick(dt, play) {
+    const near = Math.max(0, Math.min(1, play.near || 0))
+    tip.copy(restTip).lerp(hotTip, near)
+    dir.copy(hotTip).sub(restTip)
+    if (dir.lengthSq() < 1e-6) dir.set(-1, -0.2, -1)
+    dir.normalize()
+    stick.position.copy(tip).addScaledVector(dir, -0.36)
+    stick.quaternion.setFromUnitVectors(axis, dir)
+    color.set(roastColor(play.onFire ? Math.min(1, (play.heat || 0) + 0.2) : (play.heat || 0)))
+    sugar.color.copy(color)
+    flame.visible = !!play.onFire
+    if (play.onFire) {
+      const time = performance.now() * 0.001
+      const seeds = flame.userData.seeds
+      const arr = flame.geometry.attributes.position.array
+      for (let i = 0; i < seeds.length; i++) {
+        const s = seeds[i]
+        const h = (s.h + time * s.s * 1.4) % 1
+        arr[i * 3] = Math.cos(s.a + time) * s.r * (1 - h) * 0.45
+        arr[i * 3 + 1] = h * 0.22
+        arr[i * 3 + 2] = Math.sin(s.a + time) * s.r * (1 - h) * 0.45
+      }
+      flame.geometry.attributes.position.needsUpdate = true
+    }
+    const smoking = play.onFire || (play.smoke || 0) > 0 || (play.heat || 0) > 0.4
+    if (play.smoke > 0) play.smoke = Math.max(0, play.smoke - dt)
+    puffs.forEach((p, i) => {
+      if (!smoking) { p.m.visible = false; return }
+      p.life += dt * (play.onFire ? 0.9 : 0.45)
+      if (p.life > 1) p.life -= 1
+      const u = p.life
+      p.m.visible = true
+      p.m.position.set(Math.sin(i + u * 4) * 0.03, 0.05 + u * 0.22, Math.cos(i) * 0.03)
+      p.m.scale.setScalar(0.4 + u * 1.4)
+      p.m.material.opacity = (1 - u) * (play.onFire ? 0.55 : 0.28)
+      p.m.lookAt(restTip.x, restTip.y + 0.4, restTip.z)
+    })
+  }
+
+  function focus(camera) {
+    const y = world.height(fire.x, fire.z)
+    camera.position.set(fire.x + 0.15, y + 0.58, fire.z + 1.15)
+    camera.lookAt(fire.x + 0.22, y + 0.44, fire.z + 0.12)
+  }
+  function dispose() {}
+  return { group, tick, focus, dispose }
 }
