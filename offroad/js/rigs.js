@@ -53,6 +53,7 @@ export function buildRig(THREE, spec, opts) {
   })
   const high = []
   const lod = []
+  const detail = []
   group.traverse(o => {
     if (o.isMesh) {
       const list = Array.isArray(o.material) ? o.material : [o.material]
@@ -66,6 +67,7 @@ export function buildRig(THREE, spec, opts) {
       if (o.name === 'Body' && opts.shadow) o.castShadow = true
       if (o.name === 'LOD_Body') lod.push(o)
       else if (o.name === 'Body') high.push(o)
+      else if (o.name && o.name.startsWith('Det_')) detail.push(o)
     }
     if (o.name && !wants(o.name, kind, rack)) o.visible = false
   })
@@ -94,7 +96,7 @@ export function buildRig(THREE, spec, opts) {
     }
     lamps.push(spot)
   }
-  group.userData = { lampMat, tailMat, lamps, high, lod }
+  group.userData = { lampMat, tailMat, lamps, high, lod, detail }
   return { group, wheels }
 }
 
@@ -103,4 +105,5 @@ export function applyLod(group, far) {
   if (!ud || !ud.lod || !ud.lod.length) return
   for (const m of ud.high) m.visible = !far
   for (const m of ud.lod) m.visible = !!far
+  if (ud.detail) for (const m of ud.detail) m.visible = !far
 }

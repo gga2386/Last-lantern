@@ -1,12 +1,12 @@
-// Oxbow — Hollow Creek. OFFROAD_V6
+// Oxbow — Hollow Creek. OFFROAD_V7
 import * as THREE from '../vendor/three.module.js'
 import { createWorld, WORLD_SIZE, HALF, SURF, SURF_NAME } from './world.js'
-import { OFFROAD_V2, OFFROAD_V3, OFFROAD_V4, OFFROAD_V4_1, OFFROAD_V5, OFFROAD_V5_1, OFFROAD_V6, freshSave, SAVE_KEY, VEHICLES, UPGRADES, AUX, JERRY, ADVENTURES, TANK, coerceSave, buyUpgrade, buyVehicle, buyAux, buyJerry, useJerry, refuel, burnFuel, specWithUpgrades, tankCapacity, jerrySlots, rankFor, isDark, clockLabel, tickAdventure, noteAssist, REGION_OPEN, regionUnlocked, crawlAngles } from './economy.js'
+import { OFFROAD_V2, OFFROAD_V3, OFFROAD_V4, OFFROAD_V4_1, OFFROAD_V5, OFFROAD_V5_1, OFFROAD_V6, OFFROAD_V7, freshSave, SAVE_KEY, VEHICLES, UPGRADES, AUX, JERRY, ADVENTURES, TANK, coerceSave, buyUpgrade, buyVehicle, buyAux, buyJerry, useJerry, refuel, burnFuel, specWithUpgrades, tankCapacity, jerrySlots, rankFor, isDark, clockLabel, tickAdventure, noteAssist, REGION_OPEN, regionUnlocked, crawlAngles } from './economy.js'
 import { preloadRigs, buildRig, applyLod } from './rigs.js'
 import { CAMP, campLevel, buyCamp, canPitch, rollFish, reelBand, biteSeconds, aimHit, RECIPES, canCook, cookJudge, applyCook, activityState, gameFor } from './camp.js'
 import { createSim, ROLL_LIMIT, recoveryCopy } from './physics.js'
 
-export { OFFROAD_V2, OFFROAD_V3, OFFROAD_V4, OFFROAD_V4_1, OFFROAD_V5, OFFROAD_V5_1, OFFROAD_V6 }
+export { OFFROAD_V2, OFFROAD_V3, OFFROAD_V4, OFFROAD_V4_1, OFFROAD_V5, OFFROAD_V5_1, OFFROAD_V6, OFFROAD_V7 }
 
 const world = createWorld(1)
 const yard = world.pois.find(p => p.id === 'yard')
@@ -2213,6 +2213,19 @@ window.OX = {
     const c = sim.chassis.position
     camera.position.set((p.x + c.x) / 2 + 3, Math.max(p.y, c.y) + 4.5, (p.z + c.z) / 2 + 12)
     camera.lookAt((p.x + c.x) / 2, c.y + 0.8, (p.z + c.z) / 2)
+  },
+  frameRig(yaw) {
+    holdCam = true
+    freeze = true
+    mode = 'play'
+    app.classList.add('playing')
+    app.classList.remove('title')
+    const c = sim.chassis
+    const p = c.position
+    const dist = 5.6
+    camera.position.set(p.x + Math.sin(yaw) * dist, p.y + 2.15, p.z + Math.cos(yaw) * dist)
+    camera.lookAt(p.x, p.y + 0.65, p.z)
+    applyTime(0.48)
   },
   lineup() {
     const ids = Object.keys(VEHICLES)
