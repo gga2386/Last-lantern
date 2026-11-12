@@ -12,7 +12,7 @@ Used inside the game. CC-BY 3.0 items require this attribution. Do not republish
 | Creek Wagon | Range Rover | IvOfficial | https://poly.pizza/m/8zk4o6nALW | CC-BY 3.0 |
 | Basin Hauler | L200 crew cab | Muhammad Reyhan | https://poly.pizza/m/4qjS9tFhsJg | CC-BY 3.0 |
 | Lantern Van | UAZ-452 utility van | mehozavr | https://opengameart.org/content/uaz-452-utility-van-lowpoly | CC0 |
-| Spine Crawler | Original tube buggy | made for Oxbow | made for this game | original |
+| Spine Crawler | Procedural short-cab crawler | made for Oxbow | made for this game | original |
 
 ## Accessories
 
