@@ -1,41 +1,41 @@
 # Oxbow asset credits
 
-These files are redistributed with Oxbow because their licenses allow it. Do not replace them with assets that do not.
+Used inside the game. CC-BY 3.0 items require this attribution. Do not republish these files as a standalone asset pack.
 
 ## Vehicles
 
-| Rig | File | Source model | Author | License |
+| Rig | Title | Author | Source | License |
 | --- | --- | --- | --- | --- |
-| Yard Mule | `models/pickup.glb` | Car Kit, `truck-flat.glb` | Kenney | CC0 1.0 |
-| Ridge Scout | `models/jeep.glb` | Car Kit, `suv.glb` | Kenney | CC0 1.0 |
-| Bluff Runner | `models/bronco.glb` | Car Kit, `suv-luxury.glb` | Kenney | CC0 1.0 |
-| Creek Wagon | `models/wagon.glb` | Car Kit, `sedan.glb` | Kenney | CC0 1.0 |
-| Basin Hauler | `models/utility.glb` | Car Kit, `truck.glb` | Kenney | CC0 1.0 |
-| Lantern Van | `models/van.glb` | Car Kit, `van.glb` | Kenney | CC0 1.0 |
-| Spine Crawler | `models/crawler.glb` | Toy Car Kit, `vehicle-monster-truck.glb` | Kenney | CC0 1.0 |
+| Yard Mule | Pickup Truck | Quaternius | https://poly.pizza/m/qn4grQgHm8 | CC0 1.0 |
+| Ridge Scout | Jeep | Poly by Google | https://poly.pizza/m/36sY8cTSgKL | CC-BY 3.0 |
+| Bluff Runner | Cherokee (listed as Van) | Poly by Google | https://poly.pizza/m/aT_24cDaW1a | CC-BY 3.0 |
+| Creek Wagon | Range Rover | IvOfficial | https://poly.pizza/m/8zk4o6nALW | CC-BY 3.0 |
+| Basin Hauler | L200 crew cab | Muhammad Reyhan | https://poly.pizza/m/4qjS9tFhsJg | CC-BY 3.0 |
+| Lantern Van | UAZ-452 utility van | mehozavr | https://opengameart.org/content/uaz-452-utility-van-lowpoly | CC0 |
+| Spine Crawler | Monster Jeep | Gilang Romadhan | https://poly.pizza/m/etWba3RYzmi | CC-BY 3.0 |
 
-- Car Kit: https://kenney.nl/assets/car-kit
-- Toy Car Kit: https://kenney.nl/assets/toy-car-kit
-- Author: Kenney (www.kenney.nl)
-- License: CC0 1.0 Universal — https://creativecommons.org/publicdomain/zero/1.0/
-- Attribution is not required. Kenney is credited anyway.
+## Accessories
 
-The shells were scaled in Blender so the wheel hubs sit on this game's existing track, wheelbase, and tire radius. A decimated `LOD_Body` is kept for distance. Liveries multiply the CC0 color atlas.
-
-No CC0 tube-chassis crawler or woody wagon was available from the sources this build could download (Kenney, and Poly Pizza was blocked). The sedan stands in for the wagon, and the monster truck stands in for the crawler. Both are CC0 Kenney models, not hand-built boxes.
+| Use | Title | Author | Source | License |
+| --- | --- | --- | --- | --- |
+| Spare tyres | Truck Tire | Jarlan Perez | https://poly.pizza/m/2GuaLHL6p5g | CC-BY 3.0 |
+| Kayak | Kayak | Poly by Google | https://poly.pizza/m/8d-cgFdVEVN | CC-BY 3.0 |
+| Gas cans | Gas can | Quaternius | https://poly.pizza/m/eS1OXGo51c | CC0 1.0 |
 
 ## Scenery
 
-Nature Kit by Kenney, CC0 1.0. https://kenney.nl/assets/nature-kit
+Ultimate Nature Pack by Quaternius, CC0 1.0. https://quaternius.com/packs/ultimatenature.html
 
-| Use | File | Source model |
-| --- | --- | --- |
-| Forest pines | `models/scenery/pine.glb` | `tree_pineDefaultA.glb` |
-| Broadleaf trees | `models/scenery/oak.glb` | `tree_oak.glb` |
-| Desert palms | `models/scenery/palm.glb` | `tree_palmTall.glb` |
-| Desert cactus | `models/scenery/cactus.glb` | `cactus_tall.glb` |
-| Bush | `models/scenery/bush.glb` | `plant_bushLarge.glb` |
-| Grass tufts | `models/scenery/grass.glb` | `grass_large.glb` |
-| Rocks | `models/scenery/rock_a.glb`, `rock_b.glb`, `rock_c.glb` | `rock_largeA/B/C.glb` |
+Pines, birch, common trees, bushes, grass, and flowers in Hollow Forest. Cacti, dead trees, and scrub in Red Wash. Pines and snowy pines in Granite Spine. Rocks stay solid colliders.
 
-The sky is still the game's day-night shader. A separate HDRI was not required for the cycle to stay intact.
+## Ground textures
+
+ambientCG, CC0 1.0. https://docs.ambientcg.com/license/
+
+| Region | Texture |
+| --- | --- |
+| Hollow Forest floor | Ground037 — https://ambientcg.com/a/Ground037 |
+| Red Wash sand | Ground080 — https://ambientcg.com/a/Ground080 |
+| Red Wash dirt | Ground067 — https://ambientcg.com/a/Ground067 |
+| Mud | Ground109 — https://ambientcg.com/a/Ground109 |
+| Granite Spine gravel | Ground110 — https://ambientcg.com/a/Ground110 |

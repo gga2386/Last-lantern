@@ -1,12 +1,12 @@
 // OFFROAD_V2 — terrain, reputation, fuel, and solid trees. Run: node offroad/test/sim.js
 import { createWorld, SURF, FRICTION, DRAG, HALF } from '../js/world.js'
-import { OFFROAD_V2, OFFROAD_V3, OFFROAD_V4, OFFROAD_V4_1, OFFROAD_V5, OFFROAD_V5_1, OFFROAD_V6, OFFROAD_V7, OFFROAD_V7_1, OFFROAD_V7_2, OFFROAD_V7_3, OFFROAD_V8, VEHICLES, ADVENTURES, freshSave, buyUpgrade, buyVehicle, buyAux, buyJerry, useJerry, refuel, burnFuel, coerceSave, tickAdventure, tankCapacity, jerrySlots, isDark, TANK, specWithUpgrades, noteAssist, crawlAngles, regionUnlocked } from '../js/economy.js'
+import { OFFROAD_V2, OFFROAD_V3, OFFROAD_V4, OFFROAD_V4_1, OFFROAD_V5, OFFROAD_V5_1, OFFROAD_V6, OFFROAD_V7, OFFROAD_V7_1, OFFROAD_V7_2, OFFROAD_V7_3, OFFROAD_V8, OFFROAD_V9, VEHICLES, ADVENTURES, freshSave, buyUpgrade, buyVehicle, buyAux, buyJerry, useJerry, refuel, burnFuel, coerceSave, tickAdventure, tankCapacity, jerrySlots, isDark, TANK, specWithUpgrades, noteAssist, crawlAngles, regionUnlocked } from '../js/economy.js'
 import { canPitch, slopeAt, buyCamp, cookJudge, applyCook, rollFish, aimHit, RECIPES, activityState, nearWater, habitat } from '../js/camp.js'
 import { createSim, tractionTrial, ROLL_LIMIT, recoveryCopy } from '../js/physics.js'
 
 const fails = []
 const fail = m => fails.push(m)
-if (OFFROAD_V2 !== 1 || OFFROAD_V3 !== 1 || OFFROAD_V4 !== 1 || OFFROAD_V4_1 !== 1 || OFFROAD_V5 !== 1 || OFFROAD_V5_1 !== 1 || OFFROAD_V6 !== 1 || OFFROAD_V7 !== 1 || OFFROAD_V7_1 !== 1 || OFFROAD_V7_2 !== 1 || OFFROAD_V7_3 !== 1 || OFFROAD_V8 !== 1) fail('marker missing')
+if (OFFROAD_V2 !== 1 || OFFROAD_V3 !== 1 || OFFROAD_V4 !== 1 || OFFROAD_V4_1 !== 1 || OFFROAD_V5 !== 1 || OFFROAD_V5_1 !== 1 || OFFROAD_V6 !== 1 || OFFROAD_V7 !== 1 || OFFROAD_V7_1 !== 1 || OFFROAD_V7_2 !== 1 || OFFROAD_V7_3 !== 1 || OFFROAD_V8 !== 1 || OFFROAD_V9 !== 1) fail('marker missing')
 const ids = Object.keys(VEHICLES)
 if (ids.length < 6) fail('roster ' + ids.join(','))
 for (const id of ['mule', 'scout', 'runner', 'wagon', 'hauler', 'crawler', 'van']) if (!VEHICLES[id]) fail('missing ' + id)
@@ -360,4 +360,4 @@ const angles = crawlAngles(specWithUpgrades('mule', { tires: 0, susp: 0, engine:
 if (!(angles.approach > 10 && angles.breakover > 5)) fail('crawl angles ' + JSON.stringify(angles))
 const kinds = new Set(world.trees.map(t => t.k))
 if (!kinds.has(2) || !kinds.has(3)) fail('desert plants missing ' + [...kinds].join(','))
-console.log('OK OFFROAD_V8')
+console.log('OK OFFROAD_V9')

@@ -11,6 +11,7 @@ export const OFFROAD_V7_1 = 1
 export const OFFROAD_V7_2 = 1
 export const OFFROAD_V7_3 = 1
 export const OFFROAD_V8 = 1
+export const OFFROAD_V9 = 1
 export const REGION_OPEN = { forest: 0, desert: 40, mountain: 120 }
 export function regionUnlocked(save, id) {
   return (save.rep || 0) >= (REGION_OPEN[id] || 0)
@@ -29,8 +30,11 @@ export const VEHICLES = {
   mule: {
     id: 'mule', name: 'Yard Mule', need: 0, style: 'pickup', mass: 1580,
     half: [1.02, 0.42, 2.25], dark: 0x1b2126, glass: 0x9ec9d4,
-    force: 4800, maxSpeed: 5.36, steer: 0.30, wheelR: 0.48,
-    track: 0.98, wheelbase: 1.65, rest: 0.34, travel: 0.28, stiff: 28, grip: 1,
+    force: 4800, maxSpeed: 5.36, steer: 0.30, wheelR: 0.50,
+    track: 0.94, wheelbase: 1.65, axleF: 1.65, axleR: 1.65,
+    axles: [[0.94, 0.44, 1.65], [-0.94, 0.44, 1.65], [0.94, 0.44, -1.65], [-0.94, 0.44, -1.65]],
+    rest: 0.34, travel: 0.28, stiff: 28, grip: 1, visualDrop: -0.83, bodyNudge: -0.23, wheelScale: 1.14,
+    paint: { body: '#6ea4c4', accent: '#e7e1d6', wheel: '#2a2a2a', cage: '#e4e4e4', mud: 0.05, repaint: false },
     liveries: [
       { color: '#b84322', stripe: '#f2e2c4', kind: 'stripe', name: 'Yard rust' },
       { color: '#e8e4dc', stripe: '#2a2a2a', kind: 'thick', name: 'Salt' },
@@ -40,8 +44,11 @@ export const VEHICLES = {
   scout: {
     id: 'scout', name: 'Ridge Scout', need: 80, style: 'jeep', mass: 900,
     half: [0.86, 0.34, 1.55], dark: 0x24281c, glass: 0xb7ddd4,
-    force: 3200, maxSpeed: 7.60, steer: 0.38, wheelR: 0.42,
-    track: 0.78, wheelbase: 1.12, rest: 0.28, travel: 0.24, stiff: 24, grip: 0.76,
+    force: 3200, maxSpeed: 7.60, steer: 0.38, wheelR: 0.415,
+    track: 0.69, wheelbase: 1.29, axleF: 1.29, axleR: 1.29,
+    axles: [[0.694, 0.415, 1.29], [-0.693, 0.415, 1.29], [0.693, 0.415, -1.29], [-0.693, 0.415, -1.29]],
+    rest: 0.3, travel: 0.26, stiff: 24, grip: 0.76, visualDrop: -0.86, bodyNudge: -0.11, wheelScale: 1,
+    paint: { body: '#2f6fbe', accent: '#1c1c1c', wheel: '#2a2a2a', cage: '#d8d8d8', mud: 0, repaint: false },
     liveries: [
       { color: '#d6a21f', stripe: '#1c1c1c', kind: 'stripe', name: 'Scout gold' },
       { color: '#c4552e', stripe: '#f4efe6', kind: 'stripe', name: 'Signal' },
@@ -51,8 +58,11 @@ export const VEHICLES = {
   runner: {
     id: 'runner', name: 'Bluff Runner', need: 120, style: 'bronco', mass: 1420,
     half: [1.0, 0.4, 1.9], dark: 0x1a2430, glass: 0x9fd0e0,
-    force: 4600, maxSpeed: 6.26, steer: 0.32, wheelR: 0.5,
-    track: 0.94, wheelbase: 1.38, rest: 0.32, travel: 0.30, stiff: 26, grip: 0.96,
+    force: 4600, maxSpeed: 6.26, steer: 0.32, wheelR: 0.447,
+    track: 0.85, wheelbase: 1.46, axleF: 1.474, axleR: 1.451,
+    axles: [[0.854, 0.447, 1.474], [-0.854, 0.447, 1.474], [0.854, 0.447, -1.451], [-0.854, 0.447, -1.451]],
+    rest: 0.32, travel: 0.3, stiff: 26, grip: 0.96, visualDrop: -0.92, wheelScale: 1,
+    paint: { body: '#f4f1ea', accent: '#6d6758', wheel: '#2a2a2a', cage: '#d8d8d8', mud: 0.18, repaint: true },
     liveries: [
       { color: '#2f6fbe', stripe: '#f4efe6', kind: 'thick', name: 'Creek blue' },
       { color: '#e8e4dc', stripe: '#2f6fbe', kind: 'stripe', name: 'Two-tone' },
@@ -62,8 +72,11 @@ export const VEHICLES = {
   wagon: {
     id: 'wagon', name: 'Creek Wagon', need: 180, style: 'wagon', mass: 1760,
     half: [1.05, 0.44, 2.35], dark: 0x2a241c, glass: 0xc5ddd4,
-    force: 4400, maxSpeed: 4.92, steer: 0.26, wheelR: 0.46,
-    track: 0.98, wheelbase: 1.72, rest: 0.32, travel: 0.26, stiff: 30, grip: 1.08,
+    force: 4400, maxSpeed: 4.92, steer: 0.26, wheelR: 0.39,
+    track: 0.75, wheelbase: 1.3, axleF: 1.3, axleR: 1.3,
+    axles: [[0.75, 0.398, 1.3], [-0.75, 0.398, 1.3], [0.75, 0.398, -1.3], [-0.75, 0.398, -1.3]],
+    rest: 0.3, travel: 0.26, stiff: 30, grip: 1.08, visualDrop: -0.95, bodyNudge: -0.38, wheelScale: 1,
+    paint: { body: '#2f4a34', accent: '#6a4a32', wheel: '#2c2c2c', cage: '#d8d8d8', mud: 0.08, repaint: true },
     liveries: [
       { color: '#e6e2d8', stripe: '#6a4a32', kind: 'wood', name: 'Timber' },
       { color: '#2a4a38', stripe: '#c4a06a', kind: 'wood', name: 'Lodge' },
@@ -73,8 +86,11 @@ export const VEHICLES = {
   hauler: {
     id: 'hauler', name: 'Basin Hauler', need: 240, style: 'utility', mass: 1680,
     half: [1.0, 0.42, 2.05], dark: 0x1c2420, glass: 0xb7c8c4,
-    force: 5600, maxSpeed: 4.47, steer: 0.28, wheelR: 0.5,
-    track: 0.96, wheelbase: 1.52, rest: 0.34, travel: 0.34, stiff: 28, grip: 1.16,
+    force: 5600, maxSpeed: 4.47, steer: 0.28, wheelR: 0.41,
+    track: 0.74, wheelbase: 1.61, axleF: 1.61, axleR: 1.61,
+    axles: [[0.74, 0.409, 1.61], [-0.74, 0.409, 1.61], [0.74, 0.409, -1.61], [-0.74, 0.409, -1.61]],
+    rest: 0.36, travel: 0.32, stiff: 26, grip: 1.16, visualDrop: -1.02, bodyNudge: -0.22, wheelScale: 1.05,
+    paint: { body: '#f7f4ee', accent: '#2a2a2a', wheel: '#c8c8c8', cage: '#d8d8d8', mud: 0.04, repaint: true },
     liveries: [
       { color: '#5d7c92', stripe: '#e4e0d4', kind: 'stripe', name: 'Crew blue' },
       { color: '#f4f1ea', stripe: '#2a2a2a', kind: 'thick', name: 'Bed white' },
@@ -84,8 +100,11 @@ export const VEHICLES = {
   crawler: {
     id: 'crawler', name: 'Spine Crawler', need: 260, style: 'crawler', mass: 1180,
     half: [1.05, 0.42, 1.7], dark: 0x1a1c22, glass: 0x9ec9d4,
-    force: 5400, maxSpeed: 4.15, steer: 0.34, wheelR: 0.52,
-    track: 0.92, wheelbase: 1.15, rest: 0.38, travel: 0.32, stiff: 22, grip: 1.22,
+    force: 5400, maxSpeed: 4.15, steer: 0.34, wheelR: 0.57,
+    track: 1.58, wheelbase: 1.37, axleF: 1.349, axleR: 1.387,
+    axles: [[1.575, 0.76, 1.349], [-1.575, 0.76, 1.349], [1.575, 0.76, -1.387], [-1.575, 0.76, -1.387]],
+    rest: 0.42, travel: 0.38, stiff: 20, grip: 1.22, visualDrop: -1.55, wheelScale: 0.75,
+    paint: { body: '#d21f1a', accent: '#1a1a1a', wheel: '#e6e6e6', cage: '#f2f2f2', mud: 0.06, repaint: true },
     liveries: [
       { color: '#d21f1a', stripe: '#111111', kind: 'stripe', name: 'Cage red' },
       { color: '#f4f1ea', stripe: '#1a1a1a', kind: 'thick', name: 'Bone' },
@@ -95,8 +114,11 @@ export const VEHICLES = {
   van: {
     id: 'van', name: 'Lantern Van', need: 320, style: 'van', mass: 1920,
     half: [1.02, 0.55, 2.45], dark: 0x1a1c22, glass: 0x8fb4c8,
-    force: 4000, maxSpeed: 3.80, steer: 0.22, wheelR: 0.44,
-    track: 0.92, wheelbase: 1.88, rest: 0.3, travel: 0.22, stiff: 34, grip: 0.9,
+    force: 4000, maxSpeed: 3.80, steer: 0.22, wheelR: 0.379,
+    track: 0.73, wheelbase: 1.18, axleF: 1.169, axleR: 1.184,
+    axles: [[0.724, 0.379, 1.169], [-0.729, 0.379, 1.169], [0.724, 0.379, -1.184], [-0.729, 0.379, -1.184]],
+    rest: 0.3, travel: 0.24, stiff: 32, grip: 0.9, visualDrop: -0.9, wheelScale: 1,
+    paint: { body: '#f7f4ee', accent: '#e25a22', wheel: '#1a1a1a', cage: '#f4f1ea', mud: 0.02, repaint: true },
     liveries: [
       { color: '#f7f4ee', stripe: '#e25a22', kind: 'chevron', name: 'Retro' },
       { color: '#f7f4ee', stripe: '#2f6fbe', kind: 'thick', name: 'Coast' },

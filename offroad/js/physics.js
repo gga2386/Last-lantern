@@ -57,8 +57,9 @@ export function createSim(world) {
     chassis = new CANNON.Body({ mass: spec.mass, linearDamping: 0.05, angularDamping: 0.42 })
     chassis.allowSleep = false
     const hx = spec.half[0], hy = spec.half[1], hz = spec.half[2]
-    chassis.addShape(new CANNON.Box(new CANNON.Vec3(hx * 0.92, hy * 0.72, hz * 0.92)), new CANNON.Vec3(0, 0.12, 0))
-    chassis.addShape(new CANNON.Box(new CANNON.Vec3(hx * 0.7, 0.14, hz * 0.55)), new CANNON.Vec3(0, -0.02, 0.1))
+    const zShift = spec.axles ? (spec.axles[0][2] + spec.axles[2][2]) * 0.5 : 0
+    chassis.addShape(new CANNON.Box(new CANNON.Vec3(hx * 0.92, hy * 0.72, hz * 0.92)), new CANNON.Vec3(0, 0.12, zShift))
+    chassis.addShape(new CANNON.Box(new CANNON.Vec3(hx * 0.7, 0.14, hz * 0.55)), new CANNON.Vec3(0, -0.02, zShift))
     const y = pose && pose.y != null ? pose.y : world.height(pose.x, pose.z) + 1.6
     chassis.position.set(pose.x, y, pose.z)
     if (pose.qw != null) chassis.quaternion.set(pose.qx, pose.qy, pose.qz, pose.qw)
@@ -86,12 +87,14 @@ export function createSim(world) {
       useCustomSlidingRotationalSpeed: true,
       chassisConnectionPointLocal: new CANNON.Vec3()
     }
-    const pts = [
-      [-spec.track, -0.05, spec.wheelbase],
-      [spec.track, -0.05, spec.wheelbase],
-      [-spec.track, -0.05, -spec.wheelbase],
-      [spec.track, -0.05, -spec.wheelbase]
+    const drop = spec.visualDrop || 0
+    const ax = spec.axles || [
+      [-spec.track, spec.wheelR, spec.wheelbase],
+      [spec.track, spec.wheelR, spec.wheelbase],
+      [-spec.track, spec.wheelR, -spec.wheelbase],
+      [spec.track, spec.wheelR, -spec.wheelbase]
     ]
+    const pts = ax.map(a => [a[0], a[1] + drop + spec.rest, a[2]])
     for (const p of pts) {
       wheel.chassisConnectionPointLocal.set(p[0], p[1], p[2])
       vehicle.addWheel(wheel)

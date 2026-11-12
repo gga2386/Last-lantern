@@ -1,16 +1,19 @@
-// CC0 scenery meshes (Kenney nature kit). Instanced, so the count stays the same.
+// Quaternius nature kit, instanced by region. OFFROAD_V9
 import { GLTFLoader } from '../vendor/GLTFLoader.js'
 
 const FILES = {
-  pine: 'models/scenery/pine.glb',
-  oak: 'models/scenery/oak.glb',
-  palm: 'models/scenery/palm.glb',
-  cactus: 'models/scenery/cactus.glb',
-  bush: 'models/scenery/bush.glb',
-  grass: 'models/scenery/grass.glb',
-  rock_a: 'models/scenery/rock_a.glb',
-  rock_b: 'models/scenery/rock_b.glb',
-  rock_c: 'models/scenery/rock_c.glb'
+  pine: ['qn_PineTree_1', 'qn_PineTree_2', 'qn_PineTree_4'],
+  snow: ['qn_PineTree_Snow_1', 'qn_PineTree_Snow_2'],
+  broad: ['qn_CommonTree_1', 'qn_CommonTree_3', 'qn_BirchTree_1', 'qn_BirchTree_2'],
+  dead: ['qn_CommonTree_Dead_1', 'qn_BirchTree_Dead_1'],
+  cactus: ['qn_Cactus_1', 'qn_Cactus_2', 'qn_Cactus_4', 'qn_CactusFlowers_2'],
+  scrub: ['qn_Bush_2', 'qn_Plant_1'],
+  bush: ['qn_Bush_1'],
+  grass: ['qn_Grass'],
+  flower: ['qn_Flowers'],
+  rock: ['qn_Rock_1', 'qn_Rock_2', 'qn_Rock_3', 'qn_Rock_5'],
+  rockMoss: ['qn_Rock_Moss_1'],
+  rockSnow: ['qn_Rock_Snow_1']
 }
 
 function prepare(THREE, geo, kind) {
@@ -23,31 +26,81 @@ function prepare(THREE, geo, kind) {
   bb.getCenter(center)
   g.translate(-center.x, -bb.min.y, -center.z)
   const tall = Math.max(0.05, size.y)
-  const wide = Math.max(size.x, size.y, size.z, 0.05)
+  const wide = Math.max(size.x, size.z, 0.05)
   let s = 1
-  if (kind.startsWith('rock')) s = 1 / wide
-  else if (kind === 'grass') s = 0.7 / tall
-  else if (kind === 'bush') s = 1.3 / tall
-  else s = 4.2 / tall
+  if (kind.startsWith('rock')) s = 1 / Math.max(wide, tall)
+  else if (kind === 'grass' || kind === 'flower') s = 0.7 / tall
+  else if (kind === 'scrub' || kind === 'bush') s = 1.4 / tall
+  else s = 5.2 / tall
   g.scale(s, s, s)
   g.computeVertexNormals()
   return g
 }
 
+async function loadOne(THREE, loader, file, kind) {
+  const gltf = await loader.loadAsync('models/scenery/' + file + '.glb')
+  gltf.scene.updateMatrixWorld(true)
+  const geos = []
+  let material = null
+  gltf.scene.traverse(o => {
+    if (!o.isMesh) return
+    const g = o.geometry.clone()
+    g.applyMatrix4(o.matrixWorld)
+    geos.push(g)
+    if (!material) material = o.material
+  })
+  if (!geos.length) return null
+  const merged = geos.length === 1 ? geos[0] : merge(THREE, geos)
+  return { geometry: prepare(THREE, merged, kind), material }
+}
+
+function merge(THREE, geos) {
+  let count = 0
+  geos.forEach(g => { count += g.attributes.position.count })
+  const pos = new Float32Array(count * 3)
+  const nrm = new Float32Array(count * 3)
+  let o = 0
+  for (const g of geos) {
+    const p = g.attributes.position.array
+    pos.set(p, o)
+    if (g.attributes.normal) nrm.set(g.attributes.normal.array, o)
+    o += p.length
+  }
+  const geo = new THREE.BufferGeometry()
+  geo.setAttribute('position', new THREE.BufferAttribute(pos, 3))
+  geo.setAttribute('normal', new THREE.BufferAttribute(nrm, 3))
+  return geo
+}
+
 export async function preloadScenery(THREE) {
   const loader = new GLTFLoader()
   const out = {}
-  await Promise.all(Object.entries(FILES).map(async ([key, url]) => {
-    const gltf = await loader.loadAsync(url)
-    let mesh = null
-    gltf.scene.updateMatrixWorld(true)
-    gltf.scene.traverse(o => {
-      if (!mesh && o.isMesh) mesh = o
+  const jobs = []
+  for (const [kind, files] of Object.entries(FILES)) {
+    out[kind] = []
+    files.forEach(file => {
+      jobs.push(loadOne(THREE, loader, file, kind).then(item => { if (item) out[kind].push(item) }))
     })
-    if (!mesh) return
-    const baked = mesh.geometry.clone()
-    baked.applyMatrix4(mesh.matrixWorld)
-    out[key] = { geometry: prepare(THREE, baked, key), material: mesh.material }
-  }))
+  }
+  await Promise.all(jobs)
   return out
+}
+
+export async function preloadGround(THREE) {
+  const loader = new THREE.TextureLoader()
+  const names = ['forest', 'sand', 'reddirt', 'mud', 'gravel']
+  const tex = {}
+  await Promise.all(names.map(async name => {
+    const color = await loader.loadAsync('textures/' + name + '_color.jpg')
+    const normal = await loader.loadAsync('textures/' + name + '_normal.jpg')
+    const rough = await loader.loadAsync('textures/' + name + '_rough.jpg')
+    for (const t of [color, normal, rough]) {
+      t.wrapS = t.wrapT = THREE.RepeatWrapping
+      t.repeat.set(48, 48)
+      t.anisotropy = 4
+    }
+    color.colorSpace = THREE.SRGBColorSpace
+    tex[name] = { color, normal, rough }
+  }))
+  return tex
 }

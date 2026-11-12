@@ -68,15 +68,22 @@ async function main() {
     console.log('wrote', file)
   }
   const rigs = ['mule', 'scout', 'runner', 'wagon', 'hauler', 'crawler', 'van']
-  for (const idn of rigs) {
+  if (!process.env.OX_PAINT_ONLY) for (const idn of rigs) {
     await send('Runtime.evaluate', { expression: `OX.vista(22, -150, 0.2, 8); OX.use('${idn}'); OX.frameRig(0.75); 'ok'` })
     await shot('rig-' + idn + '-front')
     await send('Runtime.evaluate', { expression: `OX.frameRig(${(0.7 + Math.PI).toFixed(4)}); 'ok'` })
     await shot('rig-' + idn + '-rear')
   }
-  await send('Runtime.evaluate', { expression: `OX.lineup(); 'ok'` })
+  if (!process.env.OX_PAINT_ONLY) await send('Runtime.evaluate', { expression: `OX.lineup(); 'ok'` })
   await sleep(400)
   await shot('rig-lineup')
+  const paintRes = await send('Runtime.evaluate', { expression: `try { OX.use('runner'); OX.open('paint'); 'ok' } catch (e) { String(e) }` })
+  console.log('paint eval', JSON.stringify(paintRes.result && paintRes.result.result))
+  await sleep(500)
+  await shot('paint-panel')
+  await send('Runtime.evaluate', { expression: `document.querySelectorAll('#paint-swatches button')[6].click(); document.getElementById('paint').classList.remove('show'); 'ok'` })
+  await sleep(400)
+  await shot('paint-runner-red')
   ws.close(); chrome.kill(); srv.close()
 }
 main().catch(e => { console.error(e); process.exit(1) })

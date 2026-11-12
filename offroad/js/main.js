@@ -1,13 +1,13 @@
-// Oxbow — Hollow Creek. OFFROAD_V8
+// Oxbow — Hollow Creek. OFFROAD_V9
 import * as THREE from '../vendor/three.module.js'
 import { createWorld, WORLD_SIZE, HALF, SURF, SURF_NAME } from './world.js'
-import { OFFROAD_V2, OFFROAD_V3, OFFROAD_V4, OFFROAD_V4_1, OFFROAD_V5, OFFROAD_V5_1, OFFROAD_V6, OFFROAD_V7, OFFROAD_V7_1, OFFROAD_V7_2, OFFROAD_V7_3, OFFROAD_V8, freshSave, SAVE_KEY, VEHICLES, UPGRADES, AUX, JERRY, ADVENTURES, TANK, coerceSave, buyUpgrade, buyVehicle, buyAux, buyJerry, useJerry, refuel, burnFuel, specWithUpgrades, tankCapacity, jerrySlots, rankFor, isDark, clockLabel, tickAdventure, noteAssist, REGION_OPEN, regionUnlocked, crawlAngles } from './economy.js'
-import { preloadRigs, buildRig, applyLod } from './rigs.js'
-import { preloadScenery } from './scenery.js'
+import { OFFROAD_V2, OFFROAD_V3, OFFROAD_V4, OFFROAD_V4_1, OFFROAD_V5, OFFROAD_V5_1, OFFROAD_V6, OFFROAD_V7, OFFROAD_V7_1, OFFROAD_V7_2, OFFROAD_V7_3, OFFROAD_V8, OFFROAD_V9, freshSave, SAVE_KEY, VEHICLES, UPGRADES, AUX, JERRY, ADVENTURES, TANK, coerceSave, buyUpgrade, buyVehicle, buyAux, buyJerry, useJerry, refuel, burnFuel, specWithUpgrades, tankCapacity, jerrySlots, rankFor, isDark, clockLabel, tickAdventure, noteAssist, REGION_OPEN, regionUnlocked, crawlAngles } from './economy.js'
+import { preloadRigs, buildRig, applyLod, poseRig, applyPaint, factoryPaint, PAINT_SWATCHES } from './rigs.js'
+import { preloadScenery, preloadGround } from './scenery.js'
 import { CAMP, campLevel, buyCamp, canPitch, rollFish, reelBand, biteSeconds, aimHit, RECIPES, canCook, cookJudge, applyCook, activityState, gameFor } from './camp.js'
 import { createSim, ROLL_LIMIT, recoveryCopy } from './physics.js'
 
-export { OFFROAD_V2, OFFROAD_V3, OFFROAD_V4, OFFROAD_V4_1, OFFROAD_V5, OFFROAD_V5_1, OFFROAD_V6, OFFROAD_V7, OFFROAD_V7_1, OFFROAD_V7_2, OFFROAD_V7_3, OFFROAD_V8 }
+export { OFFROAD_V2, OFFROAD_V3, OFFROAD_V4, OFFROAD_V4_1, OFFROAD_V5, OFFROAD_V5_1, OFFROAD_V6, OFFROAD_V7, OFFROAD_V7_1, OFFROAD_V7_2, OFFROAD_V7_3, OFFROAD_V8, OFFROAD_V9 }
 
 const world = createWorld(1)
 const yard = world.pois.find(p => p.id === 'yard')
@@ -16,9 +16,9 @@ const $ = id => document.getElementById(id)
 const app = $('app')
 
 const GFX = {
-  low: { seg: 96, trees: 240, shadow: 0, dust: false, dpr: 1, fog: 160, aa: false },
-  medium: { seg: 140, trees: 520, shadow: 1024, dust: true, dpr: 1.35, fog: 230, aa: false },
-  high: { seg: 180, trees: 829, shadow: 2048, dust: true, dpr: 1.85, fog: 320, aa: true }
+  low: { seg: 96, trees: 140, shadow: 0, dust: false, dpr: 1, fog: 160, aa: false },
+  medium: { seg: 120, trees: 240, shadow: 1024, dust: true, dpr: 1.25, fog: 220, aa: false },
+  high: { seg: 160, trees: 420, shadow: 2048, dust: true, dpr: 1.5, fog: 300, aa: true }
 }
 function defaultGfx() {
   const coarse = matchMedia('(pointer: coarse)').matches
@@ -235,9 +235,55 @@ function buildTerrain() {
     colors[i * 3 + 2] = c.b * shade
   }
   geo.setAttribute('color', new THREE.BufferAttribute(colors, 3))
+  if (groundTex) {
+    const biome = new Float32Array(pos.count * 3)
+    const surfA = new Float32Array(pos.count)
+    for (let i = 0; i < pos.count; i++) {
+      const x = pos.getX(i), z = pos.getZ(i)
+      const w = world.blend(x, z)
+      biome[i * 3] = w.forest
+      biome[i * 3 + 1] = w.desert
+      biome[i * 3 + 2] = w.mountain
+      surfA[i] = world.surface(x, z)
+    }
+    geo.setAttribute('biome', new THREE.BufferAttribute(biome, 3))
+    geo.setAttribute('surf', new THREE.BufferAttribute(surfA, 1))
+  }
   geo.computeVertexNormals()
   geo.computeBoundingSphere()
-  const mesh = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.97, metalness: 0 }))
+  const mat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.92, metalness: 0 })
+  if (groundTex) {
+    const blank = new THREE.DataTexture(new Uint8Array([255, 255, 255, 255]), 1, 1)
+    blank.needsUpdate = true
+    blank.colorSpace = THREE.NoColorSpace
+    mat.map = blank
+    mat.onBeforeCompile = (shader) => {
+      shader.uniforms.tForest = { value: groundTex.forest.color }
+      shader.uniforms.tSand = { value: groundTex.sand.color }
+      shader.uniforms.tRed = { value: groundTex.reddirt.color }
+      shader.uniforms.tMud = { value: groundTex.mud.color }
+      shader.uniforms.tGravel = { value: groundTex.gravel.color }
+      shader.vertexShader = shader.vertexShader
+        .replace('#include <common>', '#include <common>\nattribute vec3 biome;\nattribute float surf;\nvarying vec3 vBiome;\nvarying float vSurf;')
+        .replace('#include <uv_vertex>', '#include <uv_vertex>\nvBiome = biome;\nvSurf = surf;')
+      shader.fragmentShader = shader.fragmentShader
+        .replace('#include <common>', '#include <common>\nuniform sampler2D tForest;\nuniform sampler2D tSand;\nuniform sampler2D tRed;\nuniform sampler2D tMud;\nuniform sampler2D tGravel;\nvarying vec3 vBiome;\nvarying float vSurf;')
+        .replace('#include <color_fragment>', `#include <color_fragment>
+          vec2 guv = vMapUv * 42.0;
+          float mudM = smoothstep(1.5, 1.8, vSurf) * (1.0 - smoothstep(2.2, 2.6, vSurf));
+          float sandM = smoothstep(2.5, 2.9, vSurf) * (1.0 - smoothstep(3.4, 3.8, vSurf));
+          vec3 groundT;
+          if (mudM > 0.5) groundT = texture2D(tMud, guv).rgb;
+          else if (vBiome.y > vBiome.x && vBiome.y >= vBiome.z) {
+            if (sandM > 0.5) groundT = texture2D(tSand, guv).rgb;
+            else groundT = texture2D(tRed, guv).rgb;
+          } else if (vBiome.z > vBiome.x) groundT = texture2D(tGravel, guv).rgb;
+          else groundT = texture2D(tForest, guv).rgb;
+          diffuseColor.rgb *= groundT;
+        `)
+    }
+  }
+  const mesh = new THREE.Mesh(geo, mat)
   mesh.receiveShadow = gfx().shadow > 0
   scene.add(mesh)
   const water = []
@@ -335,69 +381,81 @@ function instanced(geo, color, matrices, roughness, sourceMat) {
   return mesh
 }
 let sceneryPack = {}
+let groundTex = null
+function scatterVariants(items, matrices) {
+  if (!items || !items.length || !matrices.length) return
+  const buckets = items.map(() => [])
+  matrices.forEach((m, i) => buckets[i % items.length].push(m))
+  buckets.forEach((list, i) => instanced(items[i].geometry, 0xffffff, list, 0.86, items[i].material))
+}
 function scatter() {
   const dummy = new THREE.Object3D()
   const trees = world.trees.slice(0, gfx().trees)
-  const geos = plantGeo()
   const pack = sceneryPack
-  const trunkG = new THREE.CylinderGeometry(0.16, 0.26, 2.2, 5)
-  trunkG.translate(0, 1.1, 0)
-  const buckets = { trunk: [], pale: [], pine: [], aspen: [], cactus: [], juniper: [] }
+  const groups = { pine: [], snow: [], broad: [], dead: [], cactus: [], scrub: [] }
   trees.forEach(t => {
     dummy.position.set(t.x, t.y, t.z)
     dummy.rotation.set(0, t.x * 0.17, 0)
     dummy.scale.setScalar(t.s)
     dummy.updateMatrix()
     const m = dummy.matrix.clone()
-    if (t.k === 2) buckets.cactus.push(m)
-    else if (t.k === 3) buckets.juniper.push(m)
-    else if (t.k === 1) { buckets.pale.push(m); buckets.aspen.push(m) }
-    else { buckets.trunk.push(m); buckets.pine.push(m) }
+    if (t.region === 'desert') (t.k === 2 ? groups.cactus : groups.dead).push(m)
+    else if (t.region === 'mountain') (t.y > 14 ? groups.snow : groups.pine).push(m)
+    else (t.k === 1 ? groups.broad : groups.pine).push(m)
   })
-  if (pack.pine) instanced(pack.pine.geometry, 0xffffff, buckets.pine, 0.86, pack.pine.material)
-  else { instanced(trunkG, 0x5a4030, buckets.trunk); instanced(geos.pine, 0x1f4a30, buckets.pine) }
-  if (pack.oak) instanced(pack.oak.geometry, 0xffffff, buckets.aspen, 0.8, pack.oak.material)
-  else { instanced(geos.pale, 0xe4e0d4, buckets.pale, 0.7); instanced(geos.aspen, 0xc5d6a4, buckets.aspen, 0.75) }
-  if (pack.cactus) instanced(pack.cactus.geometry, 0xffffff, buckets.cactus, 0.7, pack.cactus.material)
-  else instanced(geos.cactus, 0x6d8f48, buckets.cactus, 0.7)
-  if (pack.palm) instanced(pack.palm.geometry, 0xffffff, buckets.juniper, 0.75, pack.palm.material)
-  else instanced(geos.juniper, 0x7d8a58, buckets.juniper, 0.8)
-  const rockGeos = [
-    new THREE.DodecahedronGeometry(1, 0),
-    new THREE.BoxGeometry(1.4, 0.55, 1.1),
-    new THREE.ConeGeometry(0.7, 1.8, 5)
-  ]
-  const rockPack = [pack.rock_a, pack.rock_b, pack.rock_c]
-  const rockCols = { desert: new THREE.Color('#b15a42'), forest: new THREE.Color('#6a6458'), mountain: new THREE.Color('#9aa3ad') }
-  const groups = [[], [], []]
+  scatterVariants(pack.pine, groups.pine)
+  scatterVariants(pack.snow, groups.snow)
+  scatterVariants(pack.broad, groups.broad)
+  scatterVariants(pack.dead, groups.dead)
+  scatterVariants(pack.cactus, groups.cactus)
+  scatterVariants(pack.scrub, groups.scrub)
+  const up = new THREE.Vector3(0, 1, 0)
+  const nrm = new THREE.Vector3()
+  const rockCols = { desert: new THREE.Color('#c47a58'), forest: new THREE.Color('#8a8478'), mountain: new THREE.Color('#d5dde6') }
+  const rockGroups = { forest: [], desert: [], mountain: [] }
   world.rocks.forEach(r => {
-    const climb = r.h < 1.75
-    const span = r.rad * (r.kind === 1 ? 0.55 : 0.42)
+    const span = Math.max(1.4, r.rad * 0.55)
     let seat = world.height(r.x, r.z)
-    for (const [dx, dz] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
-      seat = Math.min(seat, world.height(r.x + dx * span * 0.45, r.z + dz * span * 0.45))
+    for (const [dx, dz] of [[1, 0], [-1, 0], [0, 1], [0, -1], [0.7, 0.7], [-0.7, 0.7]]) {
+      seat = Math.min(seat, world.height(r.x + dx * span * 0.5, r.z + dz * span * 0.5))
     }
-    dummy.position.set(r.x, seat - span * 0.08, r.z)
-    dummy.scale.set(span, span * (climb ? 0.55 : 0.85), span * 0.9)
-    dummy.rotation.set(r.h * 0.2, r.x * 0.2, r.kind === 1 ? 0.3 : 0.15)
+    const e = 1.4
+    nrm.set(world.height(r.x - e, r.z) - world.height(r.x + e, r.z), e * 2, world.height(r.x, r.z - e) - world.height(r.x, r.z + e)).normalize()
+    dummy.position.set(r.x, seat - span * 0.12, r.z)
+    dummy.quaternion.setFromUnitVectors(up, nrm)
+    dummy.rotateY(r.x * 0.2)
+    dummy.scale.set(span, span * 0.72, span * 0.9)
     dummy.updateMatrix()
-    groups[r.kind] = groups[r.kind] || groups[0]
-    groups[r.kind].push({ m: dummy.matrix.clone(), region: r.region || 'forest' })
+    const reg = r.region || 'forest'
+    ;(rockGroups[reg] || rockGroups.forest).push({ m: dummy.matrix.clone(), region: reg })
   })
-  groups.forEach((list, kind) => {
+  const rockSets = {
+    forest: (pack.rockMoss || []).concat(pack.rock || []),
+    desert: pack.rock || [],
+    mountain: (pack.rockSnow || []).concat(pack.rock || [])
+  }
+  Object.keys(rockGroups).forEach(reg => {
+    const list = rockGroups[reg]
     if (!list.length) return
-    const src = rockPack[kind]
-    const mesh = new THREE.InstancedMesh(src ? src.geometry : (rockGeos[kind] || rockGeos[0]), src ? src.material.clone() : new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.94 }), list.length)
-    list.forEach((item, i) => {
-      mesh.setMatrixAt(i, item.m)
-      mesh.setColorAt(i, rockCols[item.region] || rockCols.forest)
+    const srcs = rockSets[reg]
+    if (!srcs || !srcs.length) return
+    const buckets = srcs.map(() => [])
+    list.forEach((item, i) => buckets[i % srcs.length].push(item))
+    buckets.forEach((bucket, i) => {
+      if (!bucket.length) return
+      const src = srcs[i]
+      const mesh = new THREE.InstancedMesh(src.geometry, src.material.clone(), bucket.length)
+      bucket.forEach((item, n) => {
+        mesh.setMatrixAt(n, item.m)
+        mesh.setColorAt(n, rockCols[item.region] || rockCols.forest)
+      })
+      mesh.instanceMatrix.needsUpdate = true
+      if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true
+      mesh.frustumCulled = false
+      mesh.castShadow = gfx().shadow > 0
+      mesh.receiveShadow = true
+      scene.add(mesh)
     })
-    mesh.instanceMatrix.needsUpdate = true
-    if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true
-    mesh.frustumCulled = false
-    mesh.castShadow = gfx().shadow > 0
-    mesh.receiveShadow = true
-    scene.add(mesh)
   })
   scatterGround()
 }
@@ -431,8 +489,9 @@ function scatterGround() {
     buckets[kind].push(dummy.matrix.clone())
     if (kind === 'flower') flowerCol.push(blooms[i % blooms.length])
   }
-  const grass = (sceneryPack.grass && sceneryPack.grass.geometry) || new THREE.ConeGeometry(0.16, 0.5, 3)
-  if (!sceneryPack.grass) grass.translate(0, 0.25, 0)
+  const grassSrc = sceneryPack.grass && sceneryPack.grass[0]
+  const grass = grassSrc ? grassSrc.geometry : new THREE.ConeGeometry(0.16, 0.5, 3)
+  if (!grassSrc) grass.translate(0, 0.25, 0)
   const flower = new THREE.SphereGeometry(0.12, 5, 4); flower.translate(0, 0.35, 0)
   const ripple = new THREE.CircleGeometry(0.7, 6)
   const scree = new THREE.DodecahedronGeometry(0.22, 0)
@@ -447,7 +506,7 @@ function scatterGround() {
     scene.add(mesh)
     return mesh
   }
-  paint(grass, sceneryPack.grass ? 0xffffff : 0x3f6a3a, buckets.grass, 0.95, sceneryPack.grass && sceneryPack.grass.material)
+  paint(grass, grassSrc ? 0xffffff : 0x3f6a3a, buckets.grass, 0.95, grassSrc && grassSrc.material)
   const flowers = paint(flower, 0xffffff, buckets.flower, 0.6)
   if (flowers) {
     flowerCol.forEach((c, i) => flowers.setColorAt(i, c))
@@ -541,14 +600,14 @@ function rigLook(id) {
   const style = (VEHICLES[id] && VEHICLES[id].style) || 'pickup'
   const base = {
     pickup: { jerry: true, spare: true, kayak: false, bike: false },
-    jeep: { jerry: false, spare: true, kayak: false, bike: false },
-    bronco: { jerry: false, spare: false, kayak: true, bike: false },
+    jeep: { jerry: false, spare: false, kayak: true, bike: false },
+    bronco: { jerry: true, spare: false, kayak: false, bike: false },
     wagon: { jerry: true, spare: false, kayak: false, bike: true },
     utility: { jerry: true, spare: true, kayak: false, bike: false },
     van: { jerry: false, spare: true, kayak: false, bike: false },
     crawler: { jerry: false, spare: false, kayak: false, bike: false }
   }[style] || { jerry: false, spare: true, kayak: false, bike: false }
-  return { livery: all.livery || 0, rack: Object.assign({}, base, all.rack || {}) }
+  return { livery: all.livery || 0, rack: Object.assign({}, base, all.rack || {}), paint: all.paint || null }
 }
 function buildTruck(spec) {
   if (truck) scene.remove(truck)
@@ -556,7 +615,7 @@ function buildTruck(spec) {
   wheels = []
   const look = rigLook(spec.id)
   const detail = save.settings.gfx === 'high' ? 4 : save.settings.gfx === 'low' ? 2 : 3
-  const built = buildRig(THREE, spec, { livery: look.livery, rack: look.rack, shadow: !!gfx().shadow, detail, env: envTex })
+  const built = buildRig(THREE, spec, { livery: look.livery, rack: look.rack, paint: look.paint, shadow: !!gfx().shadow, detail, env: envTex })
   truck = built.group
   wheels = built.wheels
   scene.add(truck)
@@ -575,7 +634,7 @@ function updateLamps() {
     s.angle = hi ? 0.32 : 0.5
     s.castShadow = !!(on && gfx().shadow)
   }
-  ud.lampMat.emissiveIntensity = on ? (hi ? 3.4 : 2.3) : 0.55
+  if (ud.lampMat) ud.lampMat.emissiveIntensity = on ? (hi ? 3.4 : 2.3) : 0.55
   if (ud.roofMat) ud.roofMat.emissiveIntensity = on ? 1.8 : 0.05
   if (ud.tailMat) ud.tailMat.emissiveIntensity = dark ? 1.6 : 0.5
   const btn = $('btn-lights')
@@ -884,6 +943,7 @@ function syncTruck() {
       wheels[i].position.set(t.position.x, t.position.y, t.position.z)
       wheels[i].quaternion.set(t.quaternion.x, t.quaternion.y, t.quaternion.z, t.quaternion.w)
     }
+    poseRig(THREE, truck, wheels)
   }
 }
 function updateCamera(dt) {
@@ -1173,6 +1233,73 @@ function fillAdventures() {
     box.appendChild(row)
   }
 }
+let paintTarget = 'body'
+function livePaint(partial) {
+  save.cosmetics = save.cosmetics || {}
+  const cur = save.cosmetics[save.vehicle] || { livery: 0, rack: {} }
+  const base = Object.assign(factoryPaint(VEHICLES[save.vehicle]), cur.paint || {})
+  cur.paint = Object.assign(base, partial || {}, { custom: true })
+  save.cosmetics[save.vehicle] = cur
+  const job = Object.assign({ repaint: true }, cur.paint)
+  if (truck) applyPaint(truck, job)
+  wheels.forEach(w => applyPaint(w, job))
+  persist()
+}
+function openPaint() {
+  if (!save.owned.includes(save.vehicle)) return
+  paintTarget = 'body'
+  const paint = Object.assign(factoryPaint(VEHICLES[save.vehicle]), (rigLook(save.vehicle).paint) || {})
+  const targets = $('paint-targets')
+  targets.replaceChildren()
+  for (const key of ['body', 'accent', 'wheel', 'cage']) {
+    const b = document.createElement('button')
+    b.type = 'button'
+    b.textContent = key === 'wheel' ? 'Wheels' : key === 'body' ? 'Body' : key === 'accent' ? 'Accent' : 'Cage'
+    b.classList.toggle('on', paintTarget === key)
+    b.disabled = key === 'cage' && save.vehicle !== 'crawler'
+    b.onclick = () => { paintTarget = key; openPaint() }
+    targets.appendChild(b)
+  }
+  const sw = $('paint-swatches')
+  sw.replaceChildren()
+  for (const hex of PAINT_SWATCHES) {
+    const b = document.createElement('button')
+    b.type = 'button'
+    b.style.background = hex
+    b.setAttribute('aria-label', hex)
+    b.onclick = () => livePaint({ [paintTarget]: hex })
+    sw.appendChild(b)
+  }
+  const custom = $('paint-custom')
+  custom.value = paint[paintTarget] || '#f4f1ea'
+  custom.oninput = () => livePaint({ [paintTarget]: custom.value })
+  const fin = $('paint-finish')
+  fin.replaceChildren()
+  for (const name of ['gloss', 'satin', 'matte']) {
+    const b = document.createElement('button')
+    b.type = 'button'
+    b.textContent = name
+    b.classList.toggle('on', (paint.finish || 'satin') === name)
+    b.onclick = () => { livePaint({ finish: name }); openPaint() }
+    fin.appendChild(b)
+  }
+  const mud = $('paint-mud')
+  mud.value = String(Math.round((paint.mud || 0) * 100))
+  mud.oninput = () => livePaint({ mud: Number(mud.value) / 100 })
+  holdCam = true
+  freeze = true
+  mode = 'play'
+  app.classList.add('playing')
+  app.classList.remove('title')
+  const c = sim.chassis
+  const p = c.position
+  const yaw = 0.85
+  const dist = 6.2
+  camera.position.set(p.x + Math.sin(yaw) * dist, p.y + 2.1, p.z + Math.cos(yaw) * dist)
+  camera.lookAt(p.x, p.y + 0.8, p.z)
+  applyTime(0.38)
+  showPanel('paint')
+}
 function fillGarage() {
   const here = atYard()
   $('garage-note').textContent = here ? rankFor(save.rep).name + ' · ' + save.rep + ' rep. The yard will fit what your name allows.' : 'Look around. Parts are fitted only at Oxbow Yard. Fuel and cans are at the general stores.'
@@ -1239,20 +1366,12 @@ function fillGarage() {
     const paintRow = document.createElement('div')
     paintRow.className = 'up'
     paintRow.innerHTML = '<b></b><span></span>'
-    const liv = v.liveries[look.livery % v.liveries.length]
-    paintRow.querySelector('b').textContent = 'Paint · ' + liv.name
-    paintRow.querySelector('span').textContent = 'Cycle the livery. The mud stays.'
+    paintRow.querySelector('b').textContent = 'Paint'
+    paintRow.querySelector('span').textContent = 'Body, accent, wheels, and the crawler cage. Free.'
     const pb = document.createElement('button')
     pb.type = 'button'
-    pb.textContent = 'Next paint'
-    pb.onclick = () => {
-      save.cosmetics = save.cosmetics || {}
-      const cur = save.cosmetics[save.vehicle] || { livery: 0, rack: {} }
-      cur.livery = ((cur.livery || 0) + 1) % v.liveries.length
-      save.cosmetics[save.vehicle] = cur
-      buildTruck(sim.spec)
-      persist(); fillGarage()
-    }
+    pb.textContent = 'Paint'
+    pb.onclick = () => openPaint()
     paintRow.appendChild(pb)
     box.appendChild(paintRow)
     for (const key of ['jerry', 'spare', 'kayak', 'bike']) {
@@ -1646,6 +1765,16 @@ $('btn-map-close').onclick = closePanels
 $('btn-help').onclick = () => showPanel('help')
 $('btn-pause-help').onclick = () => showPanel('help')
 $('btn-credits').onclick = () => showPanel('credits')
+$('paint-close').onclick = () => { holdCam = false; freeze = false; showPanel('garage'); fillGarage() }
+$('paint-reset').onclick = () => {
+  save.cosmetics = save.cosmetics || {}
+  const cur = save.cosmetics[save.vehicle] || { livery: 0, rack: {} }
+  delete cur.paint
+  save.cosmetics[save.vehicle] = cur
+  buildTruck(sim.spec)
+  persist()
+  openPaint()
+}
 $('btn-help-close').onclick = () => { if (mode === 'title') { document.querySelectorAll('.panel').forEach(p => p.classList.remove('show')) } else showPanel('pause') }
 $('btn-credits-close').onclick = () => showPanel('pause')
 $('btn-settings').onclick = () => { syncSettings(); showPanel('settings') }
@@ -1782,6 +1911,7 @@ resize()
 
 await preloadRigs()
 sceneryPack = await preloadScenery(THREE)
+groundTex = await preloadGround(THREE)
 buildTerrain()
 scatter()
 buildCamps()
@@ -2060,10 +2190,12 @@ $('btn-return').onclick = () => {
 }
 
 let last = performance.now()
+let frameN = 0
 let acc = 0
 const errors = []
 window.addEventListener('error', e => errors.push(String(e.message || e.error || 'error')))
 function frame(now) {
+  frameN++
   const dt = Math.min(0.05, (now - last) / 1000)
   last = now
   if (save.buff && save.buff.left > 0 && mode !== 'title') {
@@ -2141,13 +2273,14 @@ window.OX = {
   get speed() { return lastSpeed },
   get pos() { const c = sim.chassis; return c ? { x: c.position.x, y: c.position.y, z: c.position.z } : null },
   get ready() { return !!sim.chassis },
+  get frames() { return frameN },
   get errors() { return errors },
   get gfx() { return save.settings.gfx },
   get clock() { return save.clock },
   get lights() { return { mode: save.lights, high: !!save.highbeam, on: !!(truck && truck.userData && truck.userData.lamps[0].intensity > 0) } },
   setClock(t) { save.clock = t; applyTime(t) },
   setCam(kind, dist, yaw, pitch) { camMode = kind; if (dist) orbitDist = dist; if (yaw != null) orbitYaw = yaw; if (pitch != null) orbitPitch = pitch },
-  open(id) { if (id === 'jobs') fillAdventures(); if (id === 'garage') fillGarage(); if (id === 'store') fillStore(); showPanel(id) },
+  open(id) { if (id === 'jobs') fillAdventures(); if (id === 'garage') fillGarage(); if (id === 'store') fillStore(); if (id === 'paint') openPaint(); else showPanel(id) },
   use(id) { save.vehicle = id; if (!save.owned.includes(id)) save.owned.push(id); sim.spawn(id, { x: sim.chassis.position.x, y: sim.chassis.position.y + 0.4, z: sim.chassis.position.z }, save.upgrades); buildTruck(sim.spec) },
   goto(id) { const p = poiById[id]; if (!p) return; sim.place(p.x + 4, p.z + 6, 0) },
   region() { const c = sim.chassis; return c ? world.regionAt(c.position.x, c.position.z) : null },
@@ -2253,7 +2386,7 @@ window.OX = {
     const zFront = yard.z + 16
     ids.forEach((id, i) => {
       const spec = specWithUpgrades(id, save.upgrades)
-      const built = buildRig(THREE, spec, { livery: 0, rack: rigLook(id).rack, shadow: false, detail, env: envTex })
+      const built = buildRig(THREE, spec, { livery: 0, rack: rigLook(id).rack, paint: rigLook(id).paint, shadow: false, detail, env: envTex })
       const col = i % 3
       const row = Math.floor(i / 3)
       const x = (col - 1) * 5.2
@@ -2263,9 +2396,8 @@ window.OX = {
       built.group.position.set(x, gy + spec.wheelR - wy, z)
       built.group.rotation.y = Math.PI - 0.42
       built.wheels.forEach((w, wi) => {
-        const side = wi % 2 === 0 ? -1 : 1
-        const front = wi < 2 ? 1 : -1
-        w.position.set(side * spec.track, wy, front * spec.wheelbase)
+        const a = (spec.axles && spec.axles[wi]) || [0, spec.wheelR, 0]
+        w.position.set(a[0], a[1] + (spec.visualDrop || 0), a[2])
         built.group.add(w)
       })
       scene.add(built.group)
