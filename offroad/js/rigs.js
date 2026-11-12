@@ -865,7 +865,7 @@ function buildCrawler(THREE, body, spec, kit) {
   const nose = zF + 0.58
   const cabF = zF - 0.72
   const cabB = cabF - 1.28
-  const tail = zR - 0.4
+  const tail = zR - 1.22
   const deckY = rocker - 0.05
   const cabLen = cabF - cabB
   const cabZ = (cabF + cabB) / 2
@@ -878,18 +878,21 @@ function buildCrawler(THREE, body, spec, kit) {
   }
 
   slab(bodyMat, half * 2, cabH, cabLen, 0, rocker + cabH / 2, cabZ)
+  slab(bodyMat, half * 2 + 0.1, 0.055, cabLen + 0.22, 0, roofY + 0.012, cabZ - 0.04)
 
-  const hoodW = half * 2 - 0.22
-  const hoodT = 0.07
-  const sill = belt + 0.035
-  const hoodRear = cabF + 0.01
-  const hoodLen = Math.max(0.5, nose - hoodRear)
-  slab(bodyMat, hoodW, hoodT, hoodLen, 0, sill - hoodT / 2, (nose + hoodRear) / 2)
-  slab(bodyMat, hoodW * 0.48, 0.048, 0.52, 0, sill + 0.016, cabF + 0.3)
+  const hoodW = half * 2 - 0.16
+  const sill = belt + 0.02
+  const hoodRear = cabF - 0.1
+  const hoodBottom = railY + 0.04
+  const hoodH = Math.max(0.46, sill - hoodBottom)
+  const hoodLen = Math.max(0.7, nose - hoodRear)
+  slab(bodyMat, hoodW, hoodH, hoodLen, 0, hoodBottom + hoodH / 2, (nose + hoodRear) / 2)
+  slab(bodyMat, hoodW * 0.42, 0.05, hoodLen * 0.38, 0, sill + 0.01, cabF + hoodLen * 0.22)
+  slab(bodyMat, half * 2 - 0.02, 0.08, 0.18, 0, sill - 0.03, cabF + 0.01)
 
-  const grilleH = 0.2
-  const grilleY = sill - hoodT - 0.07
-  slab(cageMat, hoodW * 0.94, grilleH, 0.06, 0, grilleY, nose + 0.012)
+  const grilleH = 0.16
+  const grilleY = hoodBottom + grilleH * 0.62
+  slab(cageMat, hoodW * 0.9, grilleH, 0.045, 0, grilleY, nose + 0.008)
   for (const s of [-1, 1]) {
     const light = add(new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.045, 0.03, 10), lamp))
     light.rotation.x = Math.PI / 2
@@ -928,18 +931,17 @@ function buildCrawler(THREE, body, spec, kit) {
     pillar.rotation.x = -0.34
   }
   slab(bodyMat, half * 2 - 0.14, 0.04, 0.03, 0, belt + 0.015, cabF + 0.03)
-  slab(glass, half * 1.2, 0.4, 0.026, 0, belt + 0.3, cabB - 0.016)
-  slab(bodyMat, half * 1.35, 0.03, 0.02, 0, belt + 0.52, cabB - 0.012)
-  slab(bodyMat, half * 1.35, 0.03, 0.02, 0, belt + 0.08, cabB - 0.012)
+  slab(glass, half * 1.4, 0.52, 0.03, 0, belt + 0.34, cabB - 0.02)
+  slab(bodyMat, half * 1.55, 0.03, 0.022, 0, belt + 0.62, cabB - 0.012)
+  slab(bodyMat, half * 1.55, 0.03, 0.022, 0, belt + 0.06, cabB - 0.012)
+  slab(bodyMat, 0.04, 0.52, 0.022, half * 0.72, belt + 0.34, cabB - 0.012)
+  slab(bodyMat, 0.04, 0.52, 0.022, -half * 0.72, belt + 0.34, cabB - 0.012)
 
   for (const x of [-0.4, 0.4]) bar([x, railY, nose - 0.22], [x, railY, tail + 0.04], 0.028)
   bar([-0.4, railY, zF], [0.4, railY, zF], 0.026)
   bar([-0.4, railY, zR], [0.4, railY, zR], 0.026)
   bar([-0.4, railY, cabB], [0.4, railY, cabB], 0.026)
-  bar([-0.42, railY, nose - 0.16], [-hoodW * 0.3, grilleY - grilleH / 2, nose - 0.05], 0.024)
-  bar([0.42, railY, nose - 0.16], [hoodW * 0.3, grilleY - grilleH / 2, nose - 0.05], 0.024)
-  bar([-hoodW * 0.34, grilleY - grilleH / 2, nose - 0.03], [hoodW * 0.34, grilleY - grilleH / 2, nose - 0.03], 0.022)
-  const bumperZ = nose + 0.05
+  const bumperZ = nose + 0.02
   bar([-0.52, railY + 0.05, bumperZ], [0.52, railY + 0.05, bumperZ], 0.028)
   bar([-0.4, railY, nose - 0.12], [-0.48, railY + 0.05, bumperZ], 0.024)
   bar([0.4, railY, nose - 0.12], [0.48, railY + 0.05, bumperZ], 0.024)
@@ -948,8 +950,8 @@ function buildCrawler(THREE, body, spec, kit) {
   const bedF = cabB - 0.02
   bar([-bedX, deckY, bedF], [-bedX, deckY, tail], 0.028)
   bar([bedX, deckY, bedF], [bedX, deckY, tail], 0.028)
-  for (let i = 0; i <= 5; i++) {
-    const z = bedF + (tail - bedF) * (i / 5)
+  for (let i = 0; i <= 8; i++) {
+    const z = bedF + (tail - bedF) * (i / 8)
     bar([-bedX, deckY, z], [bedX, deckY, z], 0.024)
   }
   for (const x of [-0.4, 0.4]) {
@@ -958,14 +960,15 @@ function buildCrawler(THREE, body, spec, kit) {
     }
   }
   const battH = 0.22
-  slab(cageMat, 0.42, battH, 0.3, 0.16, deckY + 0.03 + battH / 2, (cabB + zR) * 0.5)
-  const bumpY = deckY + 0.24
-  bar([-bedX, deckY, tail], [-bedX, bumpY, tail - 0.05], 0.028)
-  bar([bedX, deckY, tail], [bedX, bumpY, tail - 0.05], 0.028)
-  bar([-bedX, deckY + 0.02, tail - 0.04], [bedX, deckY + 0.02, tail - 0.04], 0.026)
-  bar([-bedX, bumpY, tail - 0.05], [bedX, bumpY, tail - 0.05], 0.028)
-  bar([-bedX * 0.4, deckY + 0.02, tail - 0.04], [-bedX * 0.4, bumpY, tail - 0.05], 0.022)
-  bar([bedX * 0.4, deckY + 0.02, tail - 0.04], [bedX * 0.4, bumpY, tail - 0.05], 0.022)
+  slab(cageMat, 0.46, battH, 0.34, 0.12, deckY + 0.03 + battH / 2, tail + 0.52)
+  const bumpY = deckY + 0.42
+  const endZ = tail - 0.08
+  bar([-bedX, deckY, tail], [-bedX, bumpY, endZ], 0.028)
+  bar([bedX, deckY, tail], [bedX, bumpY, endZ], 0.028)
+  bar([-bedX, deckY + 0.04, endZ], [bedX, deckY + 0.04, endZ], 0.026)
+  bar([-bedX, deckY + 0.2, endZ], [bedX, deckY + 0.2, endZ], 0.024)
+  bar([-bedX, bumpY, endZ], [bedX, bumpY, endZ], 0.028)
+  bar([0, deckY + 0.04, endZ], [0, bumpY, endZ], 0.022)
 
   const rackY = roofY + 0.065
   const rx = half + 0.045
@@ -1009,7 +1012,7 @@ function buildCrawler(THREE, body, spec, kit) {
     const spring = coilSpring(THREE, springMat)
     shock.castShadow = true
     root.add(shock, spring)
-    coils.push({ shock, spring, index: i, mount, inboard: 0.82 })
+    coils.push({ shock, spring, index: i, mount, inboard: 0.7 })
     const arm = new THREE.Mesh(new THREE.CylinderGeometry(0.028, 0.028, 1, 6), linkMat)
     const upper = new THREE.Mesh(new THREE.CylinderGeometry(0.022, 0.022, 1, 6), linkMat)
     root.add(arm, upper)
@@ -1097,20 +1100,27 @@ function beadlock(THREE, radius, level) {
   g.userData.hardware = true
   const tire = keepMat(THREE, '#141414', 0.94, 0)
   tire.userData.paintRole = 'tire'
-  const width = radius * 0.7
-  const core = radius * 0.86
-  const cyl = new THREE.Mesh(new THREE.CylinderGeometry(core, core, width * 0.72, 16), tire)
-  cyl.rotation.z = Math.PI / 2
-  g.add(cyl)
-  const n = 14 + (level || 0)
-  const lugH = radius * 0.16
-  const lugW = radius * 0.2
+  const width = radius * 0.98
+  const carcass = new THREE.Mesh(new THREE.SphereGeometry(radius * 0.88, 28, 18), tire)
+  carcass.scale.set(width / (radius * 1.76), 1, 1)
+  g.add(carcass)
+  const n = 12 + (level || 0) * 2
+  const lugH = radius * 0.18
+  const lugW = radius * 0.26
+  for (let i = 0; i < n; i++) {
+    const a = (i / n) * Math.PI * 2
+    const lug = new THREE.Mesh(new THREE.BoxGeometry(width * 0.55, lugH, lugW), tire)
+    const rad = radius * 0.9
+    lug.position.set(0, Math.cos(a) * rad, Math.sin(a) * rad)
+    lug.rotation.x = a
+    g.add(lug)
+  }
   for (const row of [-1, 1]) {
     for (let i = 0; i < n; i++) {
-      const a = ((i + (row > 0 ? 0.5 : 0)) / n) * Math.PI * 2
-      const lug = new THREE.Mesh(new THREE.BoxGeometry(width * 0.34, lugH, lugW), tire)
-      const rad = core + lugH * 0.35
-      lug.position.set(row * width * 0.18, Math.cos(a) * rad, Math.sin(a) * rad)
+      const a = ((i + 0.5) / n) * Math.PI * 2
+      const lug = new THREE.Mesh(new THREE.BoxGeometry(width * 0.24, lugH * 0.8, lugW * 0.72), tire)
+      const rad = radius * 0.84
+      lug.position.set(row * width * 0.26, Math.cos(a) * rad, Math.sin(a) * rad)
       lug.rotation.x = a
       g.add(lug)
     }
@@ -1120,22 +1130,22 @@ function beadlock(THREE, radius, level) {
   const boltMat = keepMat(THREE, '#d5d8dc', 0.28, 0.75)
   const hubMat = keepMat(THREE, '#d21f1a', 0.4, 0.2)
   for (const s of [-1, 1]) {
-    const lip = new THREE.Mesh(new THREE.TorusGeometry(radius * 0.6, radius * 0.045, 6, 20), ringMat)
+    const lip = new THREE.Mesh(new THREE.TorusGeometry(radius * 0.58, radius * 0.05, 8, 24), ringMat)
     lip.rotation.y = Math.PI / 2
-    lip.position.x = s * width * 0.4
-    const dish = new THREE.Mesh(new THREE.CylinderGeometry(radius * 0.48, radius * 0.48, width * 0.07, 16), rim)
+    lip.position.x = s * width * 0.36
+    const dish = new THREE.Mesh(new THREE.CylinderGeometry(radius * 0.46, radius * 0.46, width * 0.08, 20), rim)
     dish.rotation.z = Math.PI / 2
-    dish.position.x = s * width * 0.4
-    const hub = new THREE.Mesh(new THREE.CylinderGeometry(radius * 0.13, radius * 0.13, width * 0.12, 10), hubMat)
+    dish.position.x = s * width * 0.34
+    const hub = new THREE.Mesh(new THREE.CylinderGeometry(radius * 0.14, radius * 0.14, width * 0.12, 12), hubMat)
     hub.rotation.z = Math.PI / 2
-    hub.position.x = s * width * 0.48
+    hub.position.x = s * width * 0.42
     g.add(lip, dish, hub)
     const bolts = 8
     for (let i = 0; i < bolts; i++) {
       const a = (i / bolts) * Math.PI * 2
       const bolt = new THREE.Mesh(new THREE.CylinderGeometry(radius * 0.028, radius * 0.028, width * 0.06, 6), boltMat)
       bolt.rotation.z = Math.PI / 2
-      bolt.position.set(s * width * 0.46, Math.cos(a) * radius * 0.58, Math.sin(a) * radius * 0.58)
+      bolt.position.set(s * width * 0.4, Math.cos(a) * radius * 0.56, Math.sin(a) * radius * 0.56)
       g.add(bolt)
     }
   }
