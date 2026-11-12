@@ -881,7 +881,7 @@ function buildCrawler(THREE, body, spec, kit) {
   for (const s of [-1, 1]) {
     const light = add(new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.12, 0.06), lamp))
     light.position.set(s * 0.5, rocker + 0.3, nose + 0.05)
-    add(new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.32, 0.92), bodyMat)).position.set(s * (half + 0.16), rocker + 0.28, zF + 0.02)
+    add(new THREE.Mesh(new THREE.BoxGeometry(0.26, 0.2, 0.42), bodyMat)).position.set(s * 1.16, rocker + 0.36, zF + 0.46)
     const seam = keepMat(THREE, '#161616', 0.62, 0.12)
     const tint = keepMat(THREE, '#07090c', 0.18, 0.25)
     const xOut = s * (half + 0.035)
@@ -953,7 +953,11 @@ function buildCrawler(THREE, body, spec, kit) {
   const springMat = keepMat(THREE, '#f7f7f5', 0.35, 0.45)
   spec.axles.forEach((a, i) => {
     const front = i < 2
-    const mount = new THREE.Vector3(Math.sign(a[0]) * (front ? half + 0.02 : 0.62), rocker + (front ? 0.92 : 0.55), front ? cabF + 0.16 : a[2])
+    const side = Math.sign(a[0]) || 1
+    const mount = front
+      ? new THREE.Vector3(side * 1.08, rocker + 1.05, cabF + 0.24)
+      : new THREE.Vector3(side * 0.92, deckY + 0.82, a[2])
+    if (front) bar([side * 1.08, railY + 0.08, cabF + 0.24], [side * 1.08, rocker + 1.05, cabF + 0.24])
     const shock = new THREE.Mesh(new THREE.CylinderGeometry(0.028, 0.028, 1, 8), shockMat)
     const spring = coilSpring(THREE, springMat)
     shock.castShadow = true
