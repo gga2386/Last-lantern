@@ -13,7 +13,7 @@ export function createRidges(THREE, scene) {
       const frac = cell - Math.floor(cell)
       const cliff = frac < 0.14 ? frac / 0.14 : frac > 0.86 ? (1 - frac) / 0.14 : 1
       const shelf = 0.62 + 0.38 * Math.abs(Math.sin(Math.floor(cell) * 1.9 + kind))
-      return (80 + kind * 22) * shelf * (0.45 + 0.55 * cliff)
+      return (120 + kind * 28) * shelf * (0.5 + 0.5 * cliff)
     }
     if (region === 'mountain') {
       const peak = Math.pow(Math.abs(s), 0.38)
@@ -22,7 +22,7 @@ export function createRidges(THREE, scene) {
     }
     const roll = 0.5 + 0.5 * Math.sin(a * (2.2 + kind * 0.3) + 0.5)
     const peak = kind >= 2 ? Math.pow(Math.abs(Math.sin(a * 1.6 + 1.1)), 1.15) : Math.abs(s2) * 0.4
-    return (36 + kind * 10) + roll * (28 + kind * 10) + peak * (70 + kind * 24)
+    return (55 + kind * 14) + roll * (36 + kind * 12) + peak * (100 + kind * 28)
   }
   const rings = [
     { inner: 700, outer: 980, base: 4, kind: 0 },
@@ -90,12 +90,20 @@ export function createRidges(THREE, scene) {
           }
           return tint(rgb, ring.kind, shade * (y > ring.base + 2 ? 1 : 0.72))
         }
+        const cut = 0.7
+        const mid = (a, b) => a.map((v, k) => v + (b[k] - v) * cut)
+        const m0 = mid(p[0], p[1])
+        const m1 = mid(p[2], p[3])
+        const rockY = Math.max(m0[1], m1[1])
         const base = pos.length / 3
         push(p[0][0], p[0][1], p[0][2], paint(p[0][1]))
-        push(p[1][0], p[1][1], p[1][2], paint(p[1][1]))
+        push(m0[0], m0[1], m0[2], paint(Math.min(m0[1], rockY * 0.98)))
         push(p[2][0], p[2][1], p[2][2], paint(p[2][1]))
+        push(m1[0], m1[1], m1[2], paint(Math.min(m1[1], rockY * 0.98)))
+        push(p[1][0], p[1][1], p[1][2], paint(p[1][1]))
         push(p[3][0], p[3][1], p[3][2], paint(p[3][1]))
         idx.push(base, base + 1, base + 2, base + 1, base + 3, base + 2)
+        idx.push(base + 1, base + 4, base + 3, base + 4, base + 5, base + 3)
       }
       const geo = new THREE.BufferGeometry()
       geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3))
