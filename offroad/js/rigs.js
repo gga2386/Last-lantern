@@ -612,8 +612,8 @@ function fitGear(THREE, body, spec, paint, rack, kit) {
   if (canCount) {
     if (bed) {
       const spots = []
-      const z = info.cabBack - 0.1
-      for (let i = 0; i < canCount; i++) spots.push([-0.42 + i * 0.24, 0, z])
+      const z0 = info.cabBack - 0.45
+      for (let i = 0; i < canCount; i++) spots.push([-0.62, 0, z0 - i * 0.28])
       jerryRack(THREE, root, spots, info.floorY)
     } else {
       const steel = keepMat(THREE, '#3a3a3a', 0.45, 0.5)
@@ -636,9 +636,9 @@ function fitGear(THREE, body, spec, paint, rack, kit) {
     const strap = keepMat(THREE, '#1a1a1a', 0.7, 0.1)
     if (bed) {
       const y = info.floorY + 0.11 * scale
-      tank.position.set(0.42, y, info.cabBack - 0.28)
+      tank.position.set(0.58, y, info.cabBack - 0.42)
       const band = new THREE.Mesh(new THREE.BoxGeometry(0.44 * scale, 0.015, 0.16 * scale), strap)
-      band.position.set(0.42, y + 0.06, info.cabBack - 0.28)
+      band.position.set(0.58, y + 0.06, info.cabBack - 0.42)
       root.add(tank, band)
     } else {
       const y = info.tailY
@@ -652,34 +652,7 @@ function fitGear(THREE, body, spec, paint, rack, kit) {
       root.add(tank, band)
     }
   }
-  if (rack.kayak && (spec.style === 'jeep' || spec.style === 'bronco' || spec.style === 'wagon' || spec.style === 'van' || spec.style === 'pickup')) {
-    const rail = keepMat(THREE, '#d7d2c6', 0.45, 0.35)
-    const y = info.roofY
-    const z0 = info.cabBack + 0.15
-    const z1 = Math.min(info.bumperZ - 0.4, z0 + 1.3)
-    for (const x of [-0.42, 0.42]) {
-      root.add(tubeBetween(THREE, rail, x, y + 0.05, z0, x, y + 0.05, z1, 0.02))
-      for (const z of [z0 + 0.05, (z0 + z1) / 2, z1 - 0.05]) {
-        addBox(THREE, root, rail, 0.04, 0.05, 0.04, x, y + 0.025, z)
-      }
-    }
-    for (const z of [z0 + 0.25, z1 - 0.25]) {
-      root.add(tubeBetween(THREE, rail, -0.42, y + 0.05, z, 0.42, y + 0.05, z, 0.018))
-      const cradle = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.04, 0.08), black)
-      cradle.position.set(0, y + 0.09, z)
-      cradle.rotation.z = 0.4
-      root.add(cradle)
-    }
-    const kayak = accessory('kayak', spec.style === 'jeep' ? 0.5 : 0.46)
-    if (kayak) {
-      kayak.position.set(0, y + 0.16, (z0 + z1) / 2)
-      kayak.rotation.y = 0.1
-      root.add(kayak)
-      const strap = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.012, 0.03), black)
-      strap.position.set(0, y + 0.2, (z0 + z1) / 2)
-      root.add(strap)
-    }
-  }
+  if (rack.kayak && spec.style !== 'crawler') mountKayak(THREE, root, info, spec)
   if (rack.spare) mountSpare(THREE, root, info, spec)
   if (rack.bike) mountBike(THREE, root, info)
   let coils = null
@@ -710,6 +683,75 @@ function fitGear(THREE, body, spec, paint, rack, kit) {
   return { coils, winchLocal }
 }
 
+function fullKayak(THREE) {
+  const kayak = accessory('kayak', 1)
+  if (!kayak) return null
+  kayak.updateMatrixWorld(true)
+  const box = new THREE.Box3().setFromObject(kayak)
+  const size = new THREE.Vector3()
+  box.getSize(size)
+  const axes = ['x', 'y', 'z']
+  const lengthAxis = axes.reduce((a, b) => size[a] >= size[b] ? a : b)
+  const rest = axes.filter(a => a !== lengthAxis)
+  const beamAxis = size[rest[0]] >= size[rest[1]] ? rest[0] : rest[1]
+  const thickAxis = rest.find(a => a !== beamAxis)
+  const s = { x: 1, y: 1, z: 1 }
+  s[lengthAxis] = 3.3 / Math.max(0.01, size[lengthAxis])
+  s[beamAxis] = 0.62 / Math.max(0.01, size[beamAxis])
+  s[thickAxis] = 0.32 / Math.max(0.01, size[thickAxis])
+  kayak.scale.set(s.x, s.y, s.z)
+  kayak.userData.lengthAxis = lengthAxis
+  return kayak
+}
+
+function mountKayak(THREE, root, info, spec) {
+  const kayak = fullKayak(THREE)
+  if (!kayak) return
+  const bed = spec.style === 'pickup' || spec.style === 'utility'
+  const strap = keepMat(THREE, '#1a1a1a', 0.7, 0.05)
+  const rail = keepMat(THREE, '#c8ccd0', 0.4, 0.45)
+  if (bed) {
+    const railY = info.floorY + 0.38
+    addBox(THREE, root, rail, 1.15, 0.04, 0.06, 0, railY, info.tailZ + 0.18)
+    kayak.rotation.order = 'YXZ'
+    kayak.rotation.y = Math.PI / 2
+    kayak.rotation.x = -0.34
+    kayak.position.set(0.02, info.floorY + 0.28, (info.cabBack + info.tailZ) / 2 - 0.15)
+    root.add(kayak)
+    const band = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.015, 0.04), strap)
+    band.position.set(0.02, railY + 0.16, info.tailZ + 0.35)
+    band.rotation.x = -0.34
+    root.add(band)
+    const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.008, 0.008, 0.22, 5), strap)
+    pole.position.set(0.02, railY + 0.55, info.tailZ - 0.22)
+    const flag = new THREE.Mesh(new THREE.BoxGeometry(0.02, 0.14, 0.16), keepMat(THREE, '#d21f1a', 0.6, 0))
+    flag.position.set(0.02, railY + 0.68, info.tailZ - 0.28)
+    root.add(pole, flag)
+    return
+  }
+  const y = info.roofY
+  const zFront = info.bumperZ - 0.15
+  const zRear = info.tailZ + 0.15
+  for (const x of [-0.46, 0.46]) {
+    root.add(tubeBetween(THREE, rail, x, y + 0.06, zRear, x, y + 0.06, zFront, 0.02))
+    for (const z of [zRear + 0.15, (zRear + zFront) / 2, zFront - 0.15]) {
+      addBox(THREE, root, rail, 0.045, 0.06, 0.045, x, y + 0.03, z)
+    }
+  }
+  for (const z of [zRear + 0.45, zFront - 0.45]) {
+    root.add(tubeBetween(THREE, rail, -0.46, y + 0.06, z, 0.46, y + 0.06, z, 0.018))
+    const cradle = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.05, 0.1), keepMat(THREE, '#1a1a1a', 0.6, 0.1))
+    cradle.position.set(0, y + 0.11, z)
+    root.add(cradle)
+  }
+  kayak.rotation.y = Math.PI / 2
+  kayak.position.set(0, y + 0.28, (zFront + zRear) / 2)
+  root.add(kayak)
+  const band = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.012, 0.04), strap)
+  band.position.set(0, y + 0.42, (zFront + zRear) / 2)
+  root.add(band)
+}
+
 function mountSpare(THREE, root, info, spec) {
   const tire = accessory('spare', 1, 'wheel')
   if (!tire) return
@@ -720,7 +762,7 @@ function mountSpare(THREE, root, info, spec) {
   tire.rotation.z = Math.PI / 2
   const bed = spec.style === 'pickup' || spec.style === 'utility'
   if (bed) {
-    tire.position.set(-0.55, info.floorY + target * 0.5, info.cabBack - target * 0.55)
+    tire.position.set(-0.78, info.floorY + target * 0.5, info.cabBack - 0.35)
   } else if (spec.style === 'van') {
     tire.position.set(0, info.roofY + 0.06 + target * 0.5, (info.cabBack + info.bumperZ) * 0.15)
     const rail = keepMat(THREE, '#f4f1ea', 0.4, 0.2)
@@ -751,83 +793,111 @@ function mountBike(THREE, root, info) {
   addBox(THREE, root, dark, 0.03, 0.22, 0.03, 0, y + 0.24, z)
 }
 
+function coilSpring(THREE, mat) {
+  const pts = []
+  const turns = 10
+  const seg = turns * 7
+  for (let i = 0; i <= seg; i++) {
+    const t = i / seg
+    const a = t * turns * Math.PI * 2
+    pts.push(new THREE.Vector3(Math.cos(a) * 0.09, t - 0.5, Math.sin(a) * 0.09))
+  }
+  const geo = new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), seg, 0.012, 5, false)
+  const mesh = new THREE.Mesh(geo, mat)
+  mesh.userData.hardware = true
+  return mesh
+}
+
 function buildCrawler(THREE, body, spec, kit) {
   const root = body.parent
-  const R = spec.wheelR
   const drop = spec.visualDrop || 0
-  const hub = spec.axles[0][1] + drop + spec.rest * 0.4
+  const hub = spec.axles[0][1] + drop + spec.rest * 0.42
   const zF = spec.axles[0][2]
   const zR = spec.axles[2][2]
-  const xW = Math.abs(spec.axles[0][0])
-  const bodyMat = new THREE.MeshStandardMaterial({ color: '#d21f1a', roughness: 0.48, metalness: 0.08 })
+  const bodyMat = new THREE.MeshStandardMaterial({ color: '#d21f1a', roughness: 0.46, metalness: 0.08 })
   bodyMat.userData.paintRole = 'body'
-  const cageMat = new THREE.MeshStandardMaterial({ color: '#1a1a1a', roughness: 0.42, metalness: 0.5 })
+  const cageMat = new THREE.MeshStandardMaterial({ color: '#1a1a1a', roughness: 0.4, metalness: 0.55 })
   cageMat.userData.paintRole = 'cage'
-  const steel = keepMat(THREE, '#2c2c2c', 0.45, 0.55)
-  const glass = keepMat(THREE, '#14181c', 0.18, 0.35)
-  const white = keepMat(THREE, '#f3f4f6', 0.32, 0.2)
-  const half = 0.5
-  const railY = hub + 0.02
-  const deckY = hub + 0.36
-  const roofY = hub + 1.2
-  const cabF = zF - 0.02
-  const cabB = zF - 1.02
-  const nose = zF + 0.5
-  const tail = zR - 0.42
+  const steel = keepMat(THREE, '#1e1e1e', 0.5, 0.45)
+  const glass = keepMat(THREE, '#12161a', 0.15, 0.4)
+  const white = keepMat(THREE, '#f4f6f8', 0.28, 0.35)
+  const tube = 0.03
+  const half = 0.78
+  const railY = hub + 0.2
+  const rocker = railY + 0.06
+  const belt = rocker + 0.62
+  const roofY = belt + 0.46
+  const nose = zF + 0.95
+  const cabF = zF + 0.08
+  const cabB = zF - 1.28
+  const tail = zR - 0.72
+  const deckY = railY + 0.08
   const add = (mesh) => { mesh.castShadow = true; mesh.userData.hardware = true; root.add(mesh); return mesh }
-  add(new THREE.Mesh(new THREE.BoxGeometry(half * 2, roofY - railY, cabF - cabB), bodyMat)).position.set(0, (roofY + railY) / 2, (cabF + cabB) / 2)
-  const hood = add(new THREE.Mesh(new THREE.BoxGeometry(half * 1.7, 0.42, nose - cabF + 0.05), bodyMat))
-  hood.position.set(0, railY + 0.21, (nose + cabF) / 2)
-  const glassBox = add(new THREE.Mesh(new THREE.BoxGeometry(half * 1.7, 0.42, 0.04), glass))
-  glassBox.position.set(0, roofY - 0.32, cabF + 0.01)
+  const bar = (a, b) => root.add(tubeBetween(THREE, cageMat, a[0], a[1], a[2], b[0], b[1], b[2], tube))
+  const cab = add(new THREE.Mesh(new THREE.BoxGeometry(half * 2, roofY - rocker, cabF - cabB), bodyMat))
+  cab.position.set(0, (roofY + rocker) / 2, (cabF + cabB) / 2)
+  const hood = add(new THREE.Mesh(new THREE.BoxGeometry(1.35, 0.48, nose - cabF + 0.08), bodyMat))
+  hood.position.set(0, rocker + 0.24, (nose + cabF) / 2)
+  add(new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.22, 0.08), cageMat)).position.set(0, rocker + 0.28, nose + 0.02)
+  const glassBox = add(new THREE.Mesh(new THREE.BoxGeometry(1.35, 0.48, 0.04), glass))
+  glassBox.position.set(0, belt + 0.16, cabF + 0.02)
+  glassBox.rotation.x = -0.35
   for (const s of [-1, 1]) {
-    const win = add(new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.36, 0.42), glass))
-    win.position.set(s * (half + 0.01), roofY - 0.38, (cabF + cabB) / 2 + 0.05)
+    const fender = add(new THREE.Mesh(new THREE.BoxGeometry(0.46, 0.32, 0.95), bodyMat))
+    fender.position.set(s * 0.92, rocker + 0.2, zF)
+    const win = add(new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.38, 0.55), glass))
+    win.position.set(s * (half + 0.015), belt + 0.02, (cabF + cabB) / 2 + 0.08)
+    add(new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.06, 0.1), cageMat)).position.set(s * (half + 0.02), belt - 0.12, (cabF + cabB) / 2)
   }
-  for (const x of [-0.36, 0.36]) {
-    root.add(tubeBetween(THREE, cageMat, x, railY, nose, x, railY, tail, 0.045))
-  }
-  root.add(tubeBetween(THREE, cageMat, -0.36, railY, zF, 0.36, railY, zF, 0.04))
-  root.add(tubeBetween(THREE, cageMat, -0.36, railY, zR, 0.36, railY, zR, 0.04))
-  const deck = add(new THREE.Mesh(new THREE.BoxGeometry(1.15, 0.04, cabB - tail), steel))
+  for (const x of [-0.42, 0.42]) bar([x, railY, nose], [x, railY, tail])
+  bar([-0.42, railY, zF], [0.42, railY, zF])
+  bar([-0.42, railY, zR], [0.42, railY, zR])
+  bar([-0.42, railY, cabB], [0.42, railY, cabB])
+  const deck = add(new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.025, Math.max(0.4, cabB - tail)), steel))
   deck.position.set(0, deckY, (cabB + tail) / 2)
-  for (const x of [-0.4, 0.4]) {
-    add(new THREE.Mesh(new THREE.BoxGeometry(0.06, deckY - railY, 0.06), steel)).position.set(x, (deckY + railY) / 2, cabB - 0.15)
-    add(new THREE.Mesh(new THREE.BoxGeometry(0.06, deckY - railY, 0.06), steel)).position.set(x, (deckY + railY) / 2, tail + 0.15)
+  for (const x of [-0.55, 0.55]) {
+    bar([x, deckY, cabB - 0.05], [x, deckY, tail + 0.05])
+    add(new THREE.Mesh(new THREE.BoxGeometry(0.05, Math.max(0.05, deckY - railY), 0.05), steel)).position.set(x, (deckY + railY) / 2, cabB - 0.12)
+    add(new THREE.Mesh(new THREE.BoxGeometry(0.05, Math.max(0.05, deckY - railY), 0.05), steel)).position.set(x, (deckY + railY) / 2, tail + 0.12)
   }
-  const batt = add(new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.28, 0.32), cageMat))
-  batt.position.set(0.05, deckY + 0.16, tail + 0.45)
+  const batt = add(new THREE.Mesh(new THREE.BoxGeometry(0.38, 0.26, 0.3), cageMat))
+  batt.position.set(0.28, deckY + 0.15, tail + 0.38)
   for (const s of [-1, 1]) {
-    const x = s * (half + 0.04)
-    root.add(tubeBetween(THREE, cageMat, x, railY + 0.35, cabF + 0.02, x, roofY + 0.04, cabF - 0.12, 0.04))
-    root.add(tubeBetween(THREE, cageMat, x, roofY + 0.04, cabF - 0.12, x, roofY + 0.04, cabB - 0.15, 0.038))
-    root.add(tubeBetween(THREE, cageMat, x, roofY + 0.04, cabB - 0.05, x, deckY + 0.08, cabB - 0.35, 0.038))
-    root.add(tubeBetween(THREE, cageMat, x, railY + 0.45, cabF - 0.2, x, roofY + 0.02, cabB - 0.05, 0.028))
-    root.add(tubeBetween(THREE, cageMat, x * 0.7, roofY + 0.02, cabB + 0.05, x * 0.7, deckY + 0.2, cabB - 0.15, 0.03))
+    const x = s * (half + 0.06)
+    bar([x, rocker + 0.15, cabF + 0.05], [x, roofY + 0.05, cabF - 0.08])
+    bar([x, roofY + 0.05, cabF - 0.08], [x, roofY + 0.05, cabB - 0.2])
+    bar([x, roofY + 0.05, cabB], [x, deckY + 0.05, tail + 0.15])
+    bar([x, rocker + 0.35, cabF - 0.15], [x, roofY, cabB + 0.05])
+    bar([x, belt, cabF - 0.25], [x, belt, cabB + 0.15])
+    bar([s * 0.95, rocker + 0.35, nose - 0.1], [x, roofY + 0.02, cabF - 0.05])
+    bar([s * 0.55, roofY + 0.02, cabB + 0.02], [s * 0.7, deckY + 0.15, tail + 0.25])
   }
-  root.add(tubeBetween(THREE, cageMat, -(half + 0.04), roofY + 0.04, cabF - 0.12, half + 0.04, roofY + 0.04, cabF - 0.12, 0.036))
-  root.add(tubeBetween(THREE, cageMat, -(half + 0.04), roofY + 0.04, cabB - 0.05, half + 0.04, roofY + 0.04, cabB - 0.05, 0.036))
-  root.add(tubeBetween(THREE, cageMat, -(half + 0.04), roofY + 0.04, (cabF + cabB) / 2, half + 0.04, roofY + 0.04, (cabF + cabB) / 2, 0.03))
-  const bumperZ = nose + 0.08
-  root.add(tubeBetween(THREE, cageMat, -0.72, railY + 0.1, bumperZ, 0.72, railY + 0.1, bumperZ, 0.05))
-  root.add(tubeBetween(THREE, cageMat, -0.36, railY, nose - 0.05, -0.62, railY + 0.1, bumperZ, 0.04))
-  root.add(tubeBetween(THREE, cageMat, 0.36, railY, nose - 0.05, 0.62, railY + 0.1, bumperZ, 0.04))
-  const spare = beadlock(THREE, 0.28, 0)
-  spare.rotation.x = Math.PI / 2
-  spare.position.set(-0.42, deckY + 0.3, tail + 0.2)
+  bar([-(half + 0.06), roofY + 0.05, cabF - 0.08], [half + 0.06, roofY + 0.05, cabF - 0.08])
+  bar([-(half + 0.06), roofY + 0.05, cabB], [half + 0.06, roofY + 0.05, cabB])
+  bar([-(half + 0.06), roofY + 0.05, (cabF + cabB) / 2], [half + 0.06, roofY + 0.05, (cabF + cabB) / 2])
+  bar([-0.7, deckY + 0.55, tail + 0.1], [0.7, deckY + 0.55, tail + 0.1])
+  bar([-0.7, deckY, tail], [-0.7, deckY + 0.55, tail + 0.1])
+  bar([0.7, deckY, tail], [0.7, deckY + 0.55, tail + 0.1])
+  const bumperZ = nose + 0.1
+  bar([-0.85, railY + 0.12, bumperZ], [0.85, railY + 0.12, bumperZ])
+  bar([-0.42, railY, nose - 0.05], [-0.75, railY + 0.12, bumperZ])
+  bar([0.42, railY, nose - 0.05], [0.75, railY + 0.12, bumperZ])
+  const spare = beadlock(THREE, 0.32, 0)
+  spare.rotation.y = Math.PI / 2
+  spare.position.set(-0.15, deckY + 0.34, tail + 0.12)
   root.add(spare)
   const links = []
   const linkMat = keepMat(THREE, '#d8dbe0', 0.35, 0.65)
   const coils = []
-  const shockMat = keepMat(THREE, '#f4f6f8', 0.3, 0.25)
-  const springMat = keepMat(THREE, '#222', 0.65, 0.15)
+  const shockMat = keepMat(THREE, '#dfe3e8', 0.28, 0.55)
+  const springMat = keepMat(THREE, '#f7f7f5', 0.35, 0.45)
   spec.axles.forEach((a, i) => {
-    const mount = new THREE.Vector3(a[0] * 0.62, roofY - 0.15, a[2])
-    const shock = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.045, 1, 8), shockMat)
-    const spring = new THREE.Mesh(new THREE.CylinderGeometry(0.075, 0.075, 1, 8), springMat)
+    const mount = new THREE.Vector3(Math.sign(a[0]) * 1.05, belt + 0.05, a[2])
+    const shock = new THREE.Mesh(new THREE.CylinderGeometry(0.028, 0.028, 1, 8), shockMat)
+    const spring = coilSpring(THREE, springMat)
     shock.castShadow = true
     root.add(shock, spring)
-    coils.push({ shock, spring, index: i, mount, inboard: 0.72 })
+    coils.push({ shock, spring, index: i, mount, inboard: 0.78 })
     const arm = new THREE.Mesh(new THREE.CylinderGeometry(0.028, 0.028, 1, 6), linkMat)
     const upper = new THREE.Mesh(new THREE.CylinderGeometry(0.022, 0.022, 1, 6), linkMat)
     root.add(arm, upper)
@@ -846,10 +916,16 @@ function buildCrawler(THREE, body, spec, kit) {
   })
   const axles = []
   for (const pair of [[0, 1, false], [2, 3, true]]) {
-    const bar = new THREE.Mesh(new THREE.CylinderGeometry(0.055, 0.055, 1, 8), steel)
-    const diff = new THREE.Mesh(new THREE.SphereGeometry(0.16, 8, 6), pair[2] ? white : steel)
-    root.add(bar, diff)
-    axles.push({ bar, diff, i0: pair[0], i1: pair[1] })
+    const axleBar = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.07, 1, 8), steel)
+    const diff = new THREE.Mesh(new THREE.SphereGeometry(0.18, 8, 6), steel)
+    if (pair[2]) {
+      const cap = new THREE.Mesh(new THREE.CylinderGeometry(0.14, 0.14, 0.05, 10), white)
+      cap.rotation.x = Math.PI / 2
+      cap.position.z = -0.14
+      diff.add(cap)
+    }
+    root.add(axleBar, diff)
+    axles.push({ bar: axleBar, diff, i0: pair[0], i1: pair[1] })
   }
   const shaft = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, 1, 6), steel)
   root.add(shaft)
@@ -883,12 +959,16 @@ function buildCrawler(THREE, body, spec, kit) {
     winchLocal = new THREE.Vector3(0, y, bumperZ + 0.12)
   }
   if ((kit.aux || 0) >= 1) {
-    const scale = [0, 0.78, 1, 1.22][Math.min(3, kit.aux)]
-    const tank = new THREE.Mesh(new THREE.CylinderGeometry(0.12 * scale, 0.12 * scale, 0.4 * scale, 8), keepMat(THREE, '#3f6a3a', 0.6, 0.08))
+    const scale = [0, 0.85, 1, 1.12][Math.min(3, kit.aux)]
+    const rad = 0.11 * scale
+    const cradleZ = cabB - 0.42
+    add(new THREE.Mesh(new THREE.BoxGeometry(0.36, 0.04, 0.5), steel)).position.set(-0.32, deckY + 0.03, cradleZ)
+    bar([-0.48, deckY, cradleZ], [-0.16, deckY, cradleZ])
+    const tank = new THREE.Mesh(new THREE.CylinderGeometry(rad, rad, 0.42 * scale, 8), keepMat(THREE, '#3f6a3a', 0.6, 0.08))
     tank.rotation.z = Math.PI / 2
-    tank.position.set(0.28, deckY + 0.04 + 0.12 * scale, cabB - 0.35)
-    const band = new THREE.Mesh(new THREE.BoxGeometry(0.42 * scale, 0.015, 0.16), keepMat(THREE, '#1a1a1a', 0.7, 0.1))
-    band.position.copy(tank.position)
+    tank.position.set(-0.32, deckY + 0.05 + rad, cradleZ)
+    const band = new THREE.Mesh(new THREE.BoxGeometry(0.46 * scale, 0.015, 0.08), keepMat(THREE, '#1a1a1a', 0.7, 0.1))
+    band.position.set(-0.32, deckY + 0.05 + rad, cradleZ)
     root.add(tank, band)
   }
   const cans = Math.max(0, kit.jerry || 0)
@@ -906,7 +986,7 @@ function beadlock(THREE, radius, level) {
   const tire = keepMat(THREE, '#161616', 0.92, 0)
   tire.userData.paintRole = 'tire'
   const width = radius * 0.78
-  const cyl = new THREE.Mesh(new THREE.CylinderGeometry(radius * 0.94, radius * 0.94, width, 14), tire)
+  const cyl = new THREE.Mesh(new THREE.CylinderGeometry(radius, radius, width, 14), tire)
   cyl.rotation.z = Math.PI / 2
   g.add(cyl)
   const n = 12 + (level || 0) * 2

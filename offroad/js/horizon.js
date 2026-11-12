@@ -1,22 +1,24 @@
-// Procedural ridgelines. No third-party geometry. OFFROAD_V10_6
+// Procedural ridgelines. No third-party geometry. OFFROAD_V10_7
 export function createRidges(THREE, scene) {
   const regions = ['forest', 'desert', 'mountain']
   const layers = []
   function ridgeHeight(region, kind, a) {
-    const s = Math.sin(a * (2.4 + kind * 0.7) + kind)
-    const s2 = Math.sin(a * (6.5 + kind) + 1.4)
+    const s = Math.sin(a * (2.2 + kind * 0.55) + kind * 1.7)
+    const s2 = Math.sin(a * (5.4 + kind * 1.3) + 0.6)
+    const s3 = Math.sin(a * (13 + kind) + 2.1)
     if (region === 'desert') {
-      const mesa = Math.abs(Math.sin(a * (1.7 + kind * 0.35) + 0.4))
-      const flat = mesa > 0.62 ? 1 : mesa / 0.62 * 0.28
-      return (12 + kind * 7) + flat * (18 + kind * 16) + Math.abs(s2) * 3
+      const tooth = Math.abs(s)
+      const broken = tooth > 0.72 ? 0.35 : tooth > 0.28 ? 1 : 0.45
+      return (14 + kind * 10) + broken * (20 + kind * 18) + Math.abs(s2) * (8 + kind * 4) + Math.abs(s3) * 4
     }
     if (region === 'mountain') {
-      const peak = Math.pow(Math.abs(s), 0.38)
-      return (16 + kind * 8) + peak * (36 + kind * 26) + Math.abs(s2) * (10 + kind * 4)
+      const peak = Math.pow(Math.abs(s), 0.32)
+      const notch = Math.abs(s3) > 0.82 ? 0.45 : 1
+      return (18 + kind * 12) + peak * notch * (48 + kind * 28) + Math.abs(s2) * (12 + kind * 6)
     }
-    const roll = 0.5 + 0.5 * Math.sin(a * (3 + kind * 0.5) + 0.8)
-    const peak = kind >= 2 ? Math.pow(Math.abs(Math.sin(a * 2.1 + 0.5)), 1.6) : 0
-    return (10 + kind * 5) + roll * (14 + kind * 7) + peak * (26 + kind * 8)
+    const roll = 0.5 + 0.5 * Math.sin(a * (2.6 + kind * 0.4) + 0.4)
+    const peak = kind >= 2 ? Math.pow(Math.abs(Math.sin(a * 1.8 + 0.9)), 1.35) : Math.abs(s2) * 0.25
+    return (12 + kind * 8) + roll * (16 + kind * 10) + peak * (34 + kind * 16)
   }
   const rings = [
     { inner: 310, outer: 400, base: 2, kind: 0 },
@@ -44,12 +46,32 @@ export function createRidges(THREE, scene) {
         const c0 = Math.cos(a)
         const s0 = Math.sin(a)
         pos.push(c0 * ring.inner, ring.base, s0 * ring.inner, c0 * ring.outer, h, s0 * ring.outer)
-        const snow = region === 'mountain' && ring.kind >= 2 && h > maxH * 0.68
-        const shade = 0.62 + 0.38 * (h / maxH)
-        const r = shade * (snow ? 0.92 : 0.78)
-        const g = shade * (snow ? 0.94 : 0.84)
-        const b = shade * (snow ? 1 : 0.9)
-        col.push(r * 0.82, g * 0.86, b * 0.88, r, g, b)
+        const prev = hs[Math.max(0, i - 1)]
+        const next = hs[Math.min(N, i + 1)]
+        const slope = Math.abs(next - prev) / Math.max(8, maxH)
+        const light = 0.42 + 0.58 * (1 - Math.min(1, slope * 1.4)) * (0.55 + 0.45 * (h / maxH))
+        const aerial = ring.kind / 3
+        let cr, cg, cb
+        if (region === 'desert') {
+          const band = Math.floor(h / 7) % 3
+          const strata = band === 0 ? [0.72, 0.34, 0.2] : band === 1 ? [0.86, 0.55, 0.32] : [0.48, 0.22, 0.14]
+          cr = strata[0]; cg = strata[1]; cb = strata[2]
+        } else if (region === 'mountain') {
+          const snow = ring.kind >= 1 && h > maxH * 0.72
+          cr = snow ? 0.93 : 0.55
+          cg = snow ? 0.95 : 0.58
+          cb = snow ? 0.98 : 0.62
+        } else {
+          cr = 0.28; cg = 0.42; cb = 0.32
+        }
+        const skyR = 0.62, skyG = 0.74, skyB = 0.88
+        const fade = aerial * 0.78
+        const mix = (c, sky) => c * (1 - fade) + sky * fade
+        cr = mix(cr, skyR) * light
+        cg = mix(cg, skyG) * light
+        cb = mix(cb, skyB) * light
+        const shadow = 0.62 + 0.2 * (1 - aerial)
+        col.push(cr * shadow, cg * shadow, cb * shadow, cr, cg, cb)
       }
       for (let i = 0; i < N; i++) {
         const a = i * 2
@@ -111,15 +133,17 @@ export function createRidges(THREE, scene) {
     treeline.visible = weights.forest > 0.08
     treeline.material.opacity = Math.min(1, weights.forest)
     treeline.material.color.copy(grd).multiplyScalar(0.55 * lift + 0.15)
+    const warm = Math.max(0, Math.min(1, (0.35 - elev) / 0.35))
     for (const layer of layers) {
-      const aerial = grd.clone().lerp(hor, (layer.kind + 1) / 4.2)
-      aerial.multiplyScalar(lift)
+      tmp.setRGB(1, 1, 1).lerp(hor, 0.18 + layer.kind * 0.08)
+      if (warm > 0.2) tmp.lerp(hor, warm * 0.45)
+      tmp.multiplyScalar(lift)
       for (const region of regions) {
         const mesh = layer.meshes[region]
         const w = weights[region] || 0
         mesh.visible = w > 0.05
         mesh.material.opacity = Math.min(1, w)
-        mesh.material.color.copy(aerial)
+        mesh.material.color.copy(tmp)
       }
     }
     tmp.copy(hor)

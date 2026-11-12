@@ -1,7 +1,7 @@
-// Oxbow — Hollow Creek. OFFROAD_V10_6
+// Oxbow — Hollow Creek. OFFROAD_V10_7
 import * as THREE from '../vendor/three.module.js'
 import { createWorld, WORLD_SIZE, HALF, SURF, SURF_NAME } from './world.js'
-import { OFFROAD_V2, OFFROAD_V3, OFFROAD_V4, OFFROAD_V4_1, OFFROAD_V5, OFFROAD_V5_1, OFFROAD_V6, OFFROAD_V7, OFFROAD_V7_1, OFFROAD_V7_2, OFFROAD_V7_3, OFFROAD_V8, OFFROAD_V9, OFFROAD_V10, OFFROAD_V10_1, OFFROAD_V10_2, OFFROAD_V10_3, OFFROAD_V10_4, OFFROAD_V10_5, OFFROAD_V10_6, freshSave, SAVE_KEY, VEHICLES, UPGRADES, AUX, JERRY, ADVENTURES, TANK, coerceSave, buyUpgrade, buyVehicle, buyAux, buyJerry, useJerry, refuel, burnFuel, specWithUpgrades, tankCapacity, jerrySlots, rankFor, isDark, clockLabel, tickAdventure, noteAssist, REGION_OPEN, regionUnlocked, crawlAngles } from './economy.js'
+import { OFFROAD_V2, OFFROAD_V3, OFFROAD_V4, OFFROAD_V4_1, OFFROAD_V5, OFFROAD_V5_1, OFFROAD_V6, OFFROAD_V7, OFFROAD_V7_1, OFFROAD_V7_2, OFFROAD_V7_3, OFFROAD_V8, OFFROAD_V9, OFFROAD_V10, OFFROAD_V10_1, OFFROAD_V10_2, OFFROAD_V10_3, OFFROAD_V10_4, OFFROAD_V10_5, OFFROAD_V10_6, OFFROAD_V10_7, freshSave, SAVE_KEY, VEHICLES, UPGRADES, AUX, JERRY, ADVENTURES, TANK, coerceSave, buyUpgrade, buyVehicle, buyAux, buyJerry, useJerry, refuel, burnFuel, specWithUpgrades, tankCapacity, jerrySlots, rankFor, isDark, clockLabel, tickAdventure, noteAssist, REGION_OPEN, regionUnlocked, crawlAngles } from './economy.js'
 import { preloadRigs, buildRig, applyLod, poseRig, applyPaint, factoryPaint, PAINT_SWATCHES, setWoodMap } from './rigs.js'
 import { preloadScenery, preloadGround } from './scenery.js'
 import { createRidges } from './horizon.js'
@@ -9,7 +9,7 @@ import { CAMP, campLevel, buyCamp, canPitch, rollFish, reelBand, biteSeconds, ai
 import { ensureCamp, buildCampSite, buildFishMoment, buildHuntMoment, buildCookMoment, buildRoastMoment } from './campview.js'
 import { createSim, ROLL_LIMIT, recoveryCopy } from './physics.js'
 
-export { OFFROAD_V2, OFFROAD_V3, OFFROAD_V4, OFFROAD_V4_1, OFFROAD_V5, OFFROAD_V5_1, OFFROAD_V6, OFFROAD_V7, OFFROAD_V7_1, OFFROAD_V7_2, OFFROAD_V7_3, OFFROAD_V8, OFFROAD_V9, OFFROAD_V10, OFFROAD_V10_1, OFFROAD_V10_2, OFFROAD_V10_3, OFFROAD_V10_4, OFFROAD_V10_5, OFFROAD_V10_6 }
+export { OFFROAD_V2, OFFROAD_V3, OFFROAD_V4, OFFROAD_V4_1, OFFROAD_V5, OFFROAD_V5_1, OFFROAD_V6, OFFROAD_V7, OFFROAD_V7_1, OFFROAD_V7_2, OFFROAD_V7_3, OFFROAD_V8, OFFROAD_V9, OFFROAD_V10, OFFROAD_V10_1, OFFROAD_V10_2, OFFROAD_V10_3, OFFROAD_V10_4, OFFROAD_V10_5, OFFROAD_V10_6, OFFROAD_V10_7 }
 
 const world = createWorld(1)
 const yard = world.pois.find(p => p.id === 'yard')
@@ -1485,6 +1485,7 @@ function fillGarage() {
     box.appendChild(paintRow)
     for (const key of ['jerry', 'spare', 'kayak', 'bike']) {
       if (key === 'jerry' && (save.jerry || 0) > 0) continue
+      if (key === 'kayak' && VEHICLES[save.vehicle].style === 'crawler') continue
       const label = { jerry: 'Roof cans', spare: 'Spare tire', kayak: 'Kayak', bike: 'Rear bike' }[key]
       const b = document.createElement('button')
       b.type = 'button'
@@ -2654,6 +2655,7 @@ window.OX = {
   OFFROAD_V10_4,
   OFFROAD_V10_5,
   OFFROAD_V10_6,
+  OFFROAD_V10_7,
   get mode() { return mode },
   get speed() { return lastSpeed },
   get pos() { const c = sim.chassis; return c ? { x: c.position.x, y: c.position.y, z: c.position.z } : null },
@@ -2725,6 +2727,27 @@ window.OX = {
     applyTime(save.clock)
   },
   rocks() { return world.rocks.slice(0, 6).map(r => ({ x: +r.x.toFixed(1), z: +r.z.toFixed(1), h: +r.h.toFixed(1) })) },
+  clearNear(radius) {
+    const origin = camera.position
+    const m = new THREE.Matrix4()
+    const p = new THREE.Vector3()
+    const q = new THREE.Quaternion()
+    const s = new THREE.Vector3()
+    const r = radius || 8
+    scene.traverse(o => {
+      if (!o.isInstancedMesh) return
+      for (let i = 0; i < o.count; i++) {
+        o.getMatrixAt(i, m)
+        m.decompose(p, q, s)
+        if (p.distanceTo(origin) < r) {
+          s.set(0, 0, 0)
+          m.compose(p, q, s)
+          o.setMatrixAt(i, m)
+        }
+      }
+      o.instanceMatrix.needsUpdate = true
+    })
+  },
   vista(x, z, yaw, dist) {
     holdCam = true
     freeze = true
