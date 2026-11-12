@@ -1,4 +1,4 @@
-// Quaternius nature kit, instanced by region. OFFROAD_V10_7
+// Quaternius nature kit, instanced by region. OFFROAD_V10_8
 // Each mesh piece keeps its own material. Indexed pines are wood plus leaves;
 // merging them onto the trunk material turned the canopy into white shards.
 import { GLTFLoader } from '../vendor/GLTFLoader.js'
