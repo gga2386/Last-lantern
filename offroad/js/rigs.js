@@ -700,6 +700,12 @@ function fullKayak(THREE) {
   s[beamAxis] = 0.62 / Math.max(0.01, size[beamAxis])
   s[thickAxis] = 0.32 / Math.max(0.01, size[thickAxis])
   kayak.scale.set(s.x, s.y, s.z)
+  kayak.updateMatrixWorld(true)
+  const fitted = new THREE.Box3().setFromObject(kayak)
+  const mid = new THREE.Vector3()
+  fitted.getCenter(mid)
+  const localMid = mid.applyMatrix4(new THREE.Matrix4().copy(kayak.matrixWorld).invert())
+  kayak.children.forEach(ch => ch.position.sub(localMid))
   kayak.userData.lengthAxis = lengthAxis
   return kayak
 }

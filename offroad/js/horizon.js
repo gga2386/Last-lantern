@@ -61,7 +61,7 @@ export function createRidges(THREE, scene) {
           const strata = band === 0 ? [0.62, 0.24, 0.12] : band === 1 ? [0.86, 0.48, 0.22] : [0.45, 0.16, 0.1]
           cr = strata[0]; cg = strata[1]; cb = strata[2]
         } else if (region === 'mountain') {
-          const snow = t > 0.62
+          const snow = ring.kind >= 2 && t > 0.86
           const rock = t > 0.38 ? [0.48, 0.46, 0.44] : [0.32, 0.34, 0.3]
           cr = snow ? 0.93 : rock[0]
           cg = snow ? 0.95 : rock[1]
@@ -72,7 +72,7 @@ export function createRidges(THREE, scene) {
           cr = 0.24 + t * 0.12; cg = 0.36 + t * 0.08; cb = 0.22
         }
         const skyR = 0.62, skyG = 0.72, skyB = 0.84
-        const fade = aerial * 0.42
+        const fade = aerial * 0.22
         const mix = (c, sky) => c * (1 - fade) + sky * fade
         cr = mix(cr, skyR) * light
         cg = mix(cg, skyG) * light
