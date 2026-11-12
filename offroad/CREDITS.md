@@ -12,7 +12,7 @@ Used inside the game. CC-BY 3.0 items require this attribution. Do not republish
 | Creek Wagon | Range Rover | IvOfficial | https://poly.pizza/m/8zk4o6nALW | CC-BY 3.0 |
 | Basin Hauler | L200 crew cab | Muhammad Reyhan | https://poly.pizza/m/4qjS9tFhsJg | CC-BY 3.0 |
 | Lantern Van | UAZ-452 utility van | mehozavr | https://opengameart.org/content/uaz-452-utility-van-lowpoly | CC0 |
-| Spine Crawler | Monster Jeep | Gilang Romadhan | https://poly.pizza/m/etWba3RYzmi | CC-BY 3.0 |
+| Spine Crawler | Original tube buggy | made for Oxbow | made for this game | original |
 
 ## Accessories
 
@@ -20,7 +20,7 @@ Used inside the game. CC-BY 3.0 items require this attribution. Do not republish
 | --- | --- | --- | --- | --- |
 | Spare tyres | Truck Tire | Jarlan Perez | https://poly.pizza/m/2GuaLHL6p5g | CC-BY 3.0 |
 | Kayak | Kayak | Poly by Google | https://poly.pizza/m/8d-cgFdVEVN | CC-BY 3.0 |
-| Gas cans | Gas can | Quaternius | https://poly.pizza/m/eS1OXGo51c | CC0 1.0 |
+| Jerry cans, snorkel, winch bumper, racks, distant ridgelines, sky | Original procedural parts | made for Oxbow | made for this game | original |
 | Snorkel, winch, bumper, auxiliary tank, tire knobs | Original procedural parts | made for Oxbow | made for this game | original |
 
 ## Scenery

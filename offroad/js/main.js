@@ -1,14 +1,15 @@
-// Oxbow — Hollow Creek. OFFROAD_V10_5
+// Oxbow — Hollow Creek. OFFROAD_V10_6
 import * as THREE from '../vendor/three.module.js'
 import { createWorld, WORLD_SIZE, HALF, SURF, SURF_NAME } from './world.js'
-import { OFFROAD_V2, OFFROAD_V3, OFFROAD_V4, OFFROAD_V4_1, OFFROAD_V5, OFFROAD_V5_1, OFFROAD_V6, OFFROAD_V7, OFFROAD_V7_1, OFFROAD_V7_2, OFFROAD_V7_3, OFFROAD_V8, OFFROAD_V9, OFFROAD_V10, OFFROAD_V10_1, OFFROAD_V10_2, OFFROAD_V10_3, OFFROAD_V10_4, OFFROAD_V10_5, freshSave, SAVE_KEY, VEHICLES, UPGRADES, AUX, JERRY, ADVENTURES, TANK, coerceSave, buyUpgrade, buyVehicle, buyAux, buyJerry, useJerry, refuel, burnFuel, specWithUpgrades, tankCapacity, jerrySlots, rankFor, isDark, clockLabel, tickAdventure, noteAssist, REGION_OPEN, regionUnlocked, crawlAngles } from './economy.js'
+import { OFFROAD_V2, OFFROAD_V3, OFFROAD_V4, OFFROAD_V4_1, OFFROAD_V5, OFFROAD_V5_1, OFFROAD_V6, OFFROAD_V7, OFFROAD_V7_1, OFFROAD_V7_2, OFFROAD_V7_3, OFFROAD_V8, OFFROAD_V9, OFFROAD_V10, OFFROAD_V10_1, OFFROAD_V10_2, OFFROAD_V10_3, OFFROAD_V10_4, OFFROAD_V10_5, OFFROAD_V10_6, freshSave, SAVE_KEY, VEHICLES, UPGRADES, AUX, JERRY, ADVENTURES, TANK, coerceSave, buyUpgrade, buyVehicle, buyAux, buyJerry, useJerry, refuel, burnFuel, specWithUpgrades, tankCapacity, jerrySlots, rankFor, isDark, clockLabel, tickAdventure, noteAssist, REGION_OPEN, regionUnlocked, crawlAngles } from './economy.js'
 import { preloadRigs, buildRig, applyLod, poseRig, applyPaint, factoryPaint, PAINT_SWATCHES, setWoodMap } from './rigs.js'
 import { preloadScenery, preloadGround } from './scenery.js'
+import { createRidges } from './horizon.js'
 import { CAMP, campLevel, buyCamp, canPitch, rollFish, reelBand, biteSeconds, aimHit, RECIPES, canCook, cookJudge, applyCook, activityState, gameFor, spotVisual, roastGrade, roastColor, roastStamp, applyRoast } from './camp.js'
 import { ensureCamp, buildCampSite, buildFishMoment, buildHuntMoment, buildCookMoment, buildRoastMoment } from './campview.js'
 import { createSim, ROLL_LIMIT, recoveryCopy } from './physics.js'
 
-export { OFFROAD_V2, OFFROAD_V3, OFFROAD_V4, OFFROAD_V4_1, OFFROAD_V5, OFFROAD_V5_1, OFFROAD_V6, OFFROAD_V7, OFFROAD_V7_1, OFFROAD_V7_2, OFFROAD_V7_3, OFFROAD_V8, OFFROAD_V9, OFFROAD_V10, OFFROAD_V10_1, OFFROAD_V10_2, OFFROAD_V10_3, OFFROAD_V10_4, OFFROAD_V10_5 }
+export { OFFROAD_V2, OFFROAD_V3, OFFROAD_V4, OFFROAD_V4_1, OFFROAD_V5, OFFROAD_V5_1, OFFROAD_V6, OFFROAD_V7, OFFROAD_V7_1, OFFROAD_V7_2, OFFROAD_V7_3, OFFROAD_V8, OFFROAD_V9, OFFROAD_V10, OFFROAD_V10_1, OFFROAD_V10_2, OFFROAD_V10_3, OFFROAD_V10_4, OFFROAD_V10_5, OFFROAD_V10_6 }
 
 const world = createWorld(1)
 const yard = world.pois.find(p => p.id === 'yard')
@@ -69,7 +70,7 @@ renderer.setPixelRatio(Math.min(gfx().dpr, window.devicePixelRatio || 1))
 renderer.shadowMap.enabled = gfx().shadow > 0
 renderer.shadowMap.type = THREE.PCFSoftShadowMap
 const scene = new THREE.Scene()
-const camera = new THREE.PerspectiveCamera(58, 1, 0.18, 900)
+const camera = new THREE.PerspectiveCamera(58, 1, 0.18, 1400)
 const sun = new THREE.DirectionalLight(0xffb068, 2.2)
 sun.castShadow = gfx().shadow > 0
 if (gfx().shadow) {
@@ -147,8 +148,14 @@ const skyMat = new THREE.ShaderMaterial({
       float day = smoothstep(-0.05, 0.35, elev);
       vec3 col = mix(grd, hor, smoothstep(-0.08, 0.12, h));
       col = mix(col, top, smoothstep(0.02, 0.62, h));
-      float sd = pow(max(dot(d, normalize(sun)), 0.0), mix(28.0, 80.0, day));
-      col += sunCol * sd * (0.55 + smoothstep(-0.2, 0.25, elev));
+      float sunDot = max(dot(d, normalize(sun)), 0.0);
+      float disc = smoothstep(0.9990, 0.9996, sunDot);
+      float glow = pow(sunDot, mix(5.0, 22.0, day));
+      col += sunCol * (disc * 1.6 + glow * 0.62) * (0.4 + smoothstep(-0.18, 0.22, elev));
+      float puff = sin(d.x * 6.5 + d.z * 4.2) * 0.55 + sin(d.x * 2.4 - d.z * 5.1 + 1.3) * 0.45;
+      float clouds = smoothstep(0.2, 0.82, puff);
+      clouds *= smoothstep(0.04, 0.26, d.y) * (1.0 - smoothstep(0.55, 0.88, d.y)) * day;
+      col = mix(col, hor * 0.72 + vec3(1.0), clouds * 0.5);
       vec3 moon = normalize(vec3(-sun.x, max(0.15, -sun.y), -sun.z));
       float md = pow(max(dot(d, moon), 0.0), 280.0);
       col += vec3(0.75, 0.84, 1.0) * md * (1.0 - day);
@@ -157,13 +164,13 @@ const skyMat = new THREE.ShaderMaterial({
       gl_FragColor = vec4(col, 1.0);
     }`
 })
-const sky = new THREE.Mesh(new THREE.SphereGeometry(520, 24, 16), skyMat)
+const sky = new THREE.Mesh(new THREE.SphereGeometry(1100, 24, 16), skyMat)
 scene.add(sky)
 const moon = new THREE.DirectionalLight(0xb9c7ff, 0)
 scene.add(moon, moon.target)
 const starPos = []
 for (let i = 0; i < (gfx().shadow ? 420 : 180); i++) {
-  const v = new THREE.Vector3(Math.random() * 2 - 1, Math.random() * 0.85 + 0.08, Math.random() * 2 - 1).normalize().multiplyScalar(470)
+  const v = new THREE.Vector3(Math.random() * 2 - 1, Math.random() * 0.85 + 0.08, Math.random() * 2 - 1).normalize().multiplyScalar(960)
   starPos.push(v.x, v.y, v.z)
 }
 const stars = new THREE.Points(new THREE.BufferGeometry().setAttribute('position', new THREE.Float32BufferAttribute(starPos, 3)), new THREE.PointsMaterial({ color: 0xffffff, size: 1.4, sizeAttenuation: false, transparent: true, opacity: 0, depthWrite: false }))
@@ -731,7 +738,6 @@ const mapBake = document.createElement('canvas')
 mapBake.width = mapBake.height = world.gridN
 paintMap(mapBake)
 
-let horizon = null
 function viewRegion() {
   const c = sim.chassis
   const x = c ? c.position.x : 0
@@ -766,10 +772,10 @@ function applyTime(t) {
   const sunC = phaseColor(4, elev, w)
   const hemiC = phaseColor(5, elev, w)
   const groundC = phaseColor(6, elev, w)
-  scene.fog.color.copy(fogC)
-  scene.fog.near = 22 + day * 16
-  scene.fog.far = gfx().fog * (0.62 + day * 0.4)
-  renderer.setClearColor(fogC)
+  scene.fog.color.copy(hor)
+  scene.fog.near = 78 + day * 40
+  scene.fog.far = 420 + day * 70
+  renderer.setClearColor(hor)
   const low = elev > -0.02 && elev < 0.55 ? 1 : 0
   const graded = save.settings.gfx !== 'low'
   renderer.toneMappingExposure = 0.78 + day * 0.26 + low * (graded ? 0.34 : 0.12)
@@ -792,12 +798,7 @@ function applyTime(t) {
   moon.intensity = Math.max(0, -elev) * 0.42
   moon.color.set('#c5d4ff')
   stars.material.opacity = Math.max(0, Math.min(1, -elev * 1.3))
-  if (horizon) {
-    horizon.material.color.copy(grd).multiplyScalar(0.55)
-    const p = camera.position
-    horizon.position.set(p.x, 0, p.z)
-    horizon.scale.setScalar(Math.max(0.45, scene.fog.far / 300))
-  }
+  if (ridges) ridges.update(w, elev, hor, grd)
   const grade = $('grade')
   const vig = $('vignette')
   if (grade) grade.classList.toggle('off', !graded)
@@ -809,29 +810,7 @@ function applyTime(t) {
   }
   return dir
 }
-function buildHorizon() {
-  const N = 80
-  const pos = []
-  const idx = []
-  for (let i = 0; i <= N; i++) {
-    const a = (i / N) * Math.PI * 2
-    const jag = 14 + Math.sin(i * 0.65) ** 2 * 22 + Math.sin(i * 2.2) * 5
-    pos.push(Math.cos(a) * 300, 2, Math.sin(a) * 300)
-    pos.push(Math.cos(a) * 460, jag, Math.sin(a) * 460)
-  }
-  for (let i = 0; i < N; i++) {
-    const a = i * 2
-    idx.push(a, a + 1, a + 2, a + 1, a + 3, a + 2)
-  }
-  const geo = new THREE.BufferGeometry()
-  geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3))
-  geo.setIndex(idx)
-  geo.computeVertexNormals()
-  horizon = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ color: 0x6a5344, fog: true, side: THREE.DoubleSide }))
-  horizon.frustumCulled = false
-  scene.add(horizon)
-}
-buildHorizon()
+const ridges = createRidges(THREE, scene)
 const moteCount = gfx().dust ? (save.settings.gfx === 'high' ? 120 : 64) : 0
 const motePos = new Float32Array(Math.max(1, moteCount) * 3)
 const moteCol = new Float32Array(Math.max(1, moteCount) * 3)
@@ -2674,6 +2653,7 @@ window.OX = {
   OFFROAD_V10_3,
   OFFROAD_V10_4,
   OFFROAD_V10_5,
+  OFFROAD_V10_6,
   get mode() { return mode },
   get speed() { return lastSpeed },
   get pos() { const c = sim.chassis; return c ? { x: c.position.x, y: c.position.y, z: c.position.z } : null },
@@ -2712,10 +2692,11 @@ window.OX = {
     if (opts.aux != null) save.aux = opts.aux
     if (opts.jerry != null) save.jerry = opts.jerry
     if (opts.rep != null) save.rep = opts.rep
-    if (opts.showUp) {
+    if (opts.showUp || opts.rack) {
       save.cosmetics = save.cosmetics || {}
       const cur = save.cosmetics[save.vehicle] || {}
-      cur.showUp = Object.assign({}, cur.showUp || {}, opts.showUp)
+      if (opts.showUp) cur.showUp = Object.assign({}, cur.showUp || {}, opts.showUp)
+      if (opts.rack) cur.rack = Object.assign({}, cur.rack || {}, opts.rack)
       save.cosmetics[save.vehicle] = cur
     }
     const pose = sim.chassis
@@ -2730,6 +2711,20 @@ window.OX = {
   goto(id) { const p = poiById[id]; if (!p) return; sim.place(p.x + 4, p.z + 6, 0) },
   region() { const c = sim.chassis; return c ? world.regionAt(c.position.x, c.position.z) : null },
   acts() { const c = sim.chassis; return c ? activityState(world, c.position.x, c.position.z, save) : null },
+  horizonView(x, z, yaw) {
+    holdCam = true
+    freeze = true
+    mode = 'play'
+    app.classList.add('playing')
+    app.classList.remove('title', 'camping')
+    sim.place(x, z, yaw || 0)
+    const y = world.height(x, z)
+    const yawN = yaw || 0
+    camera.position.set(x, y + 16, z)
+    camera.lookAt(x + Math.sin(yawN) * 50, y + 22, z + Math.cos(yawN) * 50)
+    applyTime(save.clock)
+  },
+  rocks() { return world.rocks.slice(0, 6).map(r => ({ x: +r.x.toFixed(1), z: +r.z.toFixed(1), h: +r.h.toFixed(1) })) },
   vista(x, z, yaw, dist) {
     holdCam = true
     freeze = true

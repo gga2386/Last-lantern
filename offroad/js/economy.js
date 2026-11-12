@@ -18,6 +18,7 @@ export const OFFROAD_V10_2 = 1
 export const OFFROAD_V10_3 = 1
 export const OFFROAD_V10_4 = 1
 export const OFFROAD_V10_5 = 1
+export const OFFROAD_V10_6 = 1
 export const REGION_OPEN = { forest: 0, desert: 40, mountain: 120 }
 export function regionUnlocked(save, id) {
   return (save.rep || 0) >= (REGION_OPEN[id] || 0)
@@ -110,7 +111,7 @@ export const VEHICLES = {
     track: 1.58, wheelbase: 1.37, axleF: 1.349, axleR: 1.387,
     axles: [[1.575, 0.76, 1.349], [-1.575, 0.76, 1.349], [1.575, 0.76, -1.387], [-1.575, 0.76, -1.387]],
     rest: 0.42, travel: 0.38, stiff: 20, grip: 1.22, visualDrop: -1.28, wheelScale: 0.62,
-    paint: { body: '#d21f1a', accent: '#1a1a1a', wheel: '#e6e6e6', cage: '#f2f2f2', mud: 0.06, repaint: true },
+    paint: { body: '#d21f1a', accent: '#1a1a1a', wheel: '#e6e6e6', cage: '#1a1a1a', mud: 0.06, repaint: true },
     liveries: [
       { color: '#d21f1a', stripe: '#111111', kind: 'stripe', name: 'Cage red' },
       { color: '#f4f1ea', stripe: '#1a1a1a', kind: 'thick', name: 'Bone' },
