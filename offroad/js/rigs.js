@@ -496,7 +496,7 @@ function surveyBody(pts) {
   let floorY = bumperY
   const keys = [...hist.keys()].sort((a, b) => a - b)
   for (const k of keys) if (hist.get(k) >= bestN * 0.35) { floorY = k; break }
-  const roofBand = pts.filter(p => p[1] > roofY - 0.18 && Math.abs(p[0]) < (maxX - minX) * 0.46)
+  const roofBand = pts.filter(p => p[1] > roofY - 0.1 && Math.abs(p[0]) < (maxX - minX) * 0.42)
   let roofFront = bumperZ - 0.9
   let roofRear = cabBack + 0.15
   let roofHalf = Math.min(0.52, (maxX - minX) * 0.34)
@@ -757,7 +757,7 @@ function mountKayak(THREE, root, info, spec) {
     return
   }
   const y = info.roofY
-  const pad = 0.06
+  const pad = 0.14
   const zFront = info.roofFront - pad
   const zRear = info.roofRear + pad
   const xRail = Math.max(0.28, Math.min(info.roofHalf - 0.06, 0.62))
@@ -1046,17 +1046,16 @@ function beadlock(THREE, radius, level) {
       g.add(lug)
     }
   }
-  const rim = keepMat(THREE, '#1a1a1a', 0.45, 0.35)
-  rim.userData.paintRole = 'rim'
+  const rim = keepMat(THREE, '#141414', 0.55, 0.25)
   const boltMat = keepMat(THREE, '#d5d8dc', 0.28, 0.75)
   const hubMat = keepMat(THREE, '#d21f1a', 0.4, 0.2)
   for (const s of [-1, 1]) {
-    const lip = new THREE.Mesh(new THREE.CylinderGeometry(radius * 0.7, radius * 0.7, width * 0.08, 16), rim)
-    lip.rotation.z = Math.PI / 2
+    const lip = new THREE.Mesh(new THREE.TorusGeometry(radius * 0.58, radius * 0.04, 6, 18), rim)
+    lip.rotation.y = Math.PI / 2
     lip.position.x = s * width * 0.4
-    const dish = new THREE.Mesh(new THREE.CylinderGeometry(radius * 0.46, radius * 0.46, width * 0.1, 16), rim)
+    const dish = new THREE.Mesh(new THREE.CylinderGeometry(radius * 0.36, radius * 0.36, width * 0.08, 16), rim)
     dish.rotation.z = Math.PI / 2
-    dish.position.x = s * width * 0.46
+    dish.position.x = s * width * 0.44
     const hub = new THREE.Mesh(new THREE.CylinderGeometry(radius * 0.14, radius * 0.14, width * 0.14, 10), hubMat)
     hub.rotation.z = Math.PI / 2
     hub.position.x = s * width * 0.52

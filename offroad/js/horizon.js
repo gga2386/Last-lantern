@@ -13,16 +13,16 @@ export function createRidges(THREE, scene) {
       const frac = cell - Math.floor(cell)
       const cliff = frac < 0.14 ? frac / 0.14 : frac > 0.86 ? (1 - frac) / 0.14 : 1
       const shelf = 0.62 + 0.38 * Math.abs(Math.sin(Math.floor(cell) * 1.9 + kind))
-      return (22 + kind * 8) * shelf * (0.28 + 0.72 * cliff)
+      return (55 + kind * 18) * shelf * (0.4 + 0.6 * cliff)
     }
     if (region === 'mountain') {
-      const peak = Math.pow(Math.abs(s), 0.55)
-      const notch = Math.abs(s3) > 0.86 ? 0.55 : 1
-      return (28 + kind * 10) + peak * notch * (36 + kind * 18) + Math.abs(s2) * (8 + kind * 3)
+      const peak = Math.pow(Math.abs(s), 0.42)
+      const notch = Math.abs(s3) > 0.88 ? 0.5 : 1
+      return (70 + kind * 16) + peak * notch * (78 + kind * 30) + Math.abs(s2) * (12 + kind * 5)
     }
     const roll = 0.5 + 0.5 * Math.sin(a * (2.2 + kind * 0.3) + 0.5)
-    const peak = kind >= 2 ? Math.pow(Math.abs(Math.sin(a * 1.6 + 1.1)), 1.4) : 0
-    return (16 + kind * 5) + roll * (12 + kind * 4) + peak * (22 + kind * 8)
+    const peak = kind >= 2 ? Math.pow(Math.abs(Math.sin(a * 1.6 + 1.1)), 1.15) : Math.abs(s2) * 0.35
+    return (48 + kind * 12) + roll * (22 + kind * 8) + peak * (46 + kind * 18)
   }
   const rings = [
     { inner: 640, outer: 980, base: 6, kind: 0 },
@@ -73,7 +73,7 @@ export function createRidges(THREE, scene) {
         nx /= nl; ny /= nl; nz /= nl
         if (ny < 0) { nx = -nx; ny = -ny; nz = -nz }
         const nd = Math.max(0, nx * sun.x + ny * sun.y + nz * sun.z)
-        const shade = 0.34 + 0.66 * nd
+        const shade = 0.22 + 0.95 * nd
         const top = (h0 + h1) * 0.5
         const paint = (y) => {
           const t = Math.max(0, Math.min(1, (y - ring.base) / Math.max(8, top - ring.base)))
@@ -82,7 +82,7 @@ export function createRidges(THREE, scene) {
             const band = Math.floor(t * 4) % 3
             rgb = band === 0 ? [0.55, 0.22, 0.12] : band === 1 ? [0.78, 0.42, 0.2] : [0.4, 0.16, 0.1]
           } else if (region === 'mountain') {
-            rgb = t > 0.67 ? [0.9, 0.93, 0.96] : t > 0.35 ? [0.42, 0.4, 0.38] : [0.3, 0.29, 0.28]
+            rgb = t > 0.84 ? [0.9, 0.93, 0.96] : t > 0.4 ? [0.46, 0.44, 0.42] : [0.28, 0.27, 0.26]
           } else if (ring.kind >= 2) {
             rgb = [0.38, 0.5, 0.7]
           } else {
