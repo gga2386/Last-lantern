@@ -1,12 +1,12 @@
 // OFFROAD_V2 — terrain, reputation, fuel, and solid trees. Run: node offroad/test/sim.js
 import { createWorld, SURF, FRICTION, DRAG, HALF } from '../js/world.js'
-import { OFFROAD_V2, OFFROAD_V3, OFFROAD_V4, OFFROAD_V4_1, OFFROAD_V5, OFFROAD_V5_1, OFFROAD_V6, OFFROAD_V7, OFFROAD_V7_1, OFFROAD_V7_2, OFFROAD_V7_3, OFFROAD_V8, OFFROAD_V9, OFFROAD_V10, OFFROAD_V10_1, OFFROAD_V10_2, OFFROAD_V10_3, OFFROAD_V10_4, VEHICLES, ADVENTURES, freshSave, buyUpgrade, buyVehicle, buyAux, buyJerry, useJerry, refuel, burnFuel, coerceSave, tickAdventure, tankCapacity, jerrySlots, isDark, TANK, specWithUpgrades, noteAssist, crawlAngles, regionUnlocked } from '../js/economy.js'
+import { OFFROAD_V2, OFFROAD_V3, OFFROAD_V4, OFFROAD_V4_1, OFFROAD_V5, OFFROAD_V5_1, OFFROAD_V6, OFFROAD_V7, OFFROAD_V7_1, OFFROAD_V7_2, OFFROAD_V7_3, OFFROAD_V8, OFFROAD_V9, OFFROAD_V10, OFFROAD_V10_1, OFFROAD_V10_2, OFFROAD_V10_3, OFFROAD_V10_4, OFFROAD_V10_5, VEHICLES, ADVENTURES, freshSave, buyUpgrade, buyVehicle, buyAux, buyJerry, useJerry, refuel, burnFuel, coerceSave, tickAdventure, tankCapacity, jerrySlots, isDark, TANK, specWithUpgrades, noteAssist, crawlAngles, regionUnlocked } from '../js/economy.js'
 import { canPitch, slopeAt, buyCamp, cookJudge, applyCook, rollFish, aimHit, RECIPES, activityState, nearWater, habitat, CAMP, spotVisual, roastGrade, roastStamp, applyRoast, campCosmetic } from '../js/camp.js'
 import { createSim, tractionTrial, ROLL_LIMIT, recoveryCopy } from '../js/physics.js'
 
 const fails = []
 const fail = m => fails.push(m)
-if (OFFROAD_V2 !== 1 || OFFROAD_V3 !== 1 || OFFROAD_V4 !== 1 || OFFROAD_V4_1 !== 1 || OFFROAD_V5 !== 1 || OFFROAD_V5_1 !== 1 || OFFROAD_V6 !== 1 || OFFROAD_V7 !== 1 || OFFROAD_V7_1 !== 1 || OFFROAD_V7_2 !== 1 || OFFROAD_V7_3 !== 1 || OFFROAD_V8 !== 1 || OFFROAD_V9 !== 1 || OFFROAD_V10 !== 1 || OFFROAD_V10_1 !== 1 || OFFROAD_V10_2 !== 1 || OFFROAD_V10_3 !== 1 || OFFROAD_V10_4 !== 1) fail('marker missing')
+if (OFFROAD_V2 !== 1 || OFFROAD_V3 !== 1 || OFFROAD_V4 !== 1 || OFFROAD_V4_1 !== 1 || OFFROAD_V5 !== 1 || OFFROAD_V5_1 !== 1 || OFFROAD_V6 !== 1 || OFFROAD_V7 !== 1 || OFFROAD_V7_1 !== 1 || OFFROAD_V7_2 !== 1 || OFFROAD_V7_3 !== 1 || OFFROAD_V8 !== 1 || OFFROAD_V9 !== 1 || OFFROAD_V10 !== 1 || OFFROAD_V10_1 !== 1 || OFFROAD_V10_2 !== 1 || OFFROAD_V10_3 !== 1 || OFFROAD_V10_4 !== 1 || OFFROAD_V10_5 !== 1) fail('marker missing')
 const ids = Object.keys(VEHICLES)
 if (ids.length < 6) fail('roster ' + ids.join(','))
 for (const id of ['mule', 'scout', 'runner', 'wagon', 'hauler', 'crawler', 'van']) if (!VEHICLES[id]) fail('missing ' + id)
@@ -395,4 +395,17 @@ if (!painted || painted.cosmetics.mule.paint.body !== '#ffffff') fail('camp colo
 if (campCosmetic(painted).tent.fabric !== '#2f4a34' || campCosmetic(painted).chairs.frame !== '#c4b49a') fail('camp colors did not load')
 const bare = coerceSave({ v: 6, upgrades: { tires: 0, susp: 0, engine: 0, winch: 0, snorkel: 0 }, camp: { tent: 2 } }, 'medium')
 if (bare.cosmetics.camp) fail('old save grew camp colors')
-  console.log('OK OFFROAD_V10_4')
+const lifted = specWithUpgrades('mule', { tires: 3, susp: 3, engine: 0, winch: 2, snorkel: 1 })
+if (Math.abs(lifted.rest - (VEHICLES.mule.rest + 0.12)) > 1e-6) fail('suspension lift ' + lifted.rest)
+if (Math.abs(lifted.clearance - (0.16 + VEHICLES.mule.wheelR * 0.2 + 0.12)) > 1e-6) fail('clearance did not follow the lift')
+if (lifted.wheelR !== VEHICLES.mule.wheelR) fail('tire upgrade changed the physics radius')
+const hidden = coerceSave({
+  v: 10,
+  upgrades: { tires: 2, susp: 1, engine: 0, winch: 1, snorkel: 1 },
+  cosmetics: { mule: { showUp: { snorkel: false, jerry: true }, paint: { body: '#ffffff' } } },
+  aux: 2,
+  jerry: 1
+}, 'medium')
+if (!hidden || hidden.cosmetics.mule.showUp.snorkel !== false || hidden.cosmetics.mule.paint.body !== '#ffffff') fail('showUp did not survive the save')
+if (hidden.aux !== 2 || hidden.jerry !== 1 || hidden.upgrades.tires !== 2) fail('fitted parts dropped on load')
+console.log('OK OFFROAD_V10_5')

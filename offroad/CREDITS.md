@@ -21,6 +21,7 @@ Used inside the game. CC-BY 3.0 items require this attribution. Do not republish
 | Spare tyres | Truck Tire | Jarlan Perez | https://poly.pizza/m/2GuaLHL6p5g | CC-BY 3.0 |
 | Kayak | Kayak | Poly by Google | https://poly.pizza/m/8d-cgFdVEVN | CC-BY 3.0 |
 | Gas cans | Gas can | Quaternius | https://poly.pizza/m/eS1OXGo51c | CC0 1.0 |
+| Snorkel, winch, bumper, auxiliary tank, tire knobs | Original procedural parts | made for Oxbow | made for this game | original |
 
 ## Scenery
 

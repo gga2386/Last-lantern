@@ -337,7 +337,189 @@ function accessory(key, scale, role) {
   return g
 }
 
-function dress(THREE, body, spec, paint, rack) {
+// Body-local mounts. +Z is the nose, -X is the driver side. Original procedural parts.
+const HARDWARE = {
+  pickup: {
+    snorkel: [-1.05, 0.95, 1.9, 1.82, 0.82],
+    winch: [0.7, 2.68, 1.25],
+    aux: [0.32, 1.46, -1.2],
+    cans: [[-0.42, 1.42, -1.55], [0.05, 1.42, -1.9], [0.48, 1.42, -1.55]]
+  },
+  jeep: {
+    snorkel: [-0.88, 0.85, 1.35, 1.78, 0.22],
+    winch: [0.66, 2.18, 1.05],
+    aux: [0.18, 1.28, -1.85],
+    cans: [[-0.36, 1.28, -1.55], [0.02, 1.28, -1.55], [-0.36, 1.55, -1.55]]
+  },
+  bronco: {
+    snorkel: [-1.15, 1.05, 1.6, 1.92, 0.35],
+    winch: [0.72, 2.44, 1.3],
+    aux: [0.38, 1.42, -1.9],
+    cans: [[0.48, 2.22, 0.42], [0.48, 2.22, -0.08], [-0.55, 2.22, 0.5]]
+  },
+  wagon: {
+    snorkel: [-0.82, 1.0, 1.7, 2.05, 0.4],
+    winch: [0.72, 2.5, 1.1],
+    aux: [0.28, 1.32, -2.05],
+    cans: [[-0.55, 1.28, -1.35], [-0.55, 1.28, -1.75], [-0.55, 1.55, -1.35]]
+  },
+  utility: {
+    snorkel: [-0.95, 1.0, 1.9, 1.88, 0.55],
+    winch: [0.74, 2.8, 1.25],
+    aux: [0.3, 1.42, -1.7],
+    cans: [[-0.4, 1.38, -1.15], [-0.4, 1.38, -1.65], [0.0, 1.38, -2.2]]
+  },
+  van: {
+    snorkel: [-1.05, 0.95, 1.72, 2.02, 1.22],
+    winch: [0.68, 2.32, 1.15],
+    aux: [-1.18, 1.05, -1.45],
+    cans: [[-0.42, 2.34, -1.45], [0.02, 2.34, -1.45], [0.46, 2.34, -1.45]]
+  },
+  crawler: {
+    snorkel: [-1.42, 2.2, 1.2, 3.78, 0.48],
+    winch: [1.62, 2.28, 1.45],
+    aux: [-0.55, 2.4, -2.32],
+    cans: [[-1.05, 2.35, -2.3], [-0.55, 2.62, -2.3], [-0.05, 2.35, -2.3]]
+  }
+}
+
+function keepMat(THREE, color, rough, metal) {
+  const mat = new THREE.MeshStandardMaterial({ color, roughness: rough, metalness: metal })
+  mat.userData.paintRole = 'keep'
+  return mat
+}
+
+function tubeBetween(THREE, mat, ax, ay, az, bx, by, bz, r) {
+  const a = new THREE.Vector3(ax, ay, az)
+  const b = new THREE.Vector3(bx, by, bz)
+  const dir = b.clone().sub(a)
+  const len = Math.max(0.04, dir.length())
+  dir.multiplyScalar(1 / len)
+  const mesh = new THREE.Mesh(new THREE.CylinderGeometry(r, r, len, 8), mat)
+  mesh.position.copy(a).add(b).multiplyScalar(0.5)
+  mesh.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir)
+  mesh.castShadow = true
+  mesh.userData.paintRole = 'keep'
+  return mesh
+}
+
+function addKnobs(THREE, wheel, level) {
+  const box = new THREE.Box3()
+  wheel.traverse(o => {
+    if (!o.isMesh || !o.geometry) return
+    if (!o.geometry.boundingBox) o.geometry.computeBoundingBox()
+    box.union(o.geometry.boundingBox)
+  })
+  if (box.isEmpty()) return
+  const r = Math.max(Math.abs(box.max.y), Math.abs(box.max.z), Math.abs(box.min.y), Math.abs(box.min.z))
+  const halfW = Math.max(Math.abs(box.max.x), Math.abs(box.min.x))
+  const mat = keepMat(THREE, '#161616', 0.94, 0)
+  mat.userData.paintRole = 'tire'
+  const nubs = 10 + level * 2
+  const depth = 0.03 + level * 0.01
+  const stick = 0.004 + level * 0.005
+  const band = halfW * 2 * (0.62 + level * 0.08)
+  for (let i = 0; i < nubs; i++) {
+    const a = (i / nubs) * Math.PI * 2
+    const nub = new THREE.Mesh(new THREE.BoxGeometry(band, depth, 0.07 + level * 0.012), mat)
+    const rad = r - depth * 0.45 + stick
+    nub.position.set(0, Math.cos(a) * rad, Math.sin(a) * rad)
+    nub.rotation.x = a
+    nub.userData.paintRole = 'tire'
+    nub.castShadow = true
+    wheel.add(nub)
+  }
+}
+
+function fitHardware(THREE, body, spec, kit) {
+  kit = kit || {}
+  const hard = HARDWARE[spec.style] || HARDWARE.pickup
+  const black = keepMat(THREE, '#1a1a1a', 0.55, 0.25)
+  const steel = keepMat(THREE, '#d5d8dc', 0.32, 0.72)
+  const tankMat = keepMat(THREE, '#3f6a3a', 0.62, 0.08)
+  if (kit.snorkel && hard.snorkel) {
+    const s = hard.snorkel
+    body.add(tubeBetween(THREE, black, s[0], s[1], s[2], s[0], s[3], s[4], 0.042))
+    const head = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.042, 0.16, 8), black)
+    head.rotation.x = Math.PI / 2
+    head.position.set(s[0], s[3], s[4] + 0.1)
+    head.castShadow = true
+    const lip = new THREE.Mesh(new THREE.CylinderGeometry(0.062, 0.062, 0.03, 8), steel)
+    lip.rotation.x = Math.PI / 2
+    lip.position.set(s[0], s[3], s[4] + 0.18)
+    lip.castShadow = true
+    body.add(head, lip)
+  }
+  let winchLocal = null
+  if ((kit.winch || 0) >= 1 && hard.winch) {
+    const y = hard.winch[0]
+    const z = hard.winch[1]
+    const width = hard.winch[2]
+    if (kit.winchShow !== false) {
+      if (kit.winch >= 2) {
+        const plate = new THREE.Mesh(new THREE.BoxGeometry(width, 0.18, 0.1), black)
+        plate.position.set(0, y - 0.02, z - 0.06)
+        plate.castShadow = true
+        body.add(plate)
+      }
+      const drum = new THREE.Mesh(new THREE.CylinderGeometry(0.062, 0.062, 0.28, 12), steel)
+      drum.rotation.z = Math.PI / 2
+      drum.position.set(0, y + 0.05, z - 0.02)
+      drum.castShadow = true
+      const fair = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.12, 0.035), steel)
+      fair.position.set(0, y + 0.02, z + 0.05)
+      fair.castShadow = true
+      body.add(drum, fair)
+    }
+    winchLocal = new THREE.Vector3(0, y + 0.02, z + 0.1).add(body.position)
+  }
+  if ((kit.aux || 0) >= 1 && hard.aux) {
+    const scale = [0, 0.78, 1, 1.28][Math.min(3, kit.aux)]
+    const tank = new THREE.Mesh(new THREE.CylinderGeometry(0.1 * scale, 0.1 * scale, 0.46 * scale, 10), tankMat)
+    tank.rotation.z = Math.PI / 2
+    tank.position.set(hard.aux[0], hard.aux[1], hard.aux[2])
+    tank.castShadow = true
+    const neck = new THREE.Mesh(new THREE.CylinderGeometry(0.028, 0.028, 0.07, 8), black)
+    neck.position.set(hard.aux[0], hard.aux[1] + 0.1 * scale + 0.03, hard.aux[2])
+    neck.castShadow = true
+    body.add(tank, neck)
+  }
+  const cans = Math.max(0, kit.jerry || 0)
+  if (cans && hard.cans) {
+    hard.cans.slice(0, cans).forEach((spot, i) => {
+      const can = accessory('gascan', 0.28)
+      if (!can) return
+      can.position.set(spot[0], spot[1], spot[2])
+      can.rotation.y = i % 2 ? 0.4 : -0.2
+      body.add(can)
+    })
+  }
+  let coils = null
+  if (kit.shocks) {
+    const level = kit.susp || 0
+    const thick = 1 + level * 0.2
+    const shockMat = keepMat(THREE, spec.style === 'crawler' ? '#f2f2f2' : '#c8ccd0', 0.34, 0.4)
+    shockMat.userData.paintRole = spec.style === 'crawler' ? 'cage' : 'keep'
+    const springMat = keepMat(THREE, '#1a1a1a', 0.72, 0.12)
+    springMat.userData.paintRole = 'tire'
+    const drop = spec.visualDrop || 0
+    coils = []
+    spec.axles.forEach((a, i) => {
+      const shock = new THREE.Mesh(new THREE.CylinderGeometry(0.038 * thick, 0.038 * thick, 1, 8), shockMat)
+      const spring = new THREE.Mesh(new THREE.CylinderGeometry(0.062 * thick, 0.062 * thick, 1, 7), springMat)
+      shock.castShadow = true
+      spring.castShadow = true
+      body.parent.add(shock, spring)
+      coils.push({
+        shock, spring, index: i,
+        mount: new THREE.Vector3(a[0] * 0.72, a[1] + drop + 0.62, a[2] * 0.9)
+      })
+    })
+  }
+  return { coils, winchLocal }
+}
+
+function dress(THREE, body, spec, paint, rack, kit) {
   rack = rack || {}
   const add = (mesh, x, y, z, role) => {
     mesh.position.set(x, y, z)
@@ -381,7 +563,7 @@ function dress(THREE, body, spec, paint, rack) {
       body.add(kayak)
     }
   }
-  if ((spec.style === 'bronco' || spec.style === 'pickup') && rack.jerry) {
+  if ((spec.style === 'bronco' || spec.style === 'pickup') && rack.jerry && !(kit && kit.carrying)) {
     for (const x of spec.style === 'pickup' ? [-0.35, 0.15] : [-0.28, 0.22]) {
       const can = accessory('gascan', 0.55)
       if (!can) continue
@@ -471,25 +653,8 @@ function dress(THREE, body, spec, paint, rack) {
     span(-X, roofY, 0.05, X, roofY, 0.05, 0.038)
     span(-1.22, 2.40, -1.65, 1.22, 2.40, -1.65, 0.042)
     span(-X, 2.62, 1.02, X, 2.62, 1.02, 0.036)
-    const coils = []
-    const shockMat = new THREE.MeshStandardMaterial({ color: paint.cage, roughness: 0.3, metalness: 0.35 })
-    shockMat.userData.paintRole = 'cage'
-    const springMat = new THREE.MeshStandardMaterial({ color: '#1a1a1a', roughness: 0.7, metalness: 0.1 })
-    springMat.userData.paintRole = 'tire'
-    spec.axles.forEach((a, i) => {
-      const shock = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.045, 1, 8), shockMat)
-      const spring = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.07, 1, 7), springMat)
-      shock.userData.paintRole = 'cage'
-      spring.userData.paintRole = 'tire'
-      body.parent.add(shock, spring)
-      coils.push({
-        shock, spring, index: i,
-        mount: new THREE.Vector3(a[0] * 0.55, a[1] + spec.visualDrop + 0.72, a[2] * 0.82)
-      })
-    })
-    return coils
   }
-  return null
+  return fitHardware(THREE, body, spec, kit)
 }
 
 export function buildRig(THREE, spec, opts) {
@@ -517,10 +682,15 @@ export function buildRig(THREE, spec, opts) {
     const w = group.getObjectByName(name)
     if (!w) continue
     if (spec.wheelScale && spec.wheelScale !== 1) w.scale.multiplyScalar(spec.wheelScale)
+    if (opts.kit && opts.kit.tires) {
+      w.scale.x *= 1 + 0.07 * opts.kit.tires
+      addKnobs(THREE, w, opts.kit.tires)
+    }
     if (w.parent) w.parent.remove(w)
     wheels.push(w)
   }
-  const coils = body ? dress(THREE, body, spec, paint, opts.rack) : null
+  const dressed = body ? dress(THREE, body, spec, paint, opts.rack, opts.kit) : null
+  const coils = dressed && dressed.coils
   applyPaint(group, paint)
   const lamps = []
   const nose = (spec.axleF || spec.wheelbase) + spec.wheelR * 0.35
@@ -533,7 +703,7 @@ export function buildRig(THREE, spec, opts) {
     spot.target = tgt
     lamps.push(spot)
   }
-  group.userData = { lamps, high: body ? [body] : [], lod: [], detail: [], coils: coils || [], paint }
+  group.userData = { lamps, high: body ? [body] : [], lod: [], detail: [], coils: coils || [], winchLocal: dressed && dressed.winchLocal, paint }
   return { group, wheels }
 }
 

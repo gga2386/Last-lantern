@@ -1,14 +1,14 @@
-// Oxbow — Hollow Creek. OFFROAD_V10_4
+// Oxbow — Hollow Creek. OFFROAD_V10_5
 import * as THREE from '../vendor/three.module.js'
 import { createWorld, WORLD_SIZE, HALF, SURF, SURF_NAME } from './world.js'
-import { OFFROAD_V2, OFFROAD_V3, OFFROAD_V4, OFFROAD_V4_1, OFFROAD_V5, OFFROAD_V5_1, OFFROAD_V6, OFFROAD_V7, OFFROAD_V7_1, OFFROAD_V7_2, OFFROAD_V7_3, OFFROAD_V8, OFFROAD_V9, OFFROAD_V10, OFFROAD_V10_1, OFFROAD_V10_2, OFFROAD_V10_3, OFFROAD_V10_4, freshSave, SAVE_KEY, VEHICLES, UPGRADES, AUX, JERRY, ADVENTURES, TANK, coerceSave, buyUpgrade, buyVehicle, buyAux, buyJerry, useJerry, refuel, burnFuel, specWithUpgrades, tankCapacity, jerrySlots, rankFor, isDark, clockLabel, tickAdventure, noteAssist, REGION_OPEN, regionUnlocked, crawlAngles } from './economy.js'
+import { OFFROAD_V2, OFFROAD_V3, OFFROAD_V4, OFFROAD_V4_1, OFFROAD_V5, OFFROAD_V5_1, OFFROAD_V6, OFFROAD_V7, OFFROAD_V7_1, OFFROAD_V7_2, OFFROAD_V7_3, OFFROAD_V8, OFFROAD_V9, OFFROAD_V10, OFFROAD_V10_1, OFFROAD_V10_2, OFFROAD_V10_3, OFFROAD_V10_4, OFFROAD_V10_5, freshSave, SAVE_KEY, VEHICLES, UPGRADES, AUX, JERRY, ADVENTURES, TANK, coerceSave, buyUpgrade, buyVehicle, buyAux, buyJerry, useJerry, refuel, burnFuel, specWithUpgrades, tankCapacity, jerrySlots, rankFor, isDark, clockLabel, tickAdventure, noteAssist, REGION_OPEN, regionUnlocked, crawlAngles } from './economy.js'
 import { preloadRigs, buildRig, applyLod, poseRig, applyPaint, factoryPaint, PAINT_SWATCHES, setWoodMap } from './rigs.js'
 import { preloadScenery, preloadGround } from './scenery.js'
 import { CAMP, campLevel, buyCamp, canPitch, rollFish, reelBand, biteSeconds, aimHit, RECIPES, canCook, cookJudge, applyCook, activityState, gameFor, spotVisual, roastGrade, roastColor, roastStamp, applyRoast } from './camp.js'
 import { ensureCamp, buildCampSite, buildFishMoment, buildHuntMoment, buildCookMoment, buildRoastMoment } from './campview.js'
 import { createSim, ROLL_LIMIT, recoveryCopy } from './physics.js'
 
-export { OFFROAD_V2, OFFROAD_V3, OFFROAD_V4, OFFROAD_V4_1, OFFROAD_V5, OFFROAD_V5_1, OFFROAD_V6, OFFROAD_V7, OFFROAD_V7_1, OFFROAD_V7_2, OFFROAD_V7_3, OFFROAD_V8, OFFROAD_V9, OFFROAD_V10, OFFROAD_V10_1, OFFROAD_V10_2, OFFROAD_V10_3, OFFROAD_V10_4 }
+export { OFFROAD_V2, OFFROAD_V3, OFFROAD_V4, OFFROAD_V4_1, OFFROAD_V5, OFFROAD_V5_1, OFFROAD_V6, OFFROAD_V7, OFFROAD_V7_1, OFFROAD_V7_2, OFFROAD_V7_3, OFFROAD_V8, OFFROAD_V9, OFFROAD_V10, OFFROAD_V10_1, OFFROAD_V10_2, OFFROAD_V10_3, OFFROAD_V10_4, OFFROAD_V10_5 }
 
 const world = createWorld(1)
 const yard = world.pois.find(p => p.id === 'yard')
@@ -633,7 +633,27 @@ function rigLook(id) {
     van: { jerry: false, spare: true, kayak: false, bike: false },
     crawler: { jerry: false, spare: false, kayak: false, bike: false }
   }[style] || { jerry: false, spare: true, kayak: false, bike: false }
-  return { livery: all.livery || 0, rack: Object.assign({}, base, all.rack || {}), paint: all.paint || null }
+  return { livery: all.livery || 0, rack: Object.assign({}, base, all.rack || {}), paint: all.paint || null, showUp: all.showUp || null }
+}
+function upgradeShown(id, key) {
+  const show = save.cosmetics && save.cosmetics[id] && save.cosmetics[id].showUp
+  if (!show || show[key] == null) return true
+  return show[key] !== false
+}
+function kitFor(spec) {
+  const susp = (save.upgrades && save.upgrades.susp) || 0
+  const winch = (save.upgrades && save.upgrades.winch) || 0
+  return {
+    snorkel: ((save.upgrades && save.upgrades.snorkel) || 0) >= 1 && upgradeShown(spec.id, 'snorkel'),
+    winch,
+    winchShow: upgradeShown(spec.id, 'winch'),
+    tires: upgradeShown(spec.id, 'tires') ? ((save.upgrades && save.upgrades.tires) || 0) : 0,
+    susp,
+    shocks: (spec.style === 'crawler' && (susp === 0 || upgradeShown(spec.id, 'susp'))) || (susp > 0 && upgradeShown(spec.id, 'susp')),
+    aux: upgradeShown(spec.id, 'aux') ? (save.aux || 0) : 0,
+    jerry: upgradeShown(spec.id, 'jerry') ? (save.jerry || 0) : 0,
+    carrying: (save.jerry || 0) > 0
+  }
 }
 function buildTruck(spec) {
   if (truck) scene.remove(truck)
@@ -641,7 +661,15 @@ function buildTruck(spec) {
   wheels = []
   const look = rigLook(spec.id)
   const detail = save.settings.gfx === 'high' ? 4 : save.settings.gfx === 'low' ? 2 : 3
-  const built = buildRig(THREE, spec, { livery: look.livery, rack: look.rack, paint: look.paint, shadow: !!gfx().shadow, detail, env: envTex })
+  const built = buildRig(THREE, spec, {
+    livery: look.livery,
+    rack: look.rack,
+    paint: look.paint,
+    shadow: !!gfx().shadow,
+    detail,
+    env: envTex,
+    kit: kitFor(spec)
+  })
   truck = built.group
   wheels = built.wheels
   scene.add(truck)
@@ -957,7 +985,13 @@ function syncTruck() {
   winchLine.visible = pulling
   if (pulling) {
     const wp = winchLine.geometry.attributes.position
-    wp.setXYZ(0, c.position.x, c.position.y + 0.6, c.position.z)
+    const local = truck.userData && truck.userData.winchLocal
+    if (local) {
+      const mouth = truck.localToWorld(local.clone())
+      wp.setXYZ(0, mouth.x, mouth.y, mouth.z)
+    } else {
+      wp.setXYZ(0, c.position.x, c.position.y + 0.6, c.position.z)
+    }
     wp.setXYZ(1, anchor.x, anchor.y, anchor.z)
     wp.needsUpdate = true
   }
@@ -1471,6 +1505,7 @@ function fillGarage() {
     paintRow.appendChild(pb)
     box.appendChild(paintRow)
     for (const key of ['jerry', 'spare', 'kayak', 'bike']) {
+      if (key === 'jerry' && (save.jerry || 0) > 0) continue
       const label = { jerry: 'Roof cans', spare: 'Spare tire', kayak: 'Kayak', bike: 'Rear bike' }[key]
       const b = document.createElement('button')
       b.type = 'button'
@@ -1485,6 +1520,58 @@ function fillGarage() {
         persist(); fillGarage()
       }
       box.appendChild(b)
+    }
+  }
+  if (save.owned.includes(save.vehicle)) {
+    const vis = document.createElement('p')
+    vis.className = 'note'
+    vis.id = 'vis-upgrades'
+    vis.textContent = 'Visible upgrades'
+    box.appendChild(vis)
+    const note = document.createElement('p')
+    note.className = 'note'
+    note.textContent = 'Hiding a part leaves it fitted. The wheels still meet the ground.'
+    box.appendChild(note)
+    const parts = []
+    if ((save.upgrades.snorkel || 0) >= 1) parts.push(['snorkel', 'Snorkel'])
+    if ((save.upgrades.winch || 0) >= 1) parts.push(['winch', 'Winch'])
+    if ((save.upgrades.tires || 0) >= 1) parts.push(['tires', 'Deep-tread tires'])
+    if ((save.upgrades.susp || 0) >= 1) parts.push(['susp', 'Long-travel suspension'])
+    if ((save.aux || 0) >= 1) parts.push(['aux', 'Auxiliary tank'])
+    if ((save.jerry || 0) >= 1) parts.push(['jerry', 'Jerry cans'])
+    if (!parts.length) {
+      const empty = document.createElement('p')
+      empty.className = 'note'
+      empty.textContent = 'Nothing fitted yet.'
+      box.appendChild(empty)
+    }
+    for (const [key, label] of parts) {
+      const on = upgradeShown(save.vehicle, key)
+      const row = document.createElement('div')
+      row.className = 'up'
+      row.style.display = 'flex'
+      row.style.alignItems = 'center'
+      row.style.justifyContent = 'space-between'
+      row.style.gap = '8px'
+      const name = document.createElement('b')
+      name.textContent = label
+      row.appendChild(name)
+      const btn = document.createElement('button')
+      btn.type = 'button'
+      btn.textContent = on ? 'Hide' : 'Show'
+      btn.style.width = '96px'
+      btn.style.marginTop = '0'
+      btn.onclick = () => {
+        save.cosmetics = save.cosmetics || {}
+        const cur = save.cosmetics[save.vehicle] || {}
+        cur.showUp = Object.assign({}, cur.showUp || {})
+        cur.showUp[key] = !on
+        save.cosmetics[save.vehicle] = cur
+        buildTruck(sim.spec)
+        persist(); fillGarage()
+      }
+      row.appendChild(btn)
+      box.appendChild(row)
     }
   }
   const head = document.createElement('p')
@@ -1549,7 +1636,7 @@ function fillStore() {
   ab.type = 'button'
   ab.textContent = need == null ? 'Maxed' : save.rep < need ? 'Locked · ' + need + ' rep' : 'Fit auxiliary tank'
   ab.disabled = !here || need == null || save.rep < need
-  ab.onclick = () => { const n = buyAux(save); if (!n) return; save = n; toast('Tank is now ' + tankCapacity(save) + ' gal'); persist(); fillStore() }
+  ab.onclick = () => { const n = buyAux(save); if (!n) return; save = n; buildTruck(sim.spec); toast('Tank is now ' + tankCapacity(save) + ' gal'); persist(); fillStore() }
   aux.appendChild(ab)
   box.appendChild(aux)
   const slots = jerrySlots(save.rep)
@@ -1563,7 +1650,7 @@ function fillStore() {
   jb.type = 'button'
   jb.textContent = (save.jerry || 0) >= slots ? (nextSlot != null ? 'Locked · ' + nextSlot + ' rep' : 'Carrying all you can') : 'Take a can'
   jb.disabled = !here || (save.jerry || 0) >= slots
-  jb.onclick = () => { const n = buyJerry(save); if (!n) return; save = n; toast('Jerry can in the rack'); persist(); fillStore() }
+  jb.onclick = () => { const n = buyJerry(save); if (!n) return; save = n; buildTruck(sim.spec); toast('Jerry can in the rack'); persist(); fillStore() }
   row.appendChild(jb)
   box.appendChild(row)
   for (const key of ['salt', 'oil', 'chocolate', 'crackers']) {
@@ -1854,7 +1941,7 @@ $('btn-call').onclick = () => { if (recovery && recovery.phase === 'drive') canc
 $('btn-lights').onclick = () => cycleLights()
 $('btn-beam').onclick = () => { save.highbeam = !save.highbeam; persist() }
 $('btn-store').onclick = () => { if (nearStore() && mode === 'play') { fillStore(); showPanel('store') } }
-$('btn-jerry').onclick = () => { const n = useJerry(save); if (!n) return; save = n; toast('Poured 5 gal'); persist() }
+$('btn-jerry').onclick = () => { const n = useJerry(save); if (!n) return; save = n; buildTruck(sim.spec); toast('Poured 5 gal'); persist() }
 $('btn-cam').onclick = () => {
   camMode = camMode === 'chase' ? 'hood' : camMode === 'hood' ? 'orbit' : 'chase'
   toast(camMode === 'chase' ? 'Chase' : camMode === 'hood' ? 'Hood' : 'Orbit')
@@ -2586,6 +2673,7 @@ window.OX = {
   OFFROAD_V10_2,
   OFFROAD_V10_3,
   OFFROAD_V10_4,
+  OFFROAD_V10_5,
   get mode() { return mode },
   get speed() { return lastSpeed },
   get pos() { const c = sim.chassis; return c ? { x: c.position.x, y: c.position.y, z: c.position.z } : null },
@@ -2614,6 +2702,31 @@ window.OX = {
     return out
   },
   use(id) { save.vehicle = id; if (!save.owned.includes(id)) save.owned.push(id); sim.spawn(id, { x: sim.chassis.position.x, y: sim.chassis.position.y + 0.4, z: sim.chassis.position.z }, save.upgrades); buildTruck(sim.spec) },
+  fit(opts) {
+    opts = opts || {}
+    if (opts.vehicle) {
+      save.vehicle = opts.vehicle
+      if (!save.owned.includes(opts.vehicle)) save.owned.push(opts.vehicle)
+    }
+    if (opts.upgrades) save.upgrades = Object.assign({}, save.upgrades, opts.upgrades)
+    if (opts.aux != null) save.aux = opts.aux
+    if (opts.jerry != null) save.jerry = opts.jerry
+    if (opts.rep != null) save.rep = opts.rep
+    if (opts.showUp) {
+      save.cosmetics = save.cosmetics || {}
+      const cur = save.cosmetics[save.vehicle] || {}
+      cur.showUp = Object.assign({}, cur.showUp || {}, opts.showUp)
+      save.cosmetics[save.vehicle] = cur
+    }
+    const pose = sim.chassis
+      ? { x: sim.chassis.position.x, y: sim.chassis.position.y + 0.5, z: sim.chassis.position.z }
+      : { x: yard.x, z: yard.z + 8 }
+    sim.spawn(save.vehicle, pose, save.upgrades)
+    buildTruck(sim.spec)
+    for (let i = 0; i < 45; i++) sim.step(1 / 60, zeroInput())
+    syncTruck()
+    return true
+  },
   goto(id) { const p = poiById[id]; if (!p) return; sim.place(p.x + 4, p.z + 6, 0) },
   region() { const c = sim.chassis; return c ? world.regionAt(c.position.x, c.position.z) : null },
   acts() { const c = sim.chassis; return c ? activityState(world, c.position.x, c.position.z, save) : null },
@@ -2802,7 +2915,7 @@ window.OX = {
     const zFront = yard.z + 16
     ids.forEach((id, i) => {
       const spec = specWithUpgrades(id, save.upgrades)
-      const built = buildRig(THREE, spec, { livery: 0, rack: rigLook(id).rack, paint: rigLook(id).paint, shadow: false, detail, env: envTex })
+      const built = buildRig(THREE, spec, { livery: 0, rack: rigLook(id).rack, paint: rigLook(id).paint, shadow: false, detail, env: envTex, kit: kitFor(spec) })
       const col = i % 3
       const row = Math.floor(i / 3)
       const x = (col - 1) * 5.2

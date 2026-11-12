@@ -17,6 +17,7 @@ export const OFFROAD_V10_1 = 1
 export const OFFROAD_V10_2 = 1
 export const OFFROAD_V10_3 = 1
 export const OFFROAD_V10_4 = 1
+export const OFFROAD_V10_5 = 1
 export const REGION_OPEN = { forest: 0, desert: 40, mountain: 120 }
 export function regionUnlocked(save, id) {
   return (save.rep || 0) >= (REGION_OPEN[id] || 0)
@@ -380,16 +381,17 @@ export function burnFuel(fuel, throttle, dt) {
 export function specWithUpgrades(id, upgrades) {
   const base = VEHICLES[id] || VEHICLES.mule
   const t = upgrades.tires || 0, s = upgrades.susp || 0, e = upgrades.engine || 0, w = upgrades.winch || 0
+  const lift = [0, 0.04, 0.08, 0.12][Math.min(3, Math.max(0, s))] || 0
   return {
     ...base,
     force: base.force * (1 + 0.26 * e),
     maxSpeed: base.maxSpeed * (1 + 0.04 * e),
     grip: base.grip * (1 + 0.2 * t),
-    rest: base.rest + 0.035 * s,
+    rest: base.rest + lift,
     travel: base.travel + 0.055 * s,
     stiff: base.stiff * (1 - 0.07 * s),
     winch: 650 + w * 1700,
-    clearance: 0.16 + base.wheelR * 0.2 + s * 0.05,
+    clearance: 0.16 + base.wheelR * 0.2 + lift,
     wade: 0.48 + base.wheelR * 0.35 + ((base.style === 'jeep' || base.style === 'utility' || base.style === 'pickup' || base.style === 'crawler') ? 0.28 : 0) + (upgrades.snorkel ? 0.38 : 0),
     bogAt: 0.22 + base.wheelR * 0.72 + s * 0.06 + t * 0.05
   }
