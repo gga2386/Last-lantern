@@ -496,7 +496,18 @@ function surveyBody(pts) {
   let floorY = bumperY
   const keys = [...hist.keys()].sort((a, b) => a - b)
   for (const k of keys) if (hist.get(k) >= bestN * 0.35) { floorY = k; break }
-  return { minX, maxX, minY, maxY, minZ, maxZ, roofY, bumperZ, bumperY, tailZ, tailY, pillar, outerAt, cabBack, floorY }
+  const roofBand = pts.filter(p => p[1] > roofY - 0.18 && Math.abs(p[0]) < (maxX - minX) * 0.46)
+  let roofFront = bumperZ - 0.9
+  let roofRear = cabBack + 0.15
+  let roofHalf = Math.min(0.52, (maxX - minX) * 0.34)
+  if (roofBand.length > 12) {
+    const zs = roofBand.map(p => p[2]).sort((a, b) => a - b)
+    roofRear = zs[Math.floor(zs.length * 0.05)]
+    roofFront = zs[Math.min(zs.length - 1, Math.floor(zs.length * 0.95))]
+    roofHalf = Math.max(...roofBand.map(p => Math.abs(p[0])))
+  }
+  if (roofFront - roofRear < 0.8) roofRear = Math.min(roofRear, roofFront - 1.15)
+  return { minX, maxX, minY, maxY, minZ, maxZ, roofY, roofFront, roofRear, roofHalf, bumperZ, bumperY, tailZ, tailY, pillar, outerAt, cabBack, floorY }
 }
 
 function addBox(THREE, parent, mat, w, h, d, x, y, z) {
@@ -746,25 +757,28 @@ function mountKayak(THREE, root, info, spec) {
     return
   }
   const y = info.roofY
-  const zFront = info.bumperZ - 0.15
-  const zRear = info.tailZ + 0.15
-  for (const x of [-0.46, 0.46]) {
-    root.add(tubeBetween(THREE, rail, x, y + 0.06, zRear, x, y + 0.06, zFront, 0.02))
-    for (const z of [zRear + 0.15, (zRear + zFront) / 2, zFront - 0.15]) {
-      addBox(THREE, root, rail, 0.045, 0.06, 0.045, x, y + 0.03, z)
+  const pad = 0.06
+  const zFront = info.roofFront - pad
+  const zRear = info.roofRear + pad
+  const xRail = Math.max(0.28, Math.min(info.roofHalf - 0.06, 0.62))
+  for (const x of [-xRail, xRail]) {
+    for (const z of [zRear, zFront]) {
+      addBox(THREE, root, rail, 0.05, 0.06, 0.05, x, y + 0.03, z)
     }
+    root.add(tubeBetween(THREE, rail, x, y + 0.07, zRear, x, y + 0.07, zFront, 0.018))
   }
-  for (const z of [zRear + 0.45, zFront - 0.45]) {
-    root.add(tubeBetween(THREE, rail, -0.46, y + 0.06, z, 0.46, y + 0.06, z, 0.018))
-    const cradle = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.05, 0.1), keepMat(THREE, '#1a1a1a', 0.6, 0.1))
-    cradle.position.set(0, y + 0.11, z)
+  for (const t of [0.28, 0.72]) {
+    const z = zRear + (zFront - zRear) * t
+    root.add(tubeBetween(THREE, rail, -xRail, y + 0.07, z, xRail, y + 0.07, z, 0.016))
+    const cradle = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.045, 0.08), keepMat(THREE, '#1a1a1a', 0.6, 0.1))
+    cradle.position.set(0, y + 0.1, z)
     root.add(cradle)
   }
   aimLong(kayak, new THREE.Vector3(0, 0.05, -1))
-  kayak.position.set(0, y + 0.36, (zFront + zRear) / 2)
+  kayak.position.set(0, y + 0.32, (zFront + zRear) / 2)
   root.add(kayak)
-  const band = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.012, 0.04), strap)
-  band.position.set(0, y + 0.42, (zFront + zRear) / 2)
+  const band = new THREE.Mesh(new THREE.BoxGeometry(Math.min(0.7, xRail * 1.6), 0.012, 0.04), strap)
+  band.position.set(0, y + 0.4, (zFront + zRear) / 2)
   root.add(band)
 }
 
@@ -1068,22 +1082,27 @@ function dress(THREE, body, spec, paint, rack, kit) {
     body.add(mesh)
     return mesh
   }
-  if (spec.style === 'bronco') {
-    const roof = 2.05
+  const pts = spec.style === 'crawler' ? [] : collectPoints(THREE, body)
+  const info = pts.length > 20 ? surveyBody(pts) : null
+  if (spec.style === 'bronco' && info) {
     const railMat = new THREE.MeshStandardMaterial({ color: '#d7d2c6', roughness: 0.45, metalness: 0.35 })
     railMat.userData.paintRole = 'keep'
-    for (const x of [-0.72, 0.72]) {
-      const rail = new THREE.Mesh(new THREE.CylinderGeometry(0.028, 0.028, 2.15, 8), railMat)
+    const y = info.roofY + 0.04
+    const z0 = info.roofRear + 0.08
+    const z1 = info.roofFront - 0.08
+    const xRail = Math.max(0.32, info.roofHalf - 0.08)
+    const span = Math.max(0.4, z1 - z0)
+    for (const x of [-xRail, xRail]) {
+      const rail = new THREE.Mesh(new THREE.CylinderGeometry(0.026, 0.026, span, 8), railMat)
       rail.rotation.x = Math.PI / 2
-      rail.position.set(x, roof, -0.05)
-      rail.userData.paintRole = 'keep'
+      rail.position.set(x, y, (z0 + z1) / 2)
       rail.castShadow = true
       body.add(rail)
     }
-    for (const z of [-0.85, 0.15, 0.85]) {
-      const bar = new THREE.Mesh(new THREE.CylinderGeometry(0.022, 0.022, 1.5, 8), railMat)
+    for (const t of [0.22, 0.55, 0.82]) {
+      const bar = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, xRail * 2, 8), railMat)
       bar.rotation.z = Math.PI / 2
-      bar.position.set(0, roof, z)
+      bar.position.set(0, y, z0 + span * t)
       bar.castShadow = true
       body.add(bar)
     }
@@ -1091,7 +1110,7 @@ function dress(THREE, body, spec, paint, rack, kit) {
       new THREE.BoxGeometry(0.55, 0.28, 0.34),
       new THREE.MeshStandardMaterial({ color: '#6a4a32', roughness: 0.8 })
     )
-    bag.position.set(-0.15, roof + 0.2, -0.35)
+    bag.position.set(-0.12, info.roofY + 0.2, z0 + span * 0.4)
     bag.castShadow = true
     body.add(bag)
   }
@@ -1115,13 +1134,19 @@ function dress(THREE, body, spec, paint, rack, kit) {
   }
   if (spec.style === 'van') {
     vanChevron(THREE, body)
-    const railMat = new THREE.MeshStandardMaterial({ color: '#f4f1ea', roughness: 0.4, metalness: 0.2 })
-    railMat.userData.paintRole = 'keep'
-    for (const x of [-0.55, 0.55]) {
-      const rail = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.025, 2.4, 8), railMat)
-      rail.rotation.x = Math.PI / 2
-      rail.position.set(x, 2.08, 0.05)
-      body.add(rail)
+    if (info) {
+      const railMat = new THREE.MeshStandardMaterial({ color: '#f4f1ea', roughness: 0.4, metalness: 0.2 })
+      railMat.userData.paintRole = 'keep'
+      const z0 = info.roofRear + 0.08
+      const z1 = info.roofFront - 0.08
+      const span = Math.max(0.4, z1 - z0)
+      const xRail = Math.max(0.28, info.roofHalf - 0.08)
+      for (const x of [-xRail, xRail]) {
+        const rail = new THREE.Mesh(new THREE.CylinderGeometry(0.024, 0.024, span, 8), railMat)
+        rail.rotation.x = Math.PI / 2
+        rail.position.set(x, info.roofY + 0.04, (z0 + z1) / 2)
+        body.add(rail)
+      }
     }
   }
   return fitGear(THREE, body, spec, paint, rack, kit)
