@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
-<meta name="oxbow-build" content="OFFROAD_V10_1">
+<meta name="oxbow-build" content="OFFROAD_V10_2">
 <title>Oxbow — Hollow Creek</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect fill='%23140e0a' width='32' height='32'/%3E%3Cpath fill='%23e4572e' d='M4 22h24l-3-8H7z'/%3E%3Ccircle cx='10' cy='23' r='3' fill='%23f4efe6'/%3E%3Ccircle cx='22' cy='23' r='3' fill='%23f4efe6'/%3E%3C/svg%3E">
 <link rel="stylesheet" href="style.css">
@@ -141,6 +141,18 @@
     </div>
   </section>
 
+  <section id="camp-colors" class="panel paint-panel">
+    <div class="sheet wide">
+      <h2>Camp colors</h2>
+      <p class="note">Free. The tent and chairs keep these colors, including the rooftop shell.</p>
+      <div class="paint-row" id="camp-color-targets"></div>
+      <div class="swatches" id="camp-color-swatches"></div>
+      <label>Custom<input type="color" id="camp-color-custom" value="#2f4a34"></label>
+      <button type="button" id="camp-color-reset">Reset to default</button>
+      <button type="button" id="camp-color-close" class="ghost">Done</button>
+    </div>
+  </section>
+
   <section id="credits" class="panel">
     <div class="sheet wide">
       <h2>Credits</h2>
@@ -180,7 +192,7 @@
         <p>Dirt, trail, sand, mud, rock, and creek water all grip differently. The creek is shallow enough to ford and slow enough to respect.</p>
         <p>Fuel burns while the engine runs, and it is free — but only a general store pump will fill you. The stores also fit a bigger tank and sell jerry cans you can pour from the CAN button anywhere. Both take reputation, not cash.</p>
         <p>Adventures pay reputation. Ranks open tires, suspension, the engine, the winch, the camp kit, and the rest of the yard: the Ridge Scout, Bluff Runner, Creek Wagon, Basin Hauler, Spine Crawler, and Lantern Van. Paint in the garage is free. Credits lists every model and texture. Headlights come on at dusk (AUTO). H cycles them, B is high beam.</p>
-        <p>The basin is three countries. Hollow Forest is home. Red Wash opens at 40 reputation, Granite Spine at 120. Each has its own store, camps, and adventures. Stop on flat ground, or at a marked camp, and tap CAMP. The tent follows the kit, up to a rooftop shell and a tarp. Fish only where there is water. Spot wildlife on the trail with the field kit. Cook only when the pantry has a meal. Roast a marshmallow over a lit fire, once each camp night. Chocolate and crackers from the store turn a good one into a s’more. Grey buttons stay on the bar and tell you what is missing.</p>
+        <p>The basin is three countries. Hollow Forest is home. Red Wash opens at 40 reputation, Granite Spine at 120. Each has its own store, camps, and adventures. Stop on flat ground, or at a marked camp, and tap CAMP. The tent follows the kit, up to a rooftop shell and a tarp. Fish only where there is water. Spot wildlife on the trail with the field kit. Cook only when the pantry has a meal. Roast a marshmallow over a lit fire, once each camp night. Tent and chair colors in the camp kit are free. Chocolate and crackers from the store turn a good one into a s’more. Grey buttons stay on the bar and tell you what is missing.</p>
         <p>The garage lists approach, departure, and breakover. The inclinometer on the dash goes gold, then red, as the truck tips. Low graphics turns off the color grade, the vignette, and the drifting dust.</p>
       </div>
       <button type="button" id="btn-help-close" class="ghost">Close</button>

@@ -1,14 +1,14 @@
-// Oxbow — Hollow Creek. OFFROAD_V10_1
+// Oxbow — Hollow Creek. OFFROAD_V10_2
 import * as THREE from '../vendor/three.module.js'
 import { createWorld, WORLD_SIZE, HALF, SURF, SURF_NAME } from './world.js'
-import { OFFROAD_V2, OFFROAD_V3, OFFROAD_V4, OFFROAD_V4_1, OFFROAD_V5, OFFROAD_V5_1, OFFROAD_V6, OFFROAD_V7, OFFROAD_V7_1, OFFROAD_V7_2, OFFROAD_V7_3, OFFROAD_V8, OFFROAD_V9, OFFROAD_V10, OFFROAD_V10_1, freshSave, SAVE_KEY, VEHICLES, UPGRADES, AUX, JERRY, ADVENTURES, TANK, coerceSave, buyUpgrade, buyVehicle, buyAux, buyJerry, useJerry, refuel, burnFuel, specWithUpgrades, tankCapacity, jerrySlots, rankFor, isDark, clockLabel, tickAdventure, noteAssist, REGION_OPEN, regionUnlocked, crawlAngles } from './economy.js'
+import { OFFROAD_V2, OFFROAD_V3, OFFROAD_V4, OFFROAD_V4_1, OFFROAD_V5, OFFROAD_V5_1, OFFROAD_V6, OFFROAD_V7, OFFROAD_V7_1, OFFROAD_V7_2, OFFROAD_V7_3, OFFROAD_V8, OFFROAD_V9, OFFROAD_V10, OFFROAD_V10_1, OFFROAD_V10_2, freshSave, SAVE_KEY, VEHICLES, UPGRADES, AUX, JERRY, ADVENTURES, TANK, coerceSave, buyUpgrade, buyVehicle, buyAux, buyJerry, useJerry, refuel, burnFuel, specWithUpgrades, tankCapacity, jerrySlots, rankFor, isDark, clockLabel, tickAdventure, noteAssist, REGION_OPEN, regionUnlocked, crawlAngles } from './economy.js'
 import { preloadRigs, buildRig, applyLod, poseRig, applyPaint, factoryPaint, PAINT_SWATCHES } from './rigs.js'
 import { preloadScenery, preloadGround } from './scenery.js'
 import { CAMP, campLevel, buyCamp, canPitch, rollFish, reelBand, biteSeconds, aimHit, RECIPES, canCook, cookJudge, applyCook, activityState, gameFor, spotVisual, roastGrade, roastColor, roastStamp, applyRoast } from './camp.js'
 import { ensureCamp, buildCampSite, buildFishMoment, buildHuntMoment, buildCookMoment, buildRoastMoment } from './campview.js'
 import { createSim, ROLL_LIMIT, recoveryCopy } from './physics.js'
 
-export { OFFROAD_V2, OFFROAD_V3, OFFROAD_V4, OFFROAD_V4_1, OFFROAD_V5, OFFROAD_V5_1, OFFROAD_V6, OFFROAD_V7, OFFROAD_V7_1, OFFROAD_V7_2, OFFROAD_V7_3, OFFROAD_V8, OFFROAD_V9, OFFROAD_V10, OFFROAD_V10_1 }
+export { OFFROAD_V2, OFFROAD_V3, OFFROAD_V4, OFFROAD_V4_1, OFFROAD_V5, OFFROAD_V5_1, OFFROAD_V6, OFFROAD_V7, OFFROAD_V7_1, OFFROAD_V7_2, OFFROAD_V7_3, OFFROAD_V8, OFFROAD_V9, OFFROAD_V10, OFFROAD_V10_1, OFFROAD_V10_2 }
 
 const world = createWorld(1)
 const yard = world.pois.find(p => p.id === 'yard')
@@ -1236,6 +1236,75 @@ function fillAdventures() {
   }
 }
 let paintTarget = 'body'
+let campColorTarget = 'tent-fabric'
+const CAMP_COLOR_TARGETS = [
+  ['tent-fabric', 'Tent', 'tent', 'fabric'],
+  ['tent-accent', 'Rainfly', 'tent', 'accent'],
+  ['chair-fabric', 'Chair', 'chairs', 'fabric'],
+  ['chair-frame', 'Frame', 'chairs', 'frame']
+]
+function campColorValue(id) {
+  const spec = CAMP_COLOR_TARGETS.find(t => t[0] === id)
+  const look = (save.cosmetics && save.cosmetics.camp) || {}
+  return spec && look[spec[2]] && look[spec[2]][spec[3]]
+}
+function setCampColor(id, hex) {
+  const spec = CAMP_COLOR_TARGETS.find(t => t[0] === id)
+  if (!spec) return
+  save.cosmetics = save.cosmetics || {}
+  const camp = Object.assign({}, save.cosmetics.camp)
+  camp[spec[2]] = Object.assign({}, camp[spec[2]], { [spec[3]]: hex })
+  save.cosmetics.camp = camp
+  if (campView && campView.repaint) campView.repaint(camp)
+  persist()
+}
+function resetCampColors() {
+  if (save.cosmetics) delete save.cosmetics.camp
+  if (campView && campView.repaint) campView.repaint(null)
+  persist()
+}
+function fillCampColors() {
+  const targets = $('camp-color-targets')
+  targets.replaceChildren()
+  for (const [id, label] of CAMP_COLOR_TARGETS) {
+    const b = document.createElement('button')
+    b.type = 'button'
+    b.textContent = label
+    b.classList.toggle('on', campColorTarget === id)
+    b.onclick = () => { campColorTarget = id; fillCampColors() }
+    targets.appendChild(b)
+  }
+  const sw = $('camp-color-swatches')
+  sw.replaceChildren()
+  for (const hex of PAINT_SWATCHES) {
+    const b = document.createElement('button')
+    b.type = 'button'
+    b.style.background = hex
+    b.setAttribute('aria-label', hex)
+    b.classList.toggle('on', campColorValue(campColorTarget) === hex)
+    b.onclick = () => { setCampColor(campColorTarget, hex); fillCampColors() }
+    sw.appendChild(b)
+  }
+  const custom = $('camp-color-custom')
+  custom.value = campColorValue(campColorTarget) || '#2f4a34'
+  custom.oninput = () => setCampColor(campColorTarget, custom.value)
+}
+function openCampColors() {
+  fillCampColors()
+  showPanel('camp-colors')
+  if (campOn && campView) {
+    holdCam = true
+    const bar = $('campbar')
+    if (bar) bar.hidden = true
+    const p = campView.fire
+    const x = p.x + 4.2
+    const z = p.z + 7.4
+    const y = Math.max(p.y + 3.1, world.height(x, z) + 2.4)
+    camera.position.set(x, y, z)
+    camera.lookAt(p.x - 1.4, p.y + 1.2, p.z - 0.2)
+    applyTime(save.clock)
+  }
+}
 function livePaint(partial) {
   save.cosmetics = save.cosmetics || {}
   const cur = save.cosmetics[save.vehicle] || { livery: 0, rack: {} }
@@ -1397,6 +1466,17 @@ function fillGarage() {
   head.className = 'note'
   head.textContent = 'Camp kit'
   box.appendChild(head)
+  const colorRow = document.createElement('div')
+  colorRow.className = 'up'
+  colorRow.innerHTML = '<b></b><span></span>'
+  colorRow.querySelector('b').textContent = 'Colors'
+  colorRow.querySelector('span').textContent = 'Tent fabric, rainfly, chair fabric, and frame. Free.'
+  const colorBtn = document.createElement('button')
+  colorBtn.type = 'button'
+  colorBtn.textContent = 'Colors'
+  colorBtn.onclick = () => openCampColors()
+  colorRow.appendChild(colorBtn)
+  box.appendChild(colorRow)
   for (const id of Object.keys(CAMP)) {
     const g = CAMP[id]
     const level = (save.camp && save.camp[id]) || 0
@@ -1768,6 +1848,12 @@ $('btn-help').onclick = () => showPanel('help')
 $('btn-pause-help').onclick = () => showPanel('help')
 $('btn-credits').onclick = () => showPanel('credits')
 $('paint-close').onclick = () => { holdCam = false; freeze = false; showPanel('garage'); fillGarage() }
+$('camp-color-close').onclick = () => {
+  holdCam = false
+  if (campOn) { const bar = $('campbar'); if (bar) bar.hidden = false }
+  showPanel('garage'); fillGarage()
+}
+$('camp-color-reset').onclick = () => { resetCampColors(); fillCampColors() }
 $('paint-reset').onclick = () => {
   save.cosmetics = save.cosmetics || {}
   const cur = save.cosmetics[save.vehicle] || { livery: 0, rack: {} }
@@ -1988,6 +2074,7 @@ async function pitchCamp() {
     truck,
     pose: { x: c.position.x, y: c.position.y, z: c.position.z, qx: c.quaternion.x, qy: c.quaternion.y, qz: c.quaternion.z, qw: c.quaternion.w },
     camp: save.camp || {},
+    colors: (save.cosmetics && save.cosmetics.camp) || null,
     low: save.settings.gfx === 'low',
     shadow: !!gfx().shadow
   })
@@ -2464,6 +2551,7 @@ window.OX = {
   OFFROAD_V2,
   OFFROAD_V10,
   OFFROAD_V10_1,
+  OFFROAD_V10_2,
   get mode() { return mode },
   get speed() { return lastSpeed },
   get pos() { const c = sim.chassis; return c ? { x: c.position.x, y: c.position.y, z: c.position.z } : null },
@@ -2475,7 +2563,22 @@ window.OX = {
   get lights() { return { mode: save.lights, high: !!save.highbeam, on: !!(truck && truck.userData && truck.userData.lamps[0].intensity > 0) } },
   setClock(t) { save.clock = t; applyTime(t) },
   setCam(kind, dist, yaw, pitch) { camMode = kind; if (dist) orbitDist = dist; if (yaw != null) orbitYaw = yaw; if (pitch != null) orbitPitch = pitch },
-  open(id) { if (id === 'jobs') fillAdventures(); if (id === 'garage') fillGarage(); if (id === 'store') fillStore(); if (id === 'paint') openPaint(); else showPanel(id) },
+  open(id) { if (id === 'jobs') fillAdventures(); if (id === 'garage') fillGarage(); if (id === 'store') fillStore(); if (id === 'paint') openPaint(); if (id === 'camp-colors') openCampColors(); else if (id !== 'paint') showPanel(id) },
+  campColors() { openCampColors() },
+  setCampColor(id, hex) { setCampColor(id, hex) },
+  resetCampColors() { resetCampColors() },
+  campPaint() {
+    const out = []
+    const grab = root => root && root.traverse(o => {
+      if (!o.isMesh) return
+      const list = Array.isArray(o.material) ? o.material : [o.material]
+      list.forEach(m => {
+        if (m.userData && m.userData.campSlot) out.push(m.userData.campKind + ':' + m.userData.campSlot + ':' + '#' + m.color.getHexString())
+      })
+    })
+    if (campView) { grab(campView.group); grab(campView.roof) }
+    return out
+  },
   use(id) { save.vehicle = id; if (!save.owned.includes(id)) save.owned.push(id); sim.spawn(id, { x: sim.chassis.position.x, y: sim.chassis.position.y + 0.4, z: sim.chassis.position.z }, save.upgrades); buildTruck(sim.spec) },
   goto(id) { const p = poiById[id]; if (!p) return; sim.place(p.x + 4, p.z + 6, 0) },
   region() { const c = sim.chassis; return c ? world.regionAt(c.position.x, c.position.z) : null },

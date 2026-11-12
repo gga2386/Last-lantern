@@ -1,4 +1,4 @@
-// Camping rules, fish, fair-chase spotting, and the cook fire. OFFROAD_V10_1
+// Camping rules, fish, fair-chase spotting, and the cook fire. OFFROAD_V10_2
 export const CAMP = {
   tent: { name: 'Tent', max: 3, need: [80, 200, 280], labels: ['Ridge tent', 'Two-person dome', 'Four-person dome', 'Rooftop tent'], blurb: 'A ridge tent to start. Two domes, then a shell that rides on the roof with a tarp.' },
   pit: { name: 'Fire', max: 2, need: [40, 140], labels: ['Stone ring', 'Fire pit', 'Cooking grill'], blurb: 'A better pit, then a grill that makes the sweet spot easier.' },
@@ -39,6 +39,11 @@ export const RECIPES = [
   { id: 'breakfast', name: 'Skillet breakfast', need: { meat: 1, oil: 1 }, buff: 'fuel', blurb: 'The engine sips less fuel for a spell.' }
 ]
 export function campLevel(save, id) { return (save.camp && save.camp[id]) || 0 }
+export function campCosmetic(save) {
+  const c = save && save.cosmetics && save.cosmetics.camp
+  if (!c) return { tent: {}, chairs: {} }
+  return { tent: Object.assign({}, c.tent), chairs: Object.assign({}, c.chairs) }
+}
 export function campNeed(id, level) {
   const g = CAMP[id]
   if (!g || level < 0 || level >= g.max) return null

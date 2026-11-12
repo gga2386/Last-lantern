@@ -115,6 +115,114 @@ function ownMaterials(root) {
   })
 }
 
+function tentSlot(name) {
+  if (name === 'LightGreen' || name === 'PaletteMaterial002' || name === 'rtt_shell') return 'accent'
+  if (name === 'Green' || name === 'PaletteMaterial001' || name === 'rtt_fabric') return 'fabric'
+  return ''
+}
+
+function rememberColor(mat, kind, slot) {
+  mat.userData.campKind = kind
+  mat.userData.campSlot = slot
+  if (!mat.userData.campOrig) {
+    mat.userData.campOrig = { color: '#' + mat.color.getHexString(), map: mat.map || null }
+  }
+}
+
+function splitChair(THREE, mesh) {
+  const src = mesh.geometry
+  const uv = src.getAttribute('uv')
+  const pos = src.getAttribute('position')
+  if (!uv || !pos) return
+  const nrm = src.getAttribute('normal')
+  const index = src.getIndex()
+  const tri = i => index ? index.getX(i) : i
+  const count = index ? index.count : pos.count
+  const buckets = { fabric: [], frame: [] }
+  for (let i = 0; i < count; i += 3) {
+    const ids = [tri(i), tri(i + 1), tri(i + 2)]
+    const u = (uv.getX(ids[0]) + uv.getX(ids[1]) + uv.getX(ids[2])) / 3
+    buckets[u < 0.055 ? 'fabric' : 'frame'].push(ids[0], ids[1], ids[2])
+  }
+  const parent = mesh.parent
+  if (!parent) return
+  for (const slot of ['fabric', 'frame']) {
+    const ids = buckets[slot]
+    if (!ids.length) continue
+    const g = new THREE.BufferGeometry()
+    const p = new Float32Array(ids.length * 3)
+    const nn = nrm ? new Float32Array(ids.length * 3) : null
+    ids.forEach((id, i) => {
+      p[i * 3] = pos.getX(id)
+      p[i * 3 + 1] = pos.getY(id)
+      p[i * 3 + 2] = pos.getZ(id)
+      if (nn) {
+        nn[i * 3] = nrm.getX(id)
+        nn[i * 3 + 1] = nrm.getY(id)
+        nn[i * 3 + 2] = nrm.getZ(id)
+      }
+    })
+    g.setAttribute('position', new THREE.BufferAttribute(p, 3))
+    if (nn) g.setAttribute('normal', new THREE.BufferAttribute(nn, 3))
+    const mat = mesh.material.clone()
+    mat.map = mesh.material.map || null
+    rememberColor(mat, 'chair', slot)
+    const piece = new THREE.Mesh(g, mat)
+    piece.position.copy(mesh.position)
+    piece.quaternion.copy(mesh.quaternion)
+    piece.scale.copy(mesh.scale)
+    piece.castShadow = mesh.castShadow
+    piece.receiveShadow = mesh.receiveShadow
+    parent.add(piece)
+  }
+  parent.remove(mesh)
+}
+
+export function prepareCampPaint(THREE, root, kind) {
+  if (!root) return
+  ownMaterials(root)
+  if (kind === 'chair') {
+    const meshes = []
+    root.traverse(o => { if (o.isMesh) meshes.push(o) })
+    meshes.forEach(m => splitChair(THREE, m))
+    return
+  }
+  root.traverse(o => {
+    if (!o.isMesh) return
+    const list = Array.isArray(o.material) ? o.material : [o.material]
+    list.forEach(m => {
+      const slot = tentSlot(m.name || '')
+      if (slot) rememberColor(m, 'tent', slot)
+    })
+  })
+}
+
+export function paintCamp(root, colors) {
+  if (!root) return
+  const tent = (colors && colors.tent) || {}
+  const chairs = (colors && colors.chairs) || {}
+  root.traverse(o => {
+    if (!o.isMesh) return
+    const list = Array.isArray(o.material) ? o.material : [o.material]
+    list.forEach(m => {
+      const slot = m.userData.campSlot
+      const kind = m.userData.campKind
+      if (!slot || !kind) return
+      const hex = kind === 'tent' ? tent[slot] : chairs[slot]
+      const orig = m.userData.campOrig
+      if (!hex) {
+        if (!orig) return
+        m.color.set(orig.color)
+        m.map = orig.map
+      } else {
+        m.map = null
+        m.color.set(hex)
+      }
+      m.needsUpdate = true
+    })
+  })
+}
+
 function clipNamed(clips, frag) {
   const f = frag.toLowerCase()
   return (clips || []).find(c => (c.name || '').toLowerCase().includes(f)) || null
@@ -318,6 +426,7 @@ export function buildCampSite(THREE, opts) {
   const tentSpot = rel(-2.55, -0.85, 1.15, false)
   const tent = addProp(world, group, scenes[tentKey], tentSpot, 0)
   tent.rotation.y = faceZ(tentSpot, fire)
+  prepareCampPaint(THREE, tent, 'tent')
   if (shadow) tent.traverse(o => { if (o.isMesh) o.castShadow = true })
 
   const bagSpot = rel(-1.7, -2.9, 0.55, false)
@@ -363,6 +472,7 @@ export function buildCampSite(THREE, opts) {
     const spots = [rel(-1.35, 1.85, 0.4, false), rel(1.15, 2.05, 0.4, false)]
     for (const s of spots) {
       const chair = addProp(world, group, scenes.chair, s, faceX(s, fire))
+      prepareCampPaint(THREE, chair, 'chair')
       if (shadow) chair.traverse(o => { if (o.isMesh) o.castShadow = true })
     }
   }
@@ -385,6 +495,7 @@ export function buildCampSite(THREE, opts) {
     roof = cloneProp(scenes.roof)
     roof.userData.roof = true
     roof.rotation.y = Math.PI
+    prepareCampPaint(THREE, roof, 'tent')
     if (shadow) roof.traverse(o => { if (o.isMesh) o.castShadow = true })
     const tarpSpot = clearSpot(
       world,
@@ -452,6 +563,12 @@ export function buildCampSite(THREE, opts) {
     if (lanternLight) lanternLight.intensity = dark ? 2.1 : 0.45
   }
 
+  function repaint(colors) {
+    paintCamp(group, colors)
+    if (roof) paintCamp(roof, colors)
+  }
+  if (opts.colors) repaint(opts.colors)
+
   function audit() {
     const issues = []
     group.traverse(o => {
@@ -472,7 +589,7 @@ export function buildCampSite(THREE, opts) {
     return { ok: issues.length === 0, issues, fire }
   }
 
-  return { group, fire, roof, attachRoof, tick, audit, anchor }
+  return { group, fire, roof, attachRoof, tick, audit, anchor, repaint }
 }
 
 export function fishStage(world, x, z) {
