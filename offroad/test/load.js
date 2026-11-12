@@ -74,12 +74,12 @@ async function main() {
   const fails = []
   if (info.title !== 'OXBOW') fails.push('title missing')
   if (info.mode !== 'title' || !info.ready) fails.push('game did not boot ' + JSON.stringify(info))
-  if (info.marker !== 'OFFROAD_V5_1') fails.push('marker ' + info.marker)
+  if (info.marker !== 'OFFROAD_V6') fails.push('marker ' + info.marker)
   await send('Runtime.evaluate', { expression: `document.getElementById('btn-new').click()` })
   await sleep(400)
   const before = await send('Runtime.evaluate', { expression: `JSON.stringify(OX.pos)`, returnByValue: true })
   await send('Input.dispatchKeyEvent', { type: 'keyDown', code: 'KeyW', key: 'w', windowsVirtualKeyCode: 87, nativeVirtualKeyCode: 87 })
-  await sleep(3800)
+  await sleep(5200)
   await send('Input.dispatchKeyEvent', { type: 'keyUp', code: 'KeyW', key: 'w', windowsVirtualKeyCode: 87, nativeVirtualKeyCode: 87 })
   const after = await send('Runtime.evaluate', { expression: `JSON.stringify({pos:OX.pos, speed:OX.speed, mode:OX.mode, hud:getComputedStyle(document.getElementById('hud')).display})`, returnByValue: true })
   const a = JSON.parse(before.result.result.value)
@@ -95,6 +95,6 @@ async function main() {
     fails.forEach(f => console.error(' -', f))
     process.exit(1)
   }
-  console.log('OK OFFROAD_V5_1 load')
+  console.log('OK OFFROAD_V6 load')
 }
 main().catch(e => { console.error(e); process.exit(1) })

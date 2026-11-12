@@ -1,12 +1,12 @@
 // OFFROAD_V2 — terrain, reputation, fuel, and solid trees. Run: node offroad/test/sim.js
 import { createWorld, SURF, FRICTION, DRAG, HALF } from '../js/world.js'
-import { OFFROAD_V2, OFFROAD_V3, OFFROAD_V4, OFFROAD_V4_1, OFFROAD_V5, OFFROAD_V5_1, VEHICLES, ADVENTURES, freshSave, buyUpgrade, buyVehicle, buyAux, buyJerry, useJerry, refuel, burnFuel, coerceSave, tickAdventure, tankCapacity, jerrySlots, isDark, TANK, specWithUpgrades, noteAssist } from '../js/economy.js'
-import { canPitch, slopeAt, buyCamp, cookJudge, applyCook, rollFish, aimHit, RECIPES } from '../js/camp.js'
-import { createSim, tractionTrial } from '../js/physics.js'
+import { OFFROAD_V2, OFFROAD_V3, OFFROAD_V4, OFFROAD_V4_1, OFFROAD_V5, OFFROAD_V5_1, OFFROAD_V6, VEHICLES, ADVENTURES, freshSave, buyUpgrade, buyVehicle, buyAux, buyJerry, useJerry, refuel, burnFuel, coerceSave, tickAdventure, tankCapacity, jerrySlots, isDark, TANK, specWithUpgrades, noteAssist, crawlAngles, regionUnlocked } from '../js/economy.js'
+import { canPitch, slopeAt, buyCamp, cookJudge, applyCook, rollFish, aimHit, RECIPES, activityState, nearWater, habitat } from '../js/camp.js'
+import { createSim, tractionTrial, ROLL_LIMIT, recoveryCopy } from '../js/physics.js'
 
 const fails = []
 const fail = m => fails.push(m)
-if (OFFROAD_V2 !== 1 || OFFROAD_V3 !== 1 || OFFROAD_V4 !== 1 || OFFROAD_V4_1 !== 1 || OFFROAD_V5 !== 1 || OFFROAD_V5_1 !== 1) fail('marker missing')
+if (OFFROAD_V2 !== 1 || OFFROAD_V3 !== 1 || OFFROAD_V4 !== 1 || OFFROAD_V4_1 !== 1 || OFFROAD_V5 !== 1 || OFFROAD_V5_1 !== 1 || OFFROAD_V6 !== 1) fail('marker missing')
 const ids = Object.keys(VEHICLES)
 if (ids.length < 6) fail('roster ' + ids.join(','))
 for (const id of ['mule', 'scout', 'runner', 'wagon', 'hauler', 'van']) if (!VEHICLES[id]) fail('missing ' + id)
@@ -120,7 +120,7 @@ const fuelLeft = burnFuel(TANK, 1, 2)
 if (!(fuelLeft < TANK && fuelLeft > TANK - 1)) fail('fuel burn ' + fuelLeft)
 if (burnFuel(0.01, 1, 5) !== 0) fail('fuel went negative')
 const migrated = coerceSave({ v: 1, money: 400, fuel: 9, vehicle: 'mule', owned: ['mule'], upgrades: { tires: 1, susp: 0, engine: 0, winch: 0 }, discovered: ['yard'], done: ['lookout', 'mill'], settings: { time: 0.2, gfx: 'low' }, x: 1, z: 2, qw: 1 }, 'low')
-if (!migrated || migrated.v !== 4 || migrated.money != null) fail('migration kept cash')
+if (!migrated || migrated.v !== 6 || migrated.money != null) fail('migration kept cash')
 if (!migrated.camp || migrated.camp.tent !== 0 || !migrated.pantry) fail('migration dropped the camp kit')
 if (migrated.rep !== 45 + 50) fail('migration rep ' + migrated.rep)
 if (!migrated.cleared.nightwatch || !migrated.cleared.ford) fail('migration adventures')
@@ -204,6 +204,83 @@ else {
   if (gap < 0.7) fail('truck overlapped the trunk')
 }
 
+function approachRock(rock, back) {
+  let best = null
+  for (let k = 0; k < 8; k++) {
+    const ang = k / 8 * Math.PI * 2
+    const x = rock.x + Math.sin(ang) * back
+    const z = rock.z + Math.cos(ang) * back
+    if (world.surface(x, z) === SURF.water) continue
+    const slope = Math.abs(world.height(x, z) - world.height(rock.x, rock.z))
+    if (!best || slope < best.slope) best = { x, z, slope }
+  }
+  return best
+}
+function crawlAt(rock, back, frames) {
+  const from = approachRock(rock, back)
+  const sim = createSim(world)
+  const yaw = Math.atan2(rock.x - from.x, rock.z - from.z)
+  sim.spawn('mule', { x: from.x, z: from.z, y: world.height(from.x, from.z) + 1.7 })
+  sim.chassis.quaternion.setFromEuler(0, yaw, 0)
+  sim.syncSolids(world.trees, world.rocks)
+  const startY = sim.chassis.position.y
+  const dirx = Math.sin(yaw)
+  const dirz = Math.cos(yaw)
+  let minGap = 99
+  let maxY = startY
+  let maxAlong = -99
+  let low = 1
+  let crossClear = -99
+  const rockGround = world.height(rock.x, rock.z)
+  for (let i = 0; i < frames; i++) {
+    sim.step(1 / 60, { throttle: 1, brake: 0, steer: 0, handbrake: 0, lock: true, low: true, winch: false, fuel: 18 })
+    const c = sim.chassis
+    const gap = Math.hypot(c.position.x - rock.x, c.position.z - rock.z)
+    if (gap < minGap) {
+      minGap = gap
+      crossClear = c.position.y - rockGround
+    }
+    if (c.position.y > maxY) maxY = c.position.y
+    const along = (c.position.x - from.x) * dirx + (c.position.z - from.z) * dirz
+    if (along > maxAlong) maxAlong = along
+    low = Math.min(low, sim.upright())
+  }
+  return { minGap, maxY, startY, maxAlong, low, rise: maxY - startY, crossClear }
+}
+const boulder = world.rocks.filter(r => r.h >= 2.2 && r.rad >= 6).sort((a, b) => b.rad - a.rad)[0]
+if (!boulder) fail('no boulder to block the truck')
+else {
+  const hit = crawlAt(boulder, Math.max(9, boulder.rad * 0.95), 520)
+  console.log('boulder', boulder.h.toFixed(1), 'gap', hit.minGap.toFixed(2), 'along', hit.maxAlong.toFixed(2), 'rise', hit.rise.toFixed(2))
+  if (hit.minGap < boulder.rad * 0.35) fail('truck passed through a boulder ' + hit.minGap.toFixed(2))
+  if (hit.maxAlong > boulder.rad + 6 && hit.minGap < boulder.rad * 0.7) fail('truck climbed over a boulder')
+}
+const stones = world.rocks.filter(r => r.h < 1.75 && r.h > 0.8 && r.rad > 4 && r.rad < 8).sort((a, b) => a.h - b.h)
+let climbed = null
+for (const rock of stones) {
+  const hop = crawlAt(rock, 11, 1000)
+  if (hop.minGap < 1.2 && hop.crossClear > 0.25 && hop.maxAlong > 11 && hop.low > 0.8) {
+    climbed = { rock, hop }
+    break
+  }
+}
+if (!stones.length) fail('no small rock to climb')
+else if (!climbed) fail('truck could not climb a small rock')
+else console.log('stone', climbed.rock.h.toFixed(2), 'clear', climbed.hop.crossClear.toFixed(2), 'along', climbed.hop.maxAlong.toFixed(2), 'up', climbed.hop.low.toFixed(2))
+const tip = createSim(world)
+tip.spawn('mule', { x: yard.x, z: yard.z + 8, y: world.height(yard.x, yard.z + 8) + 1.6 })
+for (let i = 0; i < 40; i++) tip.step(1 / 60, { throttle: 0, brake: 0, steer: 0, handbrake: 0, lock: false, winch: false, fuel: 18 })
+tip.chassis.quaternion.setFromEuler(1.15, 0.2, 0.85)
+tip.chassis.angularVelocity.set(0, 0, 0)
+tip.chassis.velocity.set(0, 0, 0)
+const tipped = tip.upright()
+const offer = recoveryCopy(tipped, '')
+console.log('rollover', tipped.toFixed(2), offer && offer.title)
+if (!(tipped < ROLL_LIMIT)) fail('truck did not roll past the threshold ' + tipped.toFixed(2))
+if (!offer || offer.title !== 'Call for recovery' || offer.reason !== 'roll') fail('rollover did not offer recovery')
+if (recoveryCopy(0.95, '')) fail('upright truck should not call recovery')
+if (recoveryCopy(0.95, 'mud').title !== 'Bogged down') fail('mud recovery copy')
+
 if (fails.length) {
   console.error('FAIL')
   fails.forEach(f => console.error(' -', f))
@@ -239,4 +316,48 @@ for (let i = 0; i < 200; i++) {
 }
 if (bogged !== 'mud') fail('deep mud did not bog the truck ' + bogged + ' depth ' + deepMud.d.toFixed(2))
 if (Math.abs(bogSim.chassis.position.z - bogStart) > 3) fail('bogged truck still drove')
-console.log('OK OFFROAD_V5_1')
+const yardReg = world.regionAt(yard.x, yard.z)
+const quarryReg = world.regionAt(quarry.x, quarry.z)
+const lookReg = world.regionAt(world.pois.find(p => p.id === 'lookout').x, world.pois.find(p => p.id === 'lookout').z)
+if (yardReg.id !== 'forest') fail('yard should be forest ' + yardReg.id)
+if (quarryReg.id !== 'desert') fail('quarry should be desert ' + quarryReg.id)
+if (lookReg.id !== 'mountain') fail('lookout should be mountain ' + lookReg.id)
+const oasis = world.pois.find(p => p.id === 'oasis')
+const alpine = world.pois.find(p => p.id === 'alpine')
+if (!oasis || world.surface(oasis.x, oasis.z) === SURF.water) fail('oasis camp is wet')
+if (!alpine || world.surface(alpine.x, alpine.z) === SURF.water) fail('alpine camp is wet')
+if (!nearWater(world, oasis.x, oasis.z)) fail('oasis camp should fish')
+if (!nearWater(world, alpine.x, alpine.z)) fail('alpine camp should fish')
+if (world.surface(world.lakes[0].x, world.lakes[0].z) !== SURF.water) fail('oasis pool missing')
+if (world.surface(world.lakes[1].x, world.lakes[1].z) !== SURF.water) fail('alpine lake missing')
+const dry = activityState(world, yard.x, yard.z, freshSave())
+if (dry.fish.ok || dry.fish.reason !== 'Needs water nearby') fail('yard fishing ' + dry.fish.reason)
+if (dry.cook.ok || dry.cook.reason !== 'Needs ingredients') fail('empty pantry should not cook')
+const fed = freshSave()
+fed.pantry.trout = 1
+fed.camp.rod = 1
+fed.camp.hunt = 1
+if (!activityState(world, mill.x, mill.z, fed).fish.ok) fail('mill should allow fishing')
+if (!activityState(world, yard.x, yard.z, fed).hunt.ok) fail('forest should allow hunting with a kit')
+if (activityState(world, yard.x, yard.z, freshSave()).hunt.reason !== 'Needs a field kit') fail('hunt kit reason')
+let slick = null
+for (let i = 0; i < world.gridN && !slick; i += 6) {
+  for (let j = 0; j < world.gridN && !slick; j += 6) {
+    const x = -HALF + (i / (world.gridN - 1)) * (HALF * 2)
+    const z = HALF - (j / (world.gridN - 1)) * (HALF * 2)
+    if (world.regionAt(x, z).id !== 'desert') continue
+    if (world.surface(x, z) !== SURF.rock) continue
+    if (habitat(world, x, z).ok) continue
+    slick = { x, z }
+  }
+}
+if (!slick) fail('desert slickrock should refuse a hunt')
+else if (activityState(world, slick.x, slick.z, fed).hunt.ok) fail('slickrock hunt stayed open')
+if (regionUnlocked(freshSave(), 'desert')) fail('desert opens too early')
+if (!regionUnlocked(Object.assign(freshSave(), { rep: 40 }), 'desert')) fail('desert gate')
+if (regionUnlocked(Object.assign(freshSave(), { rep: 40 }), 'mountain')) fail('mountain opens too early')
+const angles = crawlAngles(specWithUpgrades('mule', { tires: 0, susp: 0, engine: 0, winch: 0, snorkel: 0 }))
+if (!(angles.approach > 10 && angles.breakover > 5)) fail('crawl angles ' + JSON.stringify(angles))
+const kinds = new Set(world.trees.map(t => t.k))
+if (!kinds.has(2) || !kinds.has(3)) fail('desert plants missing ' + [...kinds].join(','))
+console.log('OK OFFROAD_V6')

@@ -41,6 +41,34 @@ function blob(x, z, cx, cz, rad, amp) {
   return u * u * amp
 }
 
+export const LAKES = [
+  { id: 'oasis', name: 'Red Oasis', x: 176, z: -118, r: 15, region: 'desert', bed: 5.4 },
+  { id: 'alpine', name: 'Teal Lake', x: -118, z: 188, r: 20, region: 'mountain', bed: 4.2 }
+]
+export const REGION_NAME = { forest: 'Hollow Forest', desert: 'Red Wash', mountain: 'Granite Spine' }
+
+export function lakeAt(x, z, pad = 0) {
+  for (const l of LAKES) {
+    const d = Math.hypot(x - l.x, z - l.z)
+    if (d < l.r + pad) return { id: l.id, name: l.name, x: l.x, z: l.z, r: l.r, region: l.region, d }
+  }
+  return null
+}
+export function regionWeights(x, z) {
+  const mtn = smooth((z - 88) / 78)
+  const des = smooth((x - 18) / 95) * (1 - mtn * 0.92)
+  const forest = Math.max(0, 1 - mtn - des)
+  const sum = mtn + des + forest || 1
+  return { forest: forest / sum, desert: des / sum, mountain: mtn / sum }
+}
+export function regionAt(x, z) {
+  const w = regionWeights(x, z)
+  let id = 'forest'
+  if (w.desert >= w.forest && w.desert >= w.mountain) id = 'desert'
+  if (w.mountain >= w.forest && w.mountain >= w.desert) id = 'mountain'
+  return { id, name: REGION_NAME[id], w }
+}
+
 export function createWorld(seed = 1) {
   const n = valueNoise(seed)
   const rng = mulberry32(seed + 17)
@@ -60,17 +88,24 @@ export function createWorld(seed = 1) {
     { id: 'storequarry', name: 'Quarry Store', x: 148, z: 112, r: 12, kind: 'store' },
     { id: 'storeridge', name: 'Ridge Store', x: 96, z: 168, r: 12, kind: 'store' },
     { id: 'creekcamp', name: 'Creek Bend', x: 40, z: -32, r: 14, kind: 'camp' },
-    { id: 'highcamp', name: 'Quarry Bench', x: 124, z: 138, r: 12, kind: 'camp' }
+    { id: 'highcamp', name: 'Quarry Bench', x: 124, z: 138, r: 12, kind: 'camp' },
+    { id: 'oasis', name: 'Red Oasis', x: 150, z: -100, r: 12, kind: 'camp' },
+    { id: 'alpine', name: 'Teal Shore', x: -100, z: 172, r: 12, kind: 'camp' }
   ]
+  for (const p of pois) p.region = regionAt(p.x, p.z).id
   const ford = { x: 8, z: 0 }
   ford.z = riverZ(ford.x)
   const rocks = []
-  for (let t = 0; t < 400 && rocks.length < 16; t++) {
+  for (let t = 0; t < 900 && rocks.length < 26; t++) {
     const x = (rng() * 2 - 1) * (HALF - 40)
     const z = (rng() * 2 - 1) * (HALF - 40)
     if (Math.abs(z - riverZ(x)) < 26) continue
+    if (lakeAt(x, z, 6)) continue
     if (pois.some(p => Math.hypot(p.x - x, p.z - z) < p.r + 8)) continue
-    rocks.push({ x, z, rad: 5 + rng() * 6, h: 1.4 + rng() * 2.4 })
+    const reg = regionAt(x, z).id
+    if (reg === 'forest' && rng() < 0.62) continue
+    const kind = reg === 'mountain' ? (rng() < 0.45 ? 2 : 0) : reg === 'desert' ? (rng() < 0.55 ? 1 : 0) : (rng() < 0.25 ? 1 : 0)
+    rocks.push({ x, z, rad: 4.2 + rng() * 6.5, h: 1.3 + rng() * 2.8, kind, region: reg })
   }
 
   function terrain(x, z) {
@@ -82,7 +117,27 @@ export function createWorld(seed = 1) {
     h += blob(x, z, 130, 170, 80, 12)
     h += blob(x, z, -190, -20, 70, 8)
     h -= blob(x, z, 196, 86, 16, 7)
+    const rw = regionWeights(x, z)
+    const bank = Math.abs(z - riverZ(x))
+    if (bank > 26) {
+      h += blob(x, z, 214, -96, 78, 12) * (0.45 + rw.desert)
+      h += blob(x, z, 96, 36, 42, 7) * rw.desert
+      h += (n(x * 0.011, z * 0.011) - 0.5) * 4.2 * rw.desert
+      h += blob(x, z, -150, 210, 100, 22) * (0.55 + rw.mountain)
+      h += blob(x, z, 30, 220, 76, 16) * rw.mountain
+      h += blob(x, z, -150, -30, 86, 9) * rw.forest
+      h += blob(x, z, -40, -120, 64, 6) * rw.forest
+      h -= blob(x, z, 176, -118, 24, 5.5)
+      h -= blob(x, z, -118, 188, 30, 7)
+    }
     for (const r of rocks) h += blob(x, z, r.x, r.z, r.rad, r.h)
+    const bowls = [[-118, 188, 36, 4.2], [176, -118, 24, 5.4]]
+    for (const [cx, cz, rad, bed] of bowls) {
+      const bd = Math.hypot(x - cx, z - cz)
+      if (bd >= rad) continue
+      const u = 1 - smooth(bd / (rad * 0.82))
+      if (u > 0) h = lerp(h, bed, u)
+    }
     const cz = riverZ(x)
     const d = Math.abs(z - cz)
     const reach = 22
@@ -206,10 +261,15 @@ export function createWorld(seed = 1) {
       const sl = Math.hypot(dx, dz) / (WORLD_SIZE / GRID)
       const rd = Math.abs(z - riverZ(x))
       const wet = n(x * 0.012, z * 0.012)
+      const reg = regionAt(x, z)
+      const lake = lakeAt(x, z)
       let s = SURF.dirt
-      if (sl > 0.55) s = SURF.rock
+      if (lake && lake.d < lake.r * 0.72) s = SURF.water
+      else if (lake && lake.d < lake.r * 0.98) s = SURF.sand
+      else if (sl > 0.55 || (reg.id === 'mountain' && sl > 0.42 && h > 12)) s = SURF.rock
       else if (rd < 11 && h < 2.65) s = SURF.water
       else if (rd < 20 && h < 5.2) s = SURF.mud
+      else if (reg.id === 'desert' && sl < 0.42 && rd > 22 && h < 16 && wet < 0.72) s = SURF.sand
       else if (sl < 0.28 && h > 6 && h < 18 && wet < 0.42) s = SURF.sand
       surf[j * GRID + i] = s
     }
@@ -225,6 +285,8 @@ export function createWorld(seed = 1) {
   }
   function waterDepth(x, z) {
     if (surface(x, z) !== SURF.water) return 0
+    const lake = lakeAt(x, z)
+    if (lake) return 0.4 + Math.max(0, 1 - lake.d / (lake.r * 0.72)) * 1.75
     const fd = Math.hypot(x - ford.x, z - ford.z)
     if (fd < 18) return 0.22 + fd * 0.012
     const rd = Math.abs(z - riverZ(x))
@@ -255,14 +317,28 @@ export function createWorld(seed = 1) {
       const s = surface(x, z)
       if (s === SURF.water || s === SURF.trail || s === SURF.rock) continue
       if (pois.some(p => Math.hypot(p.x - x, p.z - z) < p.r + 6)) continue
-      if (tr() < 0.38) continue
-      trees.push({ x, z, s: 0.75 + tr() * 1.15, k: tr() < 0.55 ? 0 : 1, y: height(x, z) })
+      if (lakeAt(x, z, 4)) continue
+      const reg = regionAt(x, z).id
+      const y = height(x, z)
+      let k = 0
+      let scale = 0.75 + tr() * 1.15
+      if (reg === 'desert') {
+        if (tr() < 0.7) continue
+        k = tr() < 0.62 ? 2 : 3
+        scale = 0.7 + tr() * 0.7
+      } else if (reg === 'mountain') {
+        if (y > 18 || tr() < 0.48) continue
+        k = tr() < 0.72 ? 0 : 1
+        scale = 0.65 + tr() * 0.9
+      } else if (tr() < 0.22) continue
+      else k = tr() < 0.58 ? 0 : 1
+      trees.push({ x, z, s: scale, k, y, region: reg })
     }
   }
 
   return {
     seed, size: WORLD_SIZE, half: HALF, height, surface, mudDepth, waterDepth, currentDir, pois, ford, rocks, trails, trees,
-    gridN: GRID, heights, surf, riverZ
+    gridN: GRID, heights, surf, riverZ, regionAt, blend: regionWeights, lakeAt, lakes: LAKES
   }
 }
 
