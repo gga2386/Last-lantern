@@ -4,7 +4,7 @@ import { createWorld, WORLD_SIZE, HALF, SURF, SURF_NAME } from './world.js'
 import { OFFROAD_V2, OFFROAD_V3, OFFROAD_V4, OFFROAD_V4_1, OFFROAD_V5, OFFROAD_V5_1, OFFROAD_V6, freshSave, SAVE_KEY, VEHICLES, UPGRADES, AUX, JERRY, ADVENTURES, TANK, coerceSave, buyUpgrade, buyVehicle, buyAux, buyJerry, useJerry, refuel, burnFuel, specWithUpgrades, tankCapacity, jerrySlots, rankFor, isDark, clockLabel, tickAdventure, noteAssist, REGION_OPEN, regionUnlocked, crawlAngles } from './economy.js'
 import { preloadRigs, buildRig, applyLod } from './rigs.js'
 import { CAMP, campLevel, buyCamp, canPitch, rollFish, reelBand, biteSeconds, aimHit, RECIPES, canCook, cookJudge, applyCook, activityState, gameFor } from './camp.js'
-import { createSim } from './physics.js'
+import { createSim, ROLL_LIMIT, recoveryCopy } from './physics.js'
 
 export { OFFROAD_V2, OFFROAD_V3, OFFROAD_V4, OFFROAD_V4_1, OFFROAD_V5, OFFROAD_V5_1, OFFROAD_V6 }
 
@@ -207,8 +207,10 @@ function groundColor(x, z, surf, h) {
   const key = ['forest', 'desert', 'mountain']
   const c = new THREE.Color(0, 0, 0)
   for (const id of key) c.add(new THREE.Color(LOOK[id].ground[painted] || LOOK[id].ground[0]).multiplyScalar(w[id]))
+  const nearLake = world.lakeAt(x, z, 36)
+  if (nearLake && surf !== SURF.water) c.lerp(new THREE.Color(nearLake.region === 'desert' ? '#e0c09a' : '#8d959e'), 0.8)
   const edge = Math.max(Math.abs(x), Math.abs(z)) > HALF - 48
-  if (!edge && w.mountain > 0.45 && h > 16 && surf !== SURF.water && !world.lakeAt(x, z, 26)) {
+  if (!edge && !nearLake && w.mountain > 0.45 && h > 18 && surf !== SURF.water) {
     const snow = Math.min(1, (h - 16) / 7) * w.mountain
     c.lerp(SNOW, snow * 0.9)
   }
@@ -361,8 +363,9 @@ function scatter() {
   const rockCols = { desert: new THREE.Color('#b15a42'), forest: new THREE.Color('#6a6458'), mountain: new THREE.Color('#9aa3ad') }
   const groups = [[], [], []]
   world.rocks.forEach(r => {
-    dummy.position.set(r.x, world.height(r.x, r.z) + r.h * 0.15, r.z)
-    dummy.scale.set(r.rad * (r.kind === 1 ? 0.7 : 0.48), r.h * (r.kind === 2 ? 0.9 : 0.55), r.rad * 0.46)
+    const climb = r.h < 1.75
+    dummy.position.set(r.x, world.height(r.x, r.z) + (climb ? 0.05 : r.h * 0.12), r.z)
+    dummy.scale.set(r.rad * (r.kind === 1 ? 0.62 : 0.46), (climb ? 0.34 : r.h * (r.kind === 2 ? 0.85 : 0.55)), r.rad * 0.44)
     dummy.rotation.set(r.h * 0.2, r.x * 0.2, r.kind === 1 ? 0.3 : 0.15)
     dummy.updateMatrix()
     groups[r.kind] = groups[r.kind] || groups[0]
@@ -1337,7 +1340,7 @@ function syncSettings() {
   $('sound').checked = save.settings.sound !== false
   $('shake').checked = save.settings.shake !== false
 }
-function rolled() { return sim.upright() < 0.45 }
+function rolled() { return sim.upright() < ROLL_LIMIT }
 function nearestAnchor() {
   const c = sim.chassis
   if (!c) return null
@@ -1551,9 +1554,10 @@ function refreshRecover() {
   if (!need) return
   if (!recovery) {
     if (time) time.hidden = true
-    const flooded = hazard.stuck === 'water'
-    const bogged = hazard.stuck === 'mud'
-    if (title) title.textContent = flooded ? 'Engine flooded' : bogged ? 'Bogged down' : 'Call for recovery'
+    const copy = recoveryCopy(sim.upright(), hazard.stuck) || { title: 'Call for recovery', reason: 'roll' }
+    const flooded = copy.reason === 'water'
+    const bogged = copy.reason === 'mud'
+    if (title) title.textContent = copy.title
     const winchHint = anchor ? ' A tree or rock is in winch range.' : ''
     if (sub) sub.textContent = (flooded ? 'The intake is under. You will not restart it here.' : bogged ? 'You will not crawl out of this.' : 'You are on your side. A yard truck can roll you back.') + winchHint
     if (btn) { btn.hidden = false; btn.textContent = 'Call' }

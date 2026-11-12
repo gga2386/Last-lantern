@@ -3,6 +3,16 @@ import * as CANNON from '../vendor/cannon-es.js'
 import { FRICTION, DRAG, SURF, heightfieldData } from './world.js'
 import { specWithUpgrades } from './economy.js'
 
+// Tipped past this and the cab offers Call for recovery. Mud and flood use the same dialog.
+export const ROLL_LIMIT = 0.45
+export function recoveryCopy(upright, stuck) {
+  const rolled = upright < ROLL_LIMIT
+  if (!rolled && !stuck) return null
+  if (stuck === 'water') return { title: 'Engine flooded', reason: 'water' }
+  if (stuck === 'mud') return { title: 'Bogged down', reason: 'mud' }
+  return { title: 'Call for recovery', reason: 'roll' }
+}
+
 export function createSim(world) {
   const cw = new CANNON.World()
   cw.gravity.set(0, -9.82, 0)
@@ -227,11 +237,22 @@ export function createSim(world) {
       const key = 'r' + i
       keep.add(key)
       if (solids.has(key)) continue
-      const hx = r.rad * 0.42, hy = Math.max(0.85, r.h * 0.55), hz = r.rad * 0.4
+      const climb = r.h < 1.75
       const b = new CANNON.Body({ mass: 0 })
-      b.addShape(new CANNON.Box(new CANNON.Vec3(hx, hy, hz)))
-      b.addShape(new CANNON.Box(new CANNON.Vec3(hx * 0.62, hy * 0.48, hz * 0.62)), new CANNON.Vec3(hx * 0.28, hy * 0.35, -hz * 0.12))
-      b.position.set(r.x, world.height(r.x, r.z) + hy * 0.35, r.z)
+      const groundY = world.height(r.x, r.z)
+      if (climb) {
+        const hx = 1.15
+        const hy = 0.16
+        b.addShape(new CANNON.Box(new CANNON.Vec3(hx, hy, hx)))
+        b.position.set(r.x, groundY - hy * 0.2, r.z)
+      } else {
+        const hx = r.rad * 0.5
+        const hy = Math.max(1.15, r.h * 0.68)
+        const hz = r.rad * 0.48
+        b.addShape(new CANNON.Box(new CANNON.Vec3(hx, hy, hz)))
+        b.addShape(new CANNON.Box(new CANNON.Vec3(hx * 0.78, hy * 0.42, hz * 0.62)), new CANNON.Vec3(0, hy * 0.2, hz * 0.28))
+        b.position.set(r.x, groundY + hy * 0.2, r.z)
+      }
       add(key, b)
     }
     for (const [k, b] of solids) {

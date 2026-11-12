@@ -2,7 +2,7 @@
 import { createWorld, SURF, FRICTION, DRAG, HALF } from '../js/world.js'
 import { OFFROAD_V2, OFFROAD_V3, OFFROAD_V4, OFFROAD_V4_1, OFFROAD_V5, OFFROAD_V5_1, OFFROAD_V6, VEHICLES, ADVENTURES, freshSave, buyUpgrade, buyVehicle, buyAux, buyJerry, useJerry, refuel, burnFuel, coerceSave, tickAdventure, tankCapacity, jerrySlots, isDark, TANK, specWithUpgrades, noteAssist, crawlAngles, regionUnlocked } from '../js/economy.js'
 import { canPitch, slopeAt, buyCamp, cookJudge, applyCook, rollFish, aimHit, RECIPES, activityState, nearWater, habitat } from '../js/camp.js'
-import { createSim, tractionTrial } from '../js/physics.js'
+import { createSim, tractionTrial, ROLL_LIMIT, recoveryCopy } from '../js/physics.js'
 
 const fails = []
 const fail = m => fails.push(m)
@@ -203,6 +203,83 @@ else {
   if (hit.chassis.position.z > tree.z - 0.8) fail('truck drove through the tree')
   if (gap < 0.7) fail('truck overlapped the trunk')
 }
+
+function approachRock(rock, back) {
+  let best = null
+  for (let k = 0; k < 8; k++) {
+    const ang = k / 8 * Math.PI * 2
+    const x = rock.x + Math.sin(ang) * back
+    const z = rock.z + Math.cos(ang) * back
+    if (world.surface(x, z) === SURF.water) continue
+    const slope = Math.abs(world.height(x, z) - world.height(rock.x, rock.z))
+    if (!best || slope < best.slope) best = { x, z, slope }
+  }
+  return best
+}
+function crawlAt(rock, back, frames) {
+  const from = approachRock(rock, back)
+  const sim = createSim(world)
+  const yaw = Math.atan2(rock.x - from.x, rock.z - from.z)
+  sim.spawn('mule', { x: from.x, z: from.z, y: world.height(from.x, from.z) + 1.7 })
+  sim.chassis.quaternion.setFromEuler(0, yaw, 0)
+  sim.syncSolids(world.trees, world.rocks)
+  const startY = sim.chassis.position.y
+  const dirx = Math.sin(yaw)
+  const dirz = Math.cos(yaw)
+  let minGap = 99
+  let maxY = startY
+  let maxAlong = -99
+  let low = 1
+  let crossClear = -99
+  const rockGround = world.height(rock.x, rock.z)
+  for (let i = 0; i < frames; i++) {
+    sim.step(1 / 60, { throttle: 1, brake: 0, steer: 0, handbrake: 0, lock: true, low: true, winch: false, fuel: 18 })
+    const c = sim.chassis
+    const gap = Math.hypot(c.position.x - rock.x, c.position.z - rock.z)
+    if (gap < minGap) {
+      minGap = gap
+      crossClear = c.position.y - rockGround
+    }
+    if (c.position.y > maxY) maxY = c.position.y
+    const along = (c.position.x - from.x) * dirx + (c.position.z - from.z) * dirz
+    if (along > maxAlong) maxAlong = along
+    low = Math.min(low, sim.upright())
+  }
+  return { minGap, maxY, startY, maxAlong, low, rise: maxY - startY, crossClear }
+}
+const boulder = world.rocks.filter(r => r.h >= 2.2 && r.rad >= 6).sort((a, b) => b.rad - a.rad)[0]
+if (!boulder) fail('no boulder to block the truck')
+else {
+  const hit = crawlAt(boulder, Math.max(9, boulder.rad * 0.95), 520)
+  console.log('boulder', boulder.h.toFixed(1), 'gap', hit.minGap.toFixed(2), 'along', hit.maxAlong.toFixed(2), 'rise', hit.rise.toFixed(2))
+  if (hit.minGap < boulder.rad * 0.35) fail('truck passed through a boulder ' + hit.minGap.toFixed(2))
+  if (hit.maxAlong > boulder.rad + 6 && hit.minGap < boulder.rad * 0.7) fail('truck climbed over a boulder')
+}
+const stones = world.rocks.filter(r => r.h < 1.75 && r.h > 0.8 && r.rad > 4 && r.rad < 8).sort((a, b) => a.h - b.h)
+let climbed = null
+for (const rock of stones) {
+  const hop = crawlAt(rock, 11, 1000)
+  if (hop.minGap < 1.2 && hop.crossClear > 0.25 && hop.maxAlong > 11 && hop.low > 0.8) {
+    climbed = { rock, hop }
+    break
+  }
+}
+if (!stones.length) fail('no small rock to climb')
+else if (!climbed) fail('truck could not climb a small rock')
+else console.log('stone', climbed.rock.h.toFixed(2), 'clear', climbed.hop.crossClear.toFixed(2), 'along', climbed.hop.maxAlong.toFixed(2), 'up', climbed.hop.low.toFixed(2))
+const tip = createSim(world)
+tip.spawn('mule', { x: yard.x, z: yard.z + 8, y: world.height(yard.x, yard.z + 8) + 1.6 })
+for (let i = 0; i < 40; i++) tip.step(1 / 60, { throttle: 0, brake: 0, steer: 0, handbrake: 0, lock: false, winch: false, fuel: 18 })
+tip.chassis.quaternion.setFromEuler(1.15, 0.2, 0.85)
+tip.chassis.angularVelocity.set(0, 0, 0)
+tip.chassis.velocity.set(0, 0, 0)
+const tipped = tip.upright()
+const offer = recoveryCopy(tipped, '')
+console.log('rollover', tipped.toFixed(2), offer && offer.title)
+if (!(tipped < ROLL_LIMIT)) fail('truck did not roll past the threshold ' + tipped.toFixed(2))
+if (!offer || offer.title !== 'Call for recovery' || offer.reason !== 'roll') fail('rollover did not offer recovery')
+if (recoveryCopy(0.95, '')) fail('upright truck should not call recovery')
+if (recoveryCopy(0.95, 'mud').title !== 'Bogged down') fail('mud recovery copy')
 
 if (fails.length) {
   console.error('FAIL')
