@@ -1,12 +1,12 @@
-// Oxbow — Hollow Creek. OFFROAD_V7_1
+// Oxbow — Hollow Creek. OFFROAD_V7_2
 import * as THREE from '../vendor/three.module.js'
 import { createWorld, WORLD_SIZE, HALF, SURF, SURF_NAME } from './world.js'
-import { OFFROAD_V2, OFFROAD_V3, OFFROAD_V4, OFFROAD_V4_1, OFFROAD_V5, OFFROAD_V5_1, OFFROAD_V6, OFFROAD_V7, OFFROAD_V7_1, freshSave, SAVE_KEY, VEHICLES, UPGRADES, AUX, JERRY, ADVENTURES, TANK, coerceSave, buyUpgrade, buyVehicle, buyAux, buyJerry, useJerry, refuel, burnFuel, specWithUpgrades, tankCapacity, jerrySlots, rankFor, isDark, clockLabel, tickAdventure, noteAssist, REGION_OPEN, regionUnlocked, crawlAngles } from './economy.js'
+import { OFFROAD_V2, OFFROAD_V3, OFFROAD_V4, OFFROAD_V4_1, OFFROAD_V5, OFFROAD_V5_1, OFFROAD_V6, OFFROAD_V7, OFFROAD_V7_1, OFFROAD_V7_2, freshSave, SAVE_KEY, VEHICLES, UPGRADES, AUX, JERRY, ADVENTURES, TANK, coerceSave, buyUpgrade, buyVehicle, buyAux, buyJerry, useJerry, refuel, burnFuel, specWithUpgrades, tankCapacity, jerrySlots, rankFor, isDark, clockLabel, tickAdventure, noteAssist, REGION_OPEN, regionUnlocked, crawlAngles } from './economy.js'
 import { preloadRigs, buildRig, applyLod } from './rigs.js'
 import { CAMP, campLevel, buyCamp, canPitch, rollFish, reelBand, biteSeconds, aimHit, RECIPES, canCook, cookJudge, applyCook, activityState, gameFor } from './camp.js'
 import { createSim, ROLL_LIMIT, recoveryCopy } from './physics.js'
 
-export { OFFROAD_V2, OFFROAD_V3, OFFROAD_V4, OFFROAD_V4_1, OFFROAD_V5, OFFROAD_V5_1, OFFROAD_V6, OFFROAD_V7, OFFROAD_V7_1 }
+export { OFFROAD_V2, OFFROAD_V3, OFFROAD_V4, OFFROAD_V4_1, OFFROAD_V5, OFFROAD_V5_1, OFFROAD_V6, OFFROAD_V7, OFFROAD_V7_1, OFFROAD_V7_2 }
 
 const world = createWorld(1)
 const yard = world.pois.find(p => p.id === 'yard')
@@ -2233,7 +2233,7 @@ window.OX = {
     const zFront = yard.z + 16
     ids.forEach((id, i) => {
       const spec = specWithUpgrades(id, save.upgrades)
-      const built = buildRig(THREE, spec, { livery: i % spec.liveries.length, rack: rigLook(id).rack, shadow: false, detail, env: envTex })
+      const built = buildRig(THREE, spec, { livery: 0, rack: rigLook(id).rack, shadow: false, detail, env: envTex })
       const col = i % 3
       const row = Math.floor(i / 3)
       const x = (col - 1) * 5.2

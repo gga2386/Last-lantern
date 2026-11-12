@@ -1,4 +1,4 @@
-# Original Oxbow rigs, modeled in Blender. No brand marks. OFFROAD_V7_1
+# Original Oxbow rigs, modeled in Blender. No brand marks. OFFROAD_V7_2
 # Nose points down Blender -Y so glTF export faces Three.js +Z.
 # blender -b -P offroad/tools/build_rigs.py -- [style|all]
 import bpy, math, os, sys
@@ -156,48 +156,23 @@ def wheel(name, loc, R, parent, M, detail=True):
     bpy.context.scene.collection.objects.link(empty)
     empty.parent = parent
     kids = []
-    kids.append(cyl(name + "_side", (0, 0, 0), R * 0.9, R * 0.7, (0, math.pi / 2, 0), empty, M["sidewall"], 22))
-    for i, off in enumerate((-0.11, -0.04, 0.04, 0.11)):
-        kids.append(cyl(name + "_tr%d" % i, (off * R * 0.55, 0, 0), R * 1.04, R * 0.09, (0, math.pi / 2, 0), empty, M["tread"], 20))
-    kids.append(cyl(name + "_rim", (0.02, 0, 0), R * 0.72, R * 0.28, (0, math.pi / 2, 0), empty, M["rim"], 20))
-    kids.append(cyl(name + "_lip", (0.06, 0, 0), R * 0.78, R * 0.06, (0, math.pi / 2, 0), empty, M["chrome"], 20))
-    kids.append(cyl(name + "_dish", (0.05, 0, 0), R * 0.38, R * 0.16, (0, math.pi / 2, 0), empty, M["dark"], 12))
-    kids.append(cyl(name + "_hub", (0.1, 0, 0), R * 0.16, R * 0.2, (0, math.pi / 2, 0), empty, M["chrome"], 10))
+    kids.append(cyl(name + "_side", (0, 0, 0), R * 0.98, R * 0.52, (0, math.pi / 2, 0), empty, M["sidewall"], 24))
+    kids.append(cyl(name + "_tread", (0, 0, 0), R * 1.05, R * 0.28, (0, math.pi / 2, 0), empty, M["tread"], 24))
+    kids.append(cyl(name + "_rim", (R * 0.12, 0, 0), R * 0.74, R * 0.12, (0, math.pi / 2, 0), empty, M["rim"], 20))
+    kids.append(cyl(name + "_hub", (R * 0.18, 0, 0), R * 0.2, R * 0.1, (0, math.pi / 2, 0), empty, M["dark"], 12))
     if detail:
-        for i in range(6):
-            a = i / 6 * math.pi * 2
-            kids.append(uv(name + "_bolt%d" % i, (R * 0.16, math.cos(a) * R * 0.28, math.sin(a) * R * 0.28), R * 0.045, empty, M["dark"], (1, 1, 1)))
-            kids.append(cube(name + "_lug%d" % i, (R * 0.22, math.cos(a) * R * 0.78, math.sin(a) * R * 0.78), (R * 0.08, R * 0.1, R * 0.16), empty, M["tread"], bevel=0))
+        for i in range(5):
+            a = i / 5 * math.pi * 2
+            kids.append(uv(name + "_bolt%d" % i, (R * 0.2, math.cos(a) * R * 0.38, math.sin(a) * R * 0.38), R * 0.04, empty, M["chrome"], (1, 1, 1)))
     for o in kids:
         o.parent = empty
     return empty
 
-def half_flare(name, loc, R, parent, material, tube=None):
-    tube = tube if tube is not None else max(0.07, R * 0.22)
-    bpy.ops.mesh.primitive_torus_add(major_radius=R * 1.05, minor_radius=tube, major_segments=18, minor_segments=8, location=loc, rotation=(0, math.pi / 2, 0))
-    o = bpy.context.active_object
-    o.name = name
-    bpy.ops.object.transform_apply(rotation=True)
-    mesh = o.data
-    keep = []
-    for v in mesh.vertices:
-        if v.co.z >= -0.02:
-            keep.append(v.index)
-    if len(keep) > 8:
-        import bmesh
-        bm = bmesh.new()
-        bm.from_mesh(mesh)
-        for v in list(bm.verts):
-            if v.co.z < -0.01:
-                bm.verts.remove(v)
-        bm.to_mesh(mesh)
-        bm.free()
-    if material:
-        o.data.materials.append(material)
-    for p in o.data.polygons:
-        p.use_smooth = True
-    o.parent = parent
-    return o
+def box_flare(name, loc, R, parent, material):
+    x, y, z = loc
+    cube(name + "_top", (x, y, z + R * 0.78), (R * 0.95, R * 1.7, R * 0.2), parent, material, bevel=0.02)
+    cube(name + "_front", (x, y - R * 0.7, z + R * 0.32), (R * 0.9, R * 0.22, R * 0.72), parent, material, bevel=0.015)
+    cube(name + "_rear", (x, y + R * 0.7, z + R * 0.32), (R * 0.9, R * 0.22, R * 0.72), parent, material, bevel=0.015)
 
 def build(style):
     reset()
@@ -212,7 +187,7 @@ def build(style):
         "rubber": mat("Rubber", (0.02, 0.02, 0.02), 0, 0.9),
         "sidewall": mat("Sidewall", (0.16, 0.16, 0.15), 0, 0.62),
         "tread": mat("Tread", (0.012, 0.012, 0.012), 0, 0.98),
-        "rim": mat("Rim", (0.82, 0.84, 0.86), 0.85, 0.28),
+        "rim": mat("Rim", (0.94, 0.95, 0.93), 0.72, 0.32),
         "dark": mat("Dark", (0.015, 0.02, 0.025), 0.15, 0.45),
         "lamp": mat("Lamp", (1, 0.97, 0.88), 0, 0.18, emit=2),
         "tail": mat("Tail", (0.65, 0.04, 0.03), 0, 0.32, emit=1),
@@ -234,6 +209,8 @@ def build(style):
         parts.append(cube("bedR", (0.72, 0.85, 0.62), (0.12, 1.5, 0.36), root, None, bevel=0.03))
     if s.get("bed"):
         parts.append(cube("bedFloor", (0, 0.85, 0.48), (1.2, 1.35, 0.06), root, None, bevel=0.01))
+    if s.get("van"):
+        parts.append(cube("nose", (0, -1.85, 0.52), (1.55, 0.7, 0.38), root, None, bevel=0.018))
     body = fuse(parts, "Body", root, M["paint"], voxel=0.048 if not s.get("van") else 0.055)
     # arches only on closed bodies; jeep fenders are the arches
     if not s.get("open"):
@@ -241,8 +218,8 @@ def build(style):
     y_wheel = wy(s)
     for side in (-1, 1):
         for game_z in (s["wb"], -s["wb"]):
-            half_flare("Det_flare", (side * s["track"], -game_z, y_wheel), s["R"], root, M["paint"])
-            half_flare("Det_lipl", (side * s["track"], -game_z, y_wheel + 0.02), s["R"] * 1.08, root, M["dark"], tube=max(0.035, s["R"] * 0.07))
+            flare_mat = M["dark"] if s.get("van") or s.get("open") else M["paint"]
+            box_flare("Det_flare%s%s" % (side, int(game_z)), (side * s["track"], -game_z, y_wheel), s["R"], root, flare_mat)
     # duplicate lod
     lod = body.copy()
     lod.data = body.data.copy()
@@ -265,12 +242,13 @@ def build(style):
         cube("Glass_wind", (0, -0.05, 0.82), (0.85, 0.04, 0.4), root, M["glass"], bevel=0.01, pitch=-24)
     else:
         wind_y = s.get("hood_y", -0.8) * 0.15
-        cube("Glass_wind", (0, wind_y - 0.15, s["cab_z"]), (s["cab"][0] * 0.82, 0.05, s["cab"][2] * 0.55), root, M["glass"], bevel=0.015, pitch=-28)
-        cube("Glass_sideL", (-s["body"][0] * 0.48, s["cab_y"], s["cab_z"]), (0.04, s["cab"][1] * 0.7, s["cab"][2] * 0.42), root, M["glass"], bevel=0.01)
-        cube("Glass_sideR", (s["body"][0] * 0.48, s["cab_y"], s["cab_z"]), (0.04, s["cab"][1] * 0.7, s["cab"][2] * 0.42), root, M["glass"], bevel=0.01)
+        cube("Glass_wind", (0, wind_y - 0.2, s["cab_z"] + 0.02), (s["cab"][0] * 0.9, 0.05, s["cab"][2] * 0.72), root, M["glass"], bevel=0.012, pitch=-32)
+        cube("Glass_sideL", (-s["body"][0] * 0.49, s["cab_y"], s["cab_z"]), (0.045, s["cab"][1] * 0.82, s["cab"][2] * 0.55), root, M["glass"], bevel=0.008)
+        cube("Glass_sideR", (s["body"][0] * 0.49, s["cab_y"], s["cab_z"]), (0.045, s["cab"][1] * 0.82, s["cab"][2] * 0.55), root, M["glass"], bevel=0.008)
     # Front clip. Nose is -Y. Bumpers, flares, and lights stay separate from the fused shell.
     bumper_z = y_wheel + s["R"] * 0.42
-    cube("Det_bumper", (0, nose - 0.08, bumper_z), (s["track"] * 1.85, 0.16, 0.22), root, M["chrome"], bevel=0.04)
+    bump_mat = M["dark"] if s.get("van") else M["chrome"]
+    cube("Det_bumper", (0, nose - 0.08, bumper_z), (s["track"] * 1.85, 0.16, 0.22), root, bump_mat, bevel=0.04)
     cube("Det_winch", (0, nose - 0.02, bumper_z + 0.16), (0.28, 0.16, 0.16), root, M["dark"], bevel=0.02)
     cube("Det_fairlead", (0, nose - 0.12, bumper_z + 0.16), (0.16, 0.04, 0.14), root, M["chrome"], bevel=0.01)
     for side in (-1, 1):
@@ -318,14 +296,17 @@ def build(style):
     if s.get("snorkel"):
         cyl("Snorkel", (-s["track"] * 0.55, -0.35, 0.95), 0.035, 0.85, (0, 0, 0), root, M["dark"], 8)
     # liveries sit on the sides
-    span = (s["nose"] + s["tail"]) * 0.32
+    span = s["body"][1] * 0.72
     for side in (-1, 1):
-        cube("Accent_stripe", (side * s["body"][0] * 0.5, 0.05, 0.62), (0.05, span, 0.1), root, M["accent"], bevel=0.01)
-        cube("Accent_thick", (side * s["body"][0] * 0.5, 0.0, 0.52), (0.055, span * 0.9, 0.24), root, M["accent"], bevel=0.015)
+        cube("Accent_stripe", (side * s["body"][0] * 0.51, 0.05, 0.7), (0.03, span, 0.16), root, M["accent"], bevel=0.008)
+        cube("Accent_thick", (side * s["body"][0] * 0.51, 0.0, 0.62), (0.035, span, 0.32), root, M["accent"], bevel=0.01)
         if s.get("wood") or style == "pickup":
-            for i in range(4):
-                cube("Accent_wood", (side * s["body"][0] * 0.5, 0.35 + i * 0.32, 0.5), (0.05, 0.24, 0.34), root, M["accent"], bevel=0.008)
-        cube("Accent_chevron", (side * s["body"][0] * 0.52, -0.15, 0.7), (0.05, 0.7, 0.45), root, M["accent"], bevel=0.01, pitch=28 if side > 0 else -28)
+            cube("Accent_wood", (side * s["body"][0] * 0.51, 0.2, 0.58), (0.03, span, 0.22), root, M["accent"], bevel=0.006)
+        if style == "van":
+            cube("Accent_chevron", (side * 0.86, -0.15, 0.85), (0.04, 1.7, 0.85), root, M["accent"], bevel=0.01, pitch=38 if side > 0 else -38)
+            cube("Accent_chevronb", (side * 0.87, 0.35, 0.7), (0.03, 1.15, 0.42), root, M["accent"], bevel=0.008, pitch=38 if side > 0 else -38)
+        else:
+            cube("Accent_chevron", (side * s["body"][0] * 0.51, -0.2, 0.72), (0.03, 0.9, 0.4), root, M["accent"], bevel=0.008, pitch=24 if side > 0 else -24)
     for i, (x, y, z, r) in enumerate(((0.65, 0.4, 0.25, 0.16), (-0.55, -0.6, 0.22, 0.14), (0.4, 1.0, 0.2, 0.15))):
         uv("Mud%d" % i, (x, y, z), r, root, M["mud"], (1.3, 0.8, 0.4))
     for side in (-1, 1):
@@ -349,20 +330,27 @@ def build(style):
     if style == "utility":
         wheel("Acc_spare", (0, -0.7, 0.85), s["R"] * 0.82, root, M)
     elif style == "van":
-        cube("Det_rackrail", (0.55, 0.1, roof), (0.05, 2.6, 0.05), root, M["dark"], bevel=0.01)
-        cube("Det_rackrailb", (-0.55, 0.1, roof), (0.05, 2.6, 0.05), root, M["dark"], bevel=0.01)
-        for i, yy in enumerate((-0.7, 0.1, 0.9)):
-            cube("Det_cross%d" % i, (0, yy, roof + 0.04), (1.15, 0.04, 0.04), root, M["dark"], bevel=0)
-        for x in (-0.28, 0.28):
-            cyl("Det_ladder", (x, tail + 0.08, 1.05), 0.03, 1.15, (0, 0, 0), root, M["dark"], 6)
+        cube("Det_rackL", (0.62, 0.05, roof + 0.08), (0.05, 2.8, 0.05), root, M["rim"], bevel=0.01)
+        cube("Det_rackR", (-0.62, 0.05, roof + 0.08), (0.05, 2.8, 0.05), root, M["rim"], bevel=0.01)
+        for i, yy in enumerate((-1.05, -0.35, 0.35, 1.05)):
+            cube("Det_cross%d" % i, (0, yy, roof + 0.12), (1.3, 0.045, 0.045), root, M["rim"], bevel=0)
+            wheel("Det_roof%d" % i, (0, yy, roof + 0.42), s["R"] * 0.55, root, M, detail=False)
         for i in range(4):
-            cube("Det_rung%d" % i, (0, tail + 0.08, 0.62 + i * 0.22), (0.5, 0.03, 0.03), root, M["dark"], bevel=0)
-        cyl("Det_bull", (0, nose - 0.28, bumper_z + 0.05), 0.045, s["track"] * 1.7, (0, math.pi / 2, 0), root, M["dark"], 10)
-        for x in (-s["track"] * 0.7, s["track"] * 0.7):
-            cyl("Det_bullup", (x, nose - 0.22, bumper_z + 0.22), 0.04, 0.42, (math.pi / 2.4, 0, 0), root, M["dark"], 8)
-        wheel("Det_spare", (0.55, tail + 0.02, 0.85), s["R"] * 0.72, root, M, detail=False)
-        for side in (-1, 1):
-            cube("Det_grime", (side * 0.84, 0.15, 0.48), (0.04, 2.4, 0.16), root, M["mud"], bevel=0)
+            uv("Det_lamp%d" % i, ((i - 1.5) * 0.22, nose - 0.2, bumper_z + 0.02), 0.055, root, M["lamp"], (1, 0.6, 1))
+        for x in (-0.22, 0.22):
+            cyl("Det_ladder", (x, tail + 0.06, 1.15), 0.028, 1.2, (0, 0, 0), root, M["dark"], 6)
+        for i in range(5):
+            cube("Det_rung%d" % i, (0, tail + 0.06, 0.7 + i * 0.2), (0.42, 0.025, 0.025), root, M["dark"], bevel=0)
+    elif style == "bronco" or style == "utility":
+        cube("Det_rackL", (0.45, 0.1, roof), (0.04, 1.5, 0.04), root, M["dark"], bevel=0)
+        cube("Det_rackR", (-0.45, 0.1, roof), (0.04, 1.5, 0.04), root, M["dark"], bevel=0)
+        cube("Det_box", (0, 0.15, roof + 0.16), (0.7, 0.9, 0.28), root, M["gear"], bevel=0.02)
+        for i in range(3):
+            uv("Det_spot%d" % i, ((i - 1) * 0.18, nose + 0.15, roof - 0.02), 0.05, root, M["lamp"], (1, 0.55, 1))
+    elif style == "wagon":
+        cube("Det_rackL", (0.4, 0.2, roof), (0.04, 1.8, 0.04), root, M["dark"], bevel=0)
+        cyl("Det_roll", (0, 0.15, roof + 0.16), 0.16, 1.5, (math.pi / 2, 0, 0), root, M["gear"], 12)
+        wheel("Det_tailtire", (0.15, tail - 0.02, 0.7), s["R"] * 0.7, root, M, detail=False)
     else:
         wheel("Acc_spare", (0, tail - 0.05, 0.62), s["R"] * 0.8, root, M)
     if style == "jeep":

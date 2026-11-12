@@ -8,6 +8,7 @@ export const OFFROAD_V5_1 = 1
 export const OFFROAD_V6 = 1
 export const OFFROAD_V7 = 1
 export const OFFROAD_V7_1 = 1
+export const OFFROAD_V7_2 = 1
 export const REGION_OPEN = { forest: 0, desert: 40, mountain: 120 }
 export function regionUnlocked(save, id) {
   return (save.rep || 0) >= (REGION_OPEN[id] || 0)
@@ -84,7 +85,7 @@ export const VEHICLES = {
     force: 4000, maxSpeed: 3.80, steer: 0.22, wheelR: 0.44,
     track: 0.92, wheelbase: 1.88, rest: 0.3, travel: 0.22, stiff: 34, grip: 0.9,
     liveries: [
-      { color: '#f4f1ea', stripe: '#e4572e', kind: 'chevron', name: 'Retro' },
+      { color: '#f7f4ee', stripe: '#e25a22', kind: 'chevron', name: 'Retro' },
       { color: '#f7f4ee', stripe: '#2f6fbe', kind: 'thick', name: 'Coast' },
       { color: '#f2efe6', stripe: '#2a2a2a', kind: 'stripe', name: 'Plain' }
     ]
