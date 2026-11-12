@@ -859,10 +859,10 @@ function buildCrawler(THREE, body, spec, kit) {
   const cabH = 1.16
   const belt = rocker + cabH * 0.52
   const roofY = rocker + cabH
-  const nose = zF + 0.58
-  const cabF = zF - 0.48
-  const cabB = cabF - 1.36
-  const tail = zR - 0.72
+  const nose = zF + 0.42
+  const cabF = zF - 0.72
+  const cabB = cabF - 1.28
+  const tail = zR - 0.62
   const deckY = railY + 0.08
   const cabZ = (cabF + cabB) / 2
   const add = (mesh) => { mesh.castShadow = true; mesh.userData.hardware = true; root.add(mesh); return mesh }
