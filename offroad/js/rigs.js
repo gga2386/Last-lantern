@@ -862,7 +862,7 @@ function buildCrawler(THREE, body, spec, kit) {
   const cabH = 1.26
   const belt = rocker + cabH * 0.44
   const roofY = rocker + cabH
-  const nose = zF + 0.5
+  const nose = zF + 0.58
   const cabF = zF - 0.72
   const cabB = cabF - 1.28
   const tail = zR - 0.4
@@ -881,24 +881,25 @@ function buildCrawler(THREE, body, spec, kit) {
 
   const hoodW = half * 2 - 0.22
   const hoodT = 0.07
+  const sill = belt + 0.035
   const hoodRear = cabF + 0.01
   const hoodLen = Math.max(0.5, nose - hoodRear)
-  slab(bodyMat, hoodW, hoodT, hoodLen, 0, belt - hoodT / 2, (nose + hoodRear) / 2)
-  slab(bodyMat, hoodW * 0.4, 0.034, 0.4, 0, belt + 0.01, cabF + 0.24)
+  slab(bodyMat, hoodW, hoodT, hoodLen, 0, sill - hoodT / 2, (nose + hoodRear) / 2)
+  slab(bodyMat, hoodW * 0.48, 0.048, 0.52, 0, sill + 0.016, cabF + 0.3)
 
-  const grilleH = 0.14
-  const grilleY = belt - hoodT - grilleH / 2 + 0.012
-  slab(cageMat, hoodW * 0.92, grilleH, 0.05, 0, grilleY, nose - 0.012)
+  const grilleH = 0.2
+  const grilleY = sill - hoodT - 0.07
+  slab(cageMat, hoodW * 0.94, grilleH, 0.06, 0, grilleY, nose + 0.012)
   for (const s of [-1, 1]) {
-    const light = add(new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 0.03, 10), lamp))
+    const light = add(new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.045, 0.03, 10), lamp))
     light.rotation.x = Math.PI / 2
-    light.position.set(s * hoodW * 0.34, grilleY, nose + 0.018)
+    light.position.set(s * hoodW * 0.32, grilleY + 0.01, nose + 0.04)
   }
 
   const winFront = cabF - 0.09
   const winRear = cabB + 0.11
   const winTop = roofY - 0.055
-  const winBot = belt + 0.04
+  const winBot = sill
   const winZ = (winFront + winRear) / 2
   const winLen = winFront - winRear
   const winH = winTop - winBot
@@ -911,11 +912,11 @@ function buildCrawler(THREE, body, spec, kit) {
     slab(bodyMat, 0.028, 0.042, winLen + 0.02, xFrame, winBot, winZ)
     slab(bodyMat, 0.028, winH + 0.02, 0.042, xFrame, winY, winFront)
     slab(bodyMat, 0.028, winH + 0.02, 0.042, xFrame, winY, winRear)
-    slab(seam, 0.012, belt - rocker - 0.12, 0.015, xGlass, rocker + (belt - rocker) * 0.48, winFront)
-    slab(seam, 0.012, belt - rocker - 0.12, 0.015, xGlass, rocker + (belt - rocker) * 0.48, winRear)
-    slab(seam, 0.012, 0.012, cabLen - 0.12, xGlass, belt - 0.012, cabZ)
+    slab(seam, 0.016, belt - rocker - 0.1, 0.02, xGlass, rocker + (belt - rocker) * 0.46, winFront)
+    slab(seam, 0.016, belt - rocker - 0.1, 0.02, xGlass, rocker + (belt - rocker) * 0.46, winRear)
+    slab(seam, 0.016, 0.016, cabLen - 0.1, xGlass, sill - 0.01, cabZ)
     slab(bodyMat, 0.04, 0.065, cabLen + 0.02, s * (half + 0.008), rocker + 0.028, cabZ)
-    slab(seam, 0.026, 0.02, 0.08, s * (half + 0.038), belt - 0.11, winZ + 0.18)
+    slab(seam, 0.03, 0.028, 0.11, s * (half + 0.04), sill - 0.12, winZ + 0.2)
     slab(seam, 0.06, 0.08, 0.11, s * (half + 0.07), belt + 0.12, winFront)
     slab(seam, 0.016, 0.07, 0.016, s * (half + 0.03), belt + 0.06, winFront - 0.01)
   }
@@ -987,8 +988,11 @@ function buildCrawler(THREE, body, spec, kit) {
   bar([-rx, rackY, rackB], [rx, rackY, rackB])
   bar([-rx, rackY, (rackF + rackB) * 0.5], [rx, rackY, (rackF + rackB) * 0.5])
   bar([-rearX, rearY, rackB], [rearX, rearY, rackB], 0.026)
-  slab(cageMat, rx * 1.65, 0.048, 0.07, 0, rackY + 0.02, rackF + 0.02)
-  slab(lamp, rx * 1.45, 0.018, 0.016, 0, rackY + 0.02, rackF + 0.055)
+  const led = keepMat(THREE, '#f6f4ee', 0.32, 0.08)
+  led.emissive = new THREE.Color('#fff4dc')
+  led.emissiveIntensity = 0.9
+  slab(cageMat, half * 1.72, 0.07, 0.08, 0, rackY + 0.045, rackF + 0.03)
+  slab(led, half * 1.52, 0.032, 0.02, 0, rackY + 0.045, rackF + 0.075)
 
   const links = []
   const linkMat = keepMat(THREE, '#d8dbe0', 0.35, 0.65)
@@ -1027,7 +1031,7 @@ function buildCrawler(THREE, body, spec, kit) {
     const axleBar = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.07, 1, 8), steel)
     const diff = new THREE.Mesh(new THREE.SphereGeometry(0.18, 8, 6), steel)
     if (pair[2]) {
-      const cap = new THREE.Mesh(new THREE.CylinderGeometry(0.14, 0.14, 0.05, 10), white)
+      const cap = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.16, 0.06, 12), white)
       cap.rotation.x = Math.PI / 2
       cap.position.z = -0.14
       diff.add(cap)
