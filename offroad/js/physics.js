@@ -60,6 +60,11 @@ export function createSim(world) {
     const zShift = spec.axles ? (spec.axles[0][2] + spec.axles[2][2]) * 0.5 : 0
     chassis.addShape(new CANNON.Box(new CANNON.Vec3(hx * 0.92, hy * 0.72, hz * 0.92)), new CANNON.Vec3(0, 0.12, zShift))
     chassis.addShape(new CANNON.Box(new CANNON.Vec3(hx * 0.7, 0.14, hz * 0.55)), new CANNON.Vec3(0, -0.02, zShift))
+    if (spec.bed) {
+      const rear = zShift - hz * 0.92
+      const ext = spec.bed
+      chassis.addShape(new CANNON.Box(new CANNON.Vec3(hx * 0.5, 0.1, ext * 0.5)), new CANNON.Vec3(0, 0.02, rear - ext * 0.5))
+    }
     const y = pose && pose.y != null ? pose.y : world.height(pose.x, pose.z) + 1.6
     chassis.position.set(pose.x, y, pose.z)
     if (pose.qw != null) chassis.quaternion.set(pose.qx, pose.qy, pose.qz, pose.qw)

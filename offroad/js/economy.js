@@ -38,7 +38,7 @@ export function crawlAngles(spec) {
   const clear = Math.max(0.12, spec.clearance || 0.2)
   const rad = spec.wheelR || 0.45
   const approach = Math.atan2(clear + rad * 0.35, nose) * 180 / Math.PI
-  const departure = Math.atan2(clear + rad * 0.28, nose * 1.08) * 180 / Math.PI
+  const departure = Math.atan2(clear + rad * 0.28, nose * 1.08 + (spec.bed || 0)) * 180 / Math.PI
   const breakover = 2 * Math.atan2(2 * clear, wb) * 180 / Math.PI
   return { approach: Math.round(approach), departure: Math.round(departure), breakover: Math.round(breakover) }
 }
@@ -115,8 +115,8 @@ export const VEHICLES = {
   },
   crawler: {
     id: 'crawler', name: 'Spine Crawler', need: 260, style: 'crawler', mass: 1180,
-    half: [1.05, 0.42, 1.7], dark: 0x1a1c22, glass: 0x9ec9d4,
-    force: 5400, maxSpeed: 4.15, steer: 0.34, wheelR: 0.57,
+    half: [1.05, 0.42, 1.7], bed: 0.95, dark: 0x1a1c22, glass: 0x9ec9d4,
+    force: 5400, maxSpeed: 4.15, steer: 0.34, wheelR: 0.66,
     track: 1.58, wheelbase: 1.37, axleF: 1.349, axleR: 1.387,
     axles: [[1.575, 0.76, 1.349], [-1.575, 0.76, 1.349], [1.575, 0.76, -1.387], [-1.575, 0.76, -1.387]],
     rest: 0.42, travel: 0.38, stiff: 20, grip: 1.22, visualDrop: -1.28, wheelScale: 0.62,
