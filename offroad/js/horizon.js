@@ -13,22 +13,22 @@ export function createRidges(THREE, scene) {
       const frac = cell - Math.floor(cell)
       const cliff = frac < 0.14 ? frac / 0.14 : frac > 0.86 ? (1 - frac) / 0.14 : 1
       const shelf = 0.62 + 0.38 * Math.abs(Math.sin(Math.floor(cell) * 1.9 + kind))
-      return (55 + kind * 18) * shelf * (0.4 + 0.6 * cliff)
+      return (80 + kind * 22) * shelf * (0.45 + 0.55 * cliff)
     }
     if (region === 'mountain') {
-      const peak = Math.pow(Math.abs(s), 0.42)
-      const notch = Math.abs(s3) > 0.88 ? 0.5 : 1
-      return (70 + kind * 16) + peak * notch * (78 + kind * 30) + Math.abs(s2) * (12 + kind * 5)
+      const peak = Math.pow(Math.abs(s), 0.38)
+      const notch = Math.abs(s3) > 0.88 ? 0.48 : 1
+      return (48 + kind * 12) + peak * notch * (120 + kind * 36) + Math.abs(s2) * (14 + kind * 4)
     }
     const roll = 0.5 + 0.5 * Math.sin(a * (2.2 + kind * 0.3) + 0.5)
-    const peak = kind >= 2 ? Math.pow(Math.abs(Math.sin(a * 1.6 + 1.1)), 1.15) : Math.abs(s2) * 0.35
-    return (48 + kind * 12) + roll * (22 + kind * 8) + peak * (46 + kind * 18)
+    const peak = kind >= 2 ? Math.pow(Math.abs(Math.sin(a * 1.6 + 1.1)), 1.15) : Math.abs(s2) * 0.4
+    return (36 + kind * 10) + roll * (28 + kind * 10) + peak * (70 + kind * 24)
   }
   const rings = [
-    { inner: 640, outer: 980, base: 6, kind: 0 },
-    { inner: 1100, outer: 1520, base: 10, kind: 1 },
-    { inner: 1680, outer: 2140, base: 14, kind: 2 },
-    { inner: 2300, outer: 2860, base: 18, kind: 3 }
+    { inner: 700, outer: 980, base: 4, kind: 0 },
+    { inner: 1120, outer: 1460, base: 8, kind: 1 },
+    { inner: 1620, outer: 2040, base: 12, kind: 2 },
+    { inner: 2200, outer: 2700, base: 16, kind: 3 }
   ]
   const sky = [0.58, 0.7, 0.86]
   function tint(rgb, kind, shade) {
@@ -82,7 +82,7 @@ export function createRidges(THREE, scene) {
             const band = Math.floor(t * 4) % 3
             rgb = band === 0 ? [0.55, 0.22, 0.12] : band === 1 ? [0.78, 0.42, 0.2] : [0.4, 0.16, 0.1]
           } else if (region === 'mountain') {
-            rgb = t > 0.9 ? [0.86, 0.89, 0.92] : [0.33, 0.32, 0.31]
+            rgb = t > 0.72 ? [0.82, 0.85, 0.88] : [0.36, 0.35, 0.34]
           } else if (ring.kind >= 2) {
             rgb = [0.38, 0.5, 0.7]
           } else {
