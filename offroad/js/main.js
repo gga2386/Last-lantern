@@ -2923,8 +2923,11 @@ window.OX = {
     const p = c.position
     const d = dist || 4.35
     const up = lift || 0
-    camera.position.set(p.x + Math.sin(yaw) * d, p.y + 1.65 + up, p.z + Math.cos(yaw) * d)
-    camera.lookAt(p.x, p.y + 0.72 + up, p.z)
+    const camX = p.x + Math.sin(yaw) * d
+    const camZ = p.z + Math.cos(yaw) * d
+    const camY = Math.max(p.y + 1.65 + up, world.height(camX, camZ) + 1.4)
+    camera.position.set(camX, camY, camZ)
+    camera.lookAt(p.x, p.y + 0.85, p.z)
     applyTime(0.38)
   },
   lineup() {
