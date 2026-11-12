@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
-<meta name="oxbow-build" content="OFFROAD_V5_1">
+<meta name="oxbow-build" content="OFFROAD_V6">
 <title>Oxbow — Hollow Creek</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect fill='%23140e0a' width='32' height='32'/%3E%3Cpath fill='%23e4572e' d='M4 22h24l-3-8H7z'/%3E%3Ccircle cx='10' cy='23' r='3' fill='%23f4efe6'/%3E%3Ccircle cx='22' cy='23' r='3' fill='%23f4efe6'/%3E%3C/svg%3E">
 <link rel="stylesheet" href="style.css">
@@ -12,6 +12,7 @@
 <div id="app">
   <canvas id="view"></canvas>
   <div id="vignette"></div>
+  <div id="grade"></div>
   <div id="rotate">Rotate your phone. Landscape is the better trail — you can still drive from here.</div>
   <div id="poi-label"></div>
   <div id="toast"></div>
@@ -22,6 +23,8 @@
         <div class="speed"><b id="speed">0</b><span>mph <em id="gear">D</em></span></div>
         <div class="fuel"><div class="track"><div id="fuelbar"></div></div><span id="fuellabel">18 gal</span></div>
         <div id="surface">DIRT</div>
+        <div id="region">Hollow Forest</div>
+        <div id="tiltbox"><b id="tilt-pitch">P 0°</b><b id="tilt-roll">R 0°</b></div>
         <div id="bog" hidden><div class="bogtrack"><div id="bogfill"></div></div><span id="boglabel"></span></div>
       </div>
       <div id="objective">J opens adventures</div>
@@ -131,7 +134,8 @@
         <p>Dirt, trail, sand, mud, rock, and creek water all grip differently. The creek is shallow enough to ford and slow enough to respect.</p>
         <p>Fuel burns while the engine runs, and it is free — but only a general store pump will fill you. The stores also fit a bigger tank and sell jerry cans you can pour from the CAN button anywhere. Both take reputation, not cash.</p>
         <p>Adventures pay reputation. Ranks open tires, suspension, the engine, the winch, the camp kit, and the rest of the yard: the Ridge Scout, Bluff Runner, Creek Wagon, Basin Hauler, and Lantern Van. At the garage you can change paint and the roof rack. The body shells are original models made for Oxbow. Headlights come on at dusk (AUTO). H cycles them, B is high beam.</p>
-        <p>Stop on flat ground, or at a marked camp, and tap CAMP. The fire will carry you to morning or evening. Fish the creek, photograph the wildlife (a bow, later, brings meat), and cook at the fire. A meal can steady the tires, stretch the fuel, or sweeten the next adventure.</p>
+        <p>The basin is three countries. Hollow Forest is home. Red Wash opens at 40 reputation, Granite Spine at 120. Each has its own store, camps, and adventures. Stop on flat ground, or at a marked camp, and tap CAMP. Fish only where there is water. Hunt where animals live, and only with a field kit. Cook only when the pantry has a meal. Grey buttons stay on the bar and tell you what is missing.</p>
+        <p>The garage lists approach, departure, and breakover. The inclinometer on the dash goes gold, then red, as the truck tips. Low graphics turns off the color grade, the vignette, and the drifting dust.</p>
       </div>
       <button type="button" id="btn-help-close" class="ghost">Close</button>
     </div>
@@ -142,7 +146,7 @@
       <h2>Settings</h2>
       <label>Graphics
         <select id="gfx">
-          <option value="low">Low</option>
+          <option value="low">Low — no grade</option>
           <option value="medium">Medium</option>
           <option value="high">High</option>
         </select>

@@ -33,6 +33,22 @@ button.danger { background: #6a2418; border-color: #e4572e; }
   pointer-events: none; position: absolute; inset: 0;
   background: radial-gradient(ellipse at center, transparent 55%, rgba(8, 5, 3, 0.45) 100%);
 }
+#grade {
+  pointer-events: none; position: absolute; inset: 0; z-index: 2;
+  mix-blend-mode: soft-light;
+}
+#vignette.off, #grade.off { display: none; }
+#region {
+  font-size: 12px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--ink);
+}
+#region[data-region="desert"] { color: #f0c4a0; }
+#region[data-region="forest"] { color: #b7d7b4; }
+#region[data-region="mountain"] { color: #d5e4f2; }
+#tiltbox {
+  display: flex; gap: 8px; font-variant-numeric: tabular-nums; font-size: 12px; letter-spacing: 0.04em;
+}
+#tiltbox.warn b { color: #f0c14a; }
+#tiltbox.bad b { color: #ff6a4a; }
 #rotate {
   display: none; position: absolute; left: 50%; top: 42%; transform: translate(-50%, -50%);
   z-index: 4; max-width: min(280px, 78vw); text-align: center;
@@ -99,6 +115,8 @@ button.danger { background: #6a2418; border-color: #e4572e; }
 }
 #campbar[hidden] { display: none; }
 #campbar button { min-width: 88px; }
+#campbar button small { display: block; font-size: 10px; letter-spacing: 0.02em; opacity: 0.9; font-weight: 500; }
+#campbar button.locked { opacity: 0.55; filter: grayscale(0.85); background: #241c16; color: #cbbfae; }
 #play {
   position: absolute; inset: 0; z-index: 9; display: flex; align-items: center; justify-content: center;
   background: rgba(8, 5, 3, 0.55); padding: 16px;

@@ -12,13 +12,26 @@ export const FISH = [
   { id: 'perch', name: 'Hollow perch', min: 18, max: 34 },
   { id: 'trout', name: 'Mill trout', min: 28, max: 48, mill: 1 },
   { id: 'cat', name: 'Night catfish', min: 32, max: 62, night: 1, rod: 2 },
-  { id: 'char', name: 'Golden char', min: 36, max: 54, rare: 1, rod: 2 }
+  { id: 'char', name: 'Golden char', min: 36, max: 54, rare: 1, rod: 2 },
+  { id: 'pup', name: 'Oasis pupfish', min: 8, max: 16, region: 'desert' },
+  { id: 'grayling', name: 'Alpine grayling', min: 24, max: 42, region: 'mountain' }
 ]
 export const GAME = [
   { id: 'rabbit', name: 'Rabbit', speed: 0.55, size: 0.09 },
   { id: 'turkey', name: 'Turkey', speed: 0.34, size: 0.13 },
   { id: 'deer', name: 'Deer', speed: 0.2, size: 0.2 }
 ]
+export const GAME_BY_REGION = {
+  forest: GAME,
+  desert: [
+    { id: 'jack', name: 'Jackrabbit', speed: 0.7, size: 0.08 },
+    { id: 'quail', name: 'Quail', speed: 0.4, size: 0.1 }
+  ],
+  mountain: [
+    { id: 'goat', name: 'Mountain goat', speed: 0.28, size: 0.16 },
+    { id: 'deer', name: 'Deer', speed: 0.22, size: 0.2 }
+  ]
+}
 export const RECIPES = [
   { id: 'trout', name: 'Trout on a stick', need: { trout: 1 }, buff: 'grip', blurb: 'Steadier tires for a few minutes.' },
   { id: 'pan', name: 'Salted pan fish', need: { fish: 1, salt: 1 }, buff: 'rep', blurb: 'The next adventure pays 5 extra reputation.' },
@@ -63,16 +76,46 @@ export function canPitch(world, x, z, upright, speed) {
   return slopeAt(world, x, z) < 0.18
 }
 export function nearWater(world, x, z) {
+  if (world.lakeAt && world.lakeAt(x, z, 24)) return true
   const mill = world.pois.find(p => p.id === 'mill')
   if (mill && Math.hypot(x - mill.x, z - mill.z) < 48) return true
   return Math.abs(z - world.riverZ(x)) < 26 || Math.hypot(x - world.ford.x, z - world.ford.z) < 22
 }
+export function habitat(world, x, z) {
+  const reg = world.regionAt ? world.regionAt(x, z) : { id: 'forest' }
+  if (reg.id === 'mountain' && world.height(x, z) > 20) return { ok: false, reason: 'Above the wildlife line' }
+  if (reg.id === 'desert') {
+    const oasis = world.lakeAt && world.lakeAt(x, z, 48)
+    if (!oasis && world.surface(x, z) === 4) return { ok: false, reason: 'No wildlife on the slickrock' }
+  }
+  return { ok: true, reason: '' }
+}
+export function activityState(world, x, z, save) {
+  const camp = (save && save.camp) || {}
+  const pantry = (save && save.pantry) || {}
+  const water = nearWater(world, x, z)
+  const rod = camp.rod || 0
+  const kit = camp.hunt || 0
+  const home = habitat(world, x, z)
+  const cook = RECIPES.some(r => canCook(pantry, r))
+  return {
+    fish: { ok: !!(water && rod), reason: !water ? 'Needs water nearby' : !rod ? 'Needs a rod' : '' },
+    hunt: { ok: !!(home.ok && kit), reason: !home.ok ? home.reason : !kit ? 'Needs a field kit' : '' },
+    cook: { ok: cook, reason: cook ? '' : 'Needs ingredients' }
+  }
+}
+export function gameFor(region) {
+  return GAME_BY_REGION[region] || GAME
+}
 export function rollFish(world, x, z, clock, rod, rng) {
   const mill = world.pois.find(p => p.id === 'mill')
   const nearMill = mill && (Math.hypot(x - mill.x, z - mill.z) < 46 || Math.hypot(x - world.ford.x, z - world.ford.z) < 30)
+  const region = world.regionAt ? world.regionAt(x, z).id : 'forest'
   const dark = ((clock % 1 + 1) % 1) * 24
   const night = dark < 6.5 || dark >= 17.5
   const pool = FISH.filter(f => {
+    if (f.region && f.region !== region) return false
+    if (!f.region && region !== 'forest' && f.mill) return false
     if (f.mill && !nearMill) return false
     if (f.night && !night) return false
     if (f.rod && rod < f.rod) return false

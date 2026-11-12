@@ -1,12 +1,12 @@
-// Oxbow — Hollow Creek. OFFROAD_V2
+// Oxbow — Hollow Creek. OFFROAD_V6
 import * as THREE from '../vendor/three.module.js'
 import { createWorld, WORLD_SIZE, HALF, SURF, SURF_NAME } from './world.js'
-import { OFFROAD_V2, OFFROAD_V3, OFFROAD_V4, OFFROAD_V4_1, OFFROAD_V5, OFFROAD_V5_1, freshSave, SAVE_KEY, VEHICLES, UPGRADES, AUX, JERRY, ADVENTURES, TANK, coerceSave, buyUpgrade, buyVehicle, buyAux, buyJerry, useJerry, refuel, burnFuel, specWithUpgrades, tankCapacity, jerrySlots, rankFor, isDark, clockLabel, tickAdventure, noteAssist } from './economy.js'
+import { OFFROAD_V2, OFFROAD_V3, OFFROAD_V4, OFFROAD_V4_1, OFFROAD_V5, OFFROAD_V5_1, OFFROAD_V6, freshSave, SAVE_KEY, VEHICLES, UPGRADES, AUX, JERRY, ADVENTURES, TANK, coerceSave, buyUpgrade, buyVehicle, buyAux, buyJerry, useJerry, refuel, burnFuel, specWithUpgrades, tankCapacity, jerrySlots, rankFor, isDark, clockLabel, tickAdventure, noteAssist, REGION_OPEN, regionUnlocked, crawlAngles } from './economy.js'
 import { preloadRigs, buildRig, applyLod } from './rigs.js'
-import { CAMP, campLevel, buyCamp, canPitch, nearWater, rollFish, reelBand, biteSeconds, GAME, aimHit, RECIPES, canCook, cookJudge, applyCook } from './camp.js'
+import { CAMP, campLevel, buyCamp, canPitch, rollFish, reelBand, biteSeconds, aimHit, RECIPES, canCook, cookJudge, applyCook, activityState, gameFor } from './camp.js'
 import { createSim } from './physics.js'
 
-export { OFFROAD_V2, OFFROAD_V3, OFFROAD_V4, OFFROAD_V4_1, OFFROAD_V5, OFFROAD_V5_1 }
+export { OFFROAD_V2, OFFROAD_V3, OFFROAD_V4, OFFROAD_V4_1, OFFROAD_V5, OFFROAD_V5_1, OFFROAD_V6 }
 
 const world = createWorld(1)
 const yard = world.pois.find(p => p.id === 'yard')
@@ -42,6 +42,7 @@ let anchor = null
 let freeze = false
 let lastSpeed = 0
 let lastSurf = 0
+let lastRegion = ''
 let steerSm = 0
 let orbit = 0.8
 let orbitYaw = 0.4
@@ -125,29 +126,27 @@ const skyMat = new THREE.ShaderMaterial({
   side: THREE.BackSide,
   depthWrite: false,
   toneMapped: false,
-  uniforms: { sun: { value: new THREE.Vector3(0, 0.2, 0) }, elev: { value: 0.6 } },
+  uniforms: {
+    sun: { value: new THREE.Vector3(0, 0.2, 0) },
+    elev: { value: 0.6 },
+    top: { value: new THREE.Color('#4a739c') },
+    hor: { value: new THREE.Color('#c5d5d8') },
+    grd: { value: new THREE.Color('#1e3328') },
+    sunCol: { value: new THREE.Color('#ffb068') }
+  },
   vertexShader: 'varying vec3 vP; void main(){ vP = position; gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0); }',
   fragmentShader: `
     varying vec3 vP; uniform vec3 sun; uniform float elev;
+    uniform vec3 top; uniform vec3 hor; uniform vec3 grd; uniform vec3 sunCol;
     float hash(vec2 p){ return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
     void main(){
       vec3 d = normalize(vP);
       float h = clamp(d.y, -0.05, 1.0);
       float day = smoothstep(-0.05, 0.35, elev);
-      vec3 nightTop = vec3(0.02, 0.03, 0.07);
-      vec3 dayTop = vec3(0.34, 0.52, 0.78);
-      vec3 setTop = vec3(0.16, 0.24, 0.46);
-      vec3 horDay = vec3(0.72, 0.82, 0.9);
-      vec3 horSet = vec3(0.95, 0.48, 0.22);
-      vec3 horNight = vec3(0.04, 0.05, 0.09);
-      float low = smoothstep(0.05, 0.55, elev);
-      vec3 hor = mix(horSet, horDay, low);
-      hor = mix(horNight, hor, smoothstep(-0.35, 0.15, elev));
-      vec3 top = mix(nightTop, setTop, smoothstep(-0.2, 0.25, elev));
-      top = mix(top, dayTop, day);
-      vec3 col = mix(hor, top, smoothstep(0.0, 0.55, h));
-      float sd = pow(max(dot(d, normalize(sun)), 0.0), mix(40.0, 90.0, day));
-      col += vec3(1.0, 0.62, 0.28) * sd * smoothstep(-0.15, 0.2, elev);
+      vec3 col = mix(grd, hor, smoothstep(-0.08, 0.12, h));
+      col = mix(col, top, smoothstep(0.02, 0.62, h));
+      float sd = pow(max(dot(d, normalize(sun)), 0.0), mix(28.0, 80.0, day));
+      col += sunCol * sd * (0.55 + smoothstep(-0.2, 0.25, elev));
       vec3 moon = normalize(vec3(-sun.x, max(0.15, -sun.y), -sun.z));
       float md = pow(max(dot(d, moon), 0.0), 280.0);
       col += vec3(0.75, 0.84, 1.0) * md * (1.0 - day);
@@ -169,7 +168,52 @@ const stars = new THREE.Points(new THREE.BufferGeometry().setAttribute('position
 scene.add(stars)
 scene.fog = new THREE.Fog(0xe39a6a, 28, gfx().fog)
 
-const PAL = ['#6e4b32', '#8d6844', '#3c342b', '#c6a36b', '#6a6763', '#243833'].map(h => new THREE.Color(h))
+const LOOK = {
+  forest: {
+    day: ['#4a739c', '#c9ddd6', '#1c3328', '#9bb8ae', '#fff6e4', '#d7ebe4', '#1d3328'],
+    dusk: ['#2a3c58', '#e88848', '#142018', '#c46a3c', '#ffb060', '#ffd0a4', '#241c14'],
+    night: ['#070c16', '#121820', '#050806', '#070c14', '#9eb4ff', '#1a2744', '#0c100e'],
+    ground: ['#3e6240', '#7a6244', '#3c3428', '#c6b48a', '#667064', '#246878'],
+    map: [46, 92, 58]
+  },
+  desert: {
+    day: ['#7eb4d6', '#f3c49a', '#c47a52', '#e7c2a0', '#ffe0b0', '#ffd8b4', '#a86848'],
+    dusk: ['#5a3a52', '#f0a060', '#8a4030', '#e09058', '#ff9040', '#ffc098', '#6a3028'],
+    night: ['#140c18', '#2a1820', '#120c0c', '#100c10', '#c8b8e8', '#2a2038', '#1a100c'],
+    ground: ['#c47a52', '#d2a06a', '#8a5840', '#e8c8a0', '#b15a42', '#3c92a0'],
+    map: [186, 116, 74]
+  },
+  mountain: {
+    day: ['#6a92c4', '#d5e2ee', '#8a949e', '#c5d2de', '#fff6ea', '#dce8f2', '#6a727c'],
+    dusk: ['#2a3c5c', '#f0b080', '#5a6068', '#c88868', '#ffc090', '#f0d0c0', '#4a5058'],
+    night: ['#060810', '#121820', '#0c1014', '#080c12', '#b0c4ff', '#1a2438', '#101418'],
+    ground: ['#6d786c', '#8a7c68', '#4a4840', '#d4d0c8', '#8e96a0', '#1c8e98'],
+    map: [118, 132, 150]
+  }
+}
+const SNOW = new THREE.Color('#f4f7fb')
+const FOAM = new THREE.Color('#e7f1f2')
+function mixHex(list, w) {
+  const c = new THREE.Color(0, 0, 0)
+  const f = new THREE.Color()
+  c.add(f.set(list.forest).multiplyScalar(w.forest))
+  c.add(f.set(list.desert).multiplyScalar(w.desert))
+  c.add(f.set(list.mountain).multiplyScalar(w.mountain))
+  return c
+}
+function groundColor(x, z, surf, h) {
+  const w = world.blend(x, z)
+  const painted = surf === SURF.water && world.lakeAt(x, z) ? SURF.sand : surf
+  const key = ['forest', 'desert', 'mountain']
+  const c = new THREE.Color(0, 0, 0)
+  for (const id of key) c.add(new THREE.Color(LOOK[id].ground[painted] || LOOK[id].ground[0]).multiplyScalar(w[id]))
+  const edge = Math.max(Math.abs(x), Math.abs(z)) > HALF - 48
+  if (!edge && w.mountain > 0.45 && h > 16 && surf !== SURF.water && !world.lakeAt(x, z, 26)) {
+    const snow = Math.min(1, (h - 16) / 7) * w.mountain
+    c.lerp(SNOW, snow * 0.9)
+  }
+  return c
+}
 function buildTerrain() {
   const seg = gfx().seg
   const geo = new THREE.PlaneGeometry(WORLD_SIZE, WORLD_SIZE, seg, seg)
@@ -180,9 +224,9 @@ function buildTerrain() {
     const x = pos.getX(i), z = pos.getZ(i)
     const h = world.height(x, z)
     pos.setY(i, h)
-    const c = PAL[world.surface(x, z)] || PAL[0]
+    const c = groundColor(x, z, world.surface(x, z), h)
     const n = ((Math.sin(x * 12.9898 + z * 78.233) * 43758.5453) % 1 + 1) % 1
-    const shade = 0.86 + n * 0.22
+    const shade = 0.84 + n * 0.24
     colors[i * 3] = c.r * shade
     colors[i * 3 + 1] = c.g * shade
     colors[i * 3 + 2] = c.b * shade
@@ -194,71 +238,205 @@ function buildTerrain() {
   mesh.receiveShadow = gfx().shadow > 0
   scene.add(mesh)
   const water = []
+  const waterCol = []
   const n = world.gridN
   const es = WORLD_SIZE / (n - 1)
+  const shore = (i, j) => {
+    for (const [di, dj] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+      const ii = i + di, jj = j + dj
+      if (ii < 0 || jj < 0 || ii >= n || jj >= n) return true
+      if (world.surf[jj * n + ii] !== 5) return true
+    }
+    return false
+  }
   for (let j = 0; j < n; j++) {
     for (let i = 0; i < n; i++) {
       if (world.surf[j * n + i] !== 5) continue
-      const x = -HALF + (i / (n - 1)) * WORLD_SIZE
-      const z = HALF - (j / (n - 1)) * WORLD_SIZE
-      const y = world.heights[j * n + i] + 0.42
+      const wx = -HALF + (i / (n - 1)) * WORLD_SIZE
+      const wz = HALF - (j / (n - 1)) * WORLD_SIZE
+      if (world.lakeAt(wx, wz)) continue
+      const x = wx
+      const z = wz
+      const y = world.heights[j * n + i] + 0.35
+      const col = groundColor(x, z, SURF.water, y)
+      if (shore(i, j)) col.lerp(FOAM, 0.42)
       water.push(x - es * 0.5, y, z - es * 0.5, x + es * 0.5, y, z - es * 0.5, x + es * 0.5, y, z + es * 0.5)
       water.push(x - es * 0.5, y, z - es * 0.5, x + es * 0.5, y, z + es * 0.5, x - es * 0.5, y, z + es * 0.5)
+      for (let k = 0; k < 6; k++) waterCol.push(col.r, col.g, col.b)
     }
   }
   const wg = new THREE.BufferGeometry()
   wg.setAttribute('position', new THREE.Float32BufferAttribute(water, 3))
+  wg.setAttribute('color', new THREE.Float32BufferAttribute(waterCol, 3))
   wg.computeVertexNormals()
   const wmesh = new THREE.Mesh(wg, new THREE.MeshStandardMaterial({
-    color: 0x2f6d84, transparent: true, opacity: 0.72, roughness: 0.12, metalness: 0.15, depthWrite: false
+    vertexColors: true, transparent: true, opacity: 0.78, roughness: 0.18, metalness: 0.08, depthWrite: false
   }))
   scene.add(wmesh)
+  for (const lake of world.lakes) {
+    const y = (lake.bed || 4) + 0.12
+    const tone = lake.region === 'mountain' ? 0x178f98 : 0x3aa8a4
+    const radius = lake.r * (lake.region === 'mountain' ? 0.58 : 0.78)
+    const disc = new THREE.Mesh(new THREE.CircleGeometry(radius, 36), new THREE.MeshStandardMaterial({ color: tone, transparent: true, opacity: 0.92, roughness: 0.08, metalness: 0.16, depthWrite: false }))
+    disc.rotation.x = -Math.PI / 2
+    disc.position.set(lake.x, y, lake.z)
+    const foam = new THREE.Mesh(new THREE.RingGeometry(radius * 0.92, radius * 1.12, 36), new THREE.MeshStandardMaterial({ color: 0xd7eef0, transparent: true, opacity: 0.4, roughness: 0.4, depthWrite: false }))
+    foam.rotation.x = -Math.PI / 2
+    foam.position.set(lake.x, y + 0.05, lake.z)
+    scene.add(disc, foam)
+  }
+}
+function mergeParts(parts) {
+  const geos = parts.map(g => (g.index ? g.toNonIndexed() : g))
+  let n = 0
+  geos.forEach(g => { n += g.attributes.position.count })
+  const pos = new Float32Array(n * 3)
+  const nrm = new Float32Array(n * 3)
+  let o = 0
+  for (const g of geos) {
+    const p = g.attributes.position.array
+    const nv = g.attributes.normal.array
+    pos.set(p, o)
+    nrm.set(nv, o)
+    o += p.length
+  }
+  const geo = new THREE.BufferGeometry()
+  geo.setAttribute('position', new THREE.BufferAttribute(pos, 3))
+  geo.setAttribute('normal', new THREE.BufferAttribute(nrm, 3))
+  return geo
+}
+function plantGeo() {
+  const a = new THREE.ConeGeometry(1.15, 1.45, 6); a.translate(0, 2.05, 0)
+  const b = new THREE.ConeGeometry(0.86, 1.2, 6); b.translate(0, 3.0, 0)
+  const c = new THREE.ConeGeometry(0.48, 0.85, 5); c.translate(0, 3.7, 0)
+  const pine = mergeParts([a, b, c])
+  const aspen = new THREE.SphereGeometry(0.95, 7, 5); aspen.scale(1, 1.25, 1); aspen.translate(0, 2.7, 0)
+  const body = new THREE.CylinderGeometry(0.34, 0.4, 2.5, 7); body.translate(0, 1.25, 0)
+  const arm = new THREE.CylinderGeometry(0.16, 0.18, 1.05, 6); arm.rotateZ(Math.PI / 2); arm.translate(0.62, 1.65, 0)
+  const arm2 = new THREE.CylinderGeometry(0.14, 0.16, 0.8, 5); arm2.rotateZ(-Math.PI / 2.3); arm2.translate(-0.48, 1.35, 0.08)
+  const cactus = mergeParts([body, arm, arm2])
+  const juniper = new THREE.SphereGeometry(1, 7, 5); juniper.scale(1.35, 0.62, 1.25); juniper.translate(0, 0.85, 0)
+  const pale = new THREE.CylinderGeometry(0.1, 0.16, 2.4, 5); pale.translate(0, 1.2, 0)
+  return { pine, aspen, cactus, juniper, pale }
+}
+function instanced(geo, color, matrices, roughness) {
+  if (!matrices.length) return null
+  const mesh = new THREE.InstancedMesh(geo, new THREE.MeshStandardMaterial({ color, roughness: roughness == null ? 0.86 : roughness }), matrices.length)
+  matrices.forEach((m, i) => mesh.setMatrixAt(i, m))
+  mesh.instanceMatrix.needsUpdate = true
+  mesh.frustumCulled = false
+  mesh.castShadow = gfx().shadow > 0
+  scene.add(mesh)
+  return mesh
 }
 function scatter() {
   const dummy = new THREE.Object3D()
   const trees = world.trees.slice(0, gfx().trees)
-  const trunkG = new THREE.CylinderGeometry(0.16, 0.28, 2.1, 5)
-  trunkG.translate(0, 1.05, 0)
-  const pineG = new THREE.ConeGeometry(1.25, 3.1, 6)
-  pineG.translate(0, 2.7, 0)
-  const roundG = new THREE.SphereGeometry(1.05, 6, 5)
-  roundG.translate(0, 2.35, 0)
-  const trunks = new THREE.InstancedMesh(trunkG, new THREE.MeshStandardMaterial({ color: 0x4a3424, roughness: 0.9 }), trees.length)
-  const pines = []
-  const rounds = []
-  trees.forEach((t, i) => {
+  const geos = plantGeo()
+  const trunkG = new THREE.CylinderGeometry(0.16, 0.26, 2.2, 5)
+  trunkG.translate(0, 1.1, 0)
+  const buckets = { trunk: [], pale: [], pine: [], aspen: [], cactus: [], juniper: [] }
+  trees.forEach(t => {
     dummy.position.set(t.x, t.y, t.z)
+    dummy.rotation.set(0, t.x * 0.17, 0)
     dummy.scale.setScalar(t.s)
-    dummy.rotation.y = t.x * 0.17
     dummy.updateMatrix()
-    trunks.setMatrixAt(i, dummy.matrix)
-    ;(t.k ? rounds : pines).push(dummy.matrix.clone())
+    const m = dummy.matrix.clone()
+    if (t.k === 2) buckets.cactus.push(m)
+    else if (t.k === 3) buckets.juniper.push(m)
+    else if (t.k === 1) { buckets.pale.push(m); buckets.aspen.push(m) }
+    else { buckets.trunk.push(m); buckets.pine.push(m) }
   })
-  trunks.instanceMatrix.needsUpdate = true
-  trunks.frustumCulled = false
-  scene.add(trunks)
-  function tops(list, geo, color) {
+  instanced(trunkG, 0x5a4030, buckets.trunk)
+  instanced(geos.pale, 0xe4e0d4, buckets.pale, 0.7)
+  instanced(geos.pine, 0x1f4a30, buckets.pine)
+  instanced(geos.aspen, 0xc5d6a4, buckets.aspen, 0.75)
+  instanced(geos.cactus, 0x6d8f48, buckets.cactus, 0.7)
+  instanced(geos.juniper, 0x7d8a58, buckets.juniper, 0.8)
+  const rockGeos = [
+    new THREE.DodecahedronGeometry(1, 0),
+    new THREE.BoxGeometry(1.4, 0.55, 1.1),
+    new THREE.ConeGeometry(0.7, 1.8, 5)
+  ]
+  const rockCols = { desert: new THREE.Color('#b15a42'), forest: new THREE.Color('#6a6458'), mountain: new THREE.Color('#9aa3ad') }
+  const groups = [[], [], []]
+  world.rocks.forEach(r => {
+    dummy.position.set(r.x, world.height(r.x, r.z) + r.h * 0.15, r.z)
+    dummy.scale.set(r.rad * (r.kind === 1 ? 0.7 : 0.48), r.h * (r.kind === 2 ? 0.9 : 0.55), r.rad * 0.46)
+    dummy.rotation.set(r.h * 0.2, r.x * 0.2, r.kind === 1 ? 0.3 : 0.15)
+    dummy.updateMatrix()
+    groups[r.kind] = groups[r.kind] || groups[0]
+    groups[r.kind].push({ m: dummy.matrix.clone(), region: r.region || 'forest' })
+  })
+  groups.forEach((list, kind) => {
     if (!list.length) return
-    const mesh = new THREE.InstancedMesh(geo, new THREE.MeshStandardMaterial({ color, roughness: 0.85 }), list.length)
+    const mesh = new THREE.InstancedMesh(rockGeos[kind] || rockGeos[0], new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.94 }), list.length)
+    list.forEach((item, i) => {
+      mesh.setMatrixAt(i, item.m)
+      mesh.setColorAt(i, rockCols[item.region] || rockCols.forest)
+    })
+    mesh.instanceMatrix.needsUpdate = true
+    if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true
+    mesh.frustumCulled = false
+    mesh.castShadow = gfx().shadow > 0
+    mesh.receiveShadow = true
+    scene.add(mesh)
+  })
+  scatterGround()
+}
+function scatterGround() {
+  if (save.settings.gfx === 'low') return
+  const cap = save.settings.gfx === 'high' ? 380 : 180
+  const dummy = new THREE.Object3D()
+  const buckets = { grass: [], flower: [], ripple: [], scree: [], snow: [] }
+  const flowerCol = []
+  const blooms = [new THREE.Color('#e07a8a'), new THREE.Color('#f0d36a'), new THREE.Color('#f4efe6'), new THREE.Color('#d07048')]
+  for (let i = 0; i < cap; i++) {
+    const hx = ((Math.imul(i + 1, 374761393) ^ 0x9e3779b9) >>> 0) / 4294967296
+    const hz = ((Math.imul(i + 9, 668265263) ^ 0x85ebca6b) >>> 0) / 4294967296
+    const x = (hx * 2 - 1) * (HALF - 28)
+    const z = (hz * 2 - 1) * (HALF - 28)
+    const s = world.surface(x, z)
+    if (s === SURF.water || s === SURF.trail) continue
+    const reg = world.regionAt(x, z).id
+    const y = world.height(x, z)
+    let kind = 'grass'
+    if (reg === 'desert' && s === SURF.sand) kind = 'ripple'
+    else if (reg === 'desert') kind = hx > 0.72 ? 'flower' : 'grass'
+    else if (reg === 'mountain' && y > 18 && !world.lakeAt(x, z, 22)) kind = 'snow'
+    else if (reg === 'mountain' && s === SURF.rock) kind = 'scree'
+    else if (hx > 0.78) kind = 'flower'
+    dummy.position.set(x, y + (kind === 'snow' || kind === 'ripple' ? 0.05 : 0), z)
+    dummy.rotation.set(kind === 'ripple' || kind === 'snow' ? -Math.PI / 2 : 0, hz * 6, 0)
+    const sc = kind === 'ripple' ? 0.8 + hx : kind === 'snow' ? 0.45 + hz * 0.35 : 0.55 + hx * 0.7
+    dummy.scale.setScalar(sc)
+    dummy.updateMatrix()
+    buckets[kind].push(dummy.matrix.clone())
+    if (kind === 'flower') flowerCol.push(blooms[i % blooms.length])
+  }
+  const grass = new THREE.ConeGeometry(0.16, 0.5, 3); grass.translate(0, 0.25, 0)
+  const flower = new THREE.SphereGeometry(0.12, 5, 4); flower.translate(0, 0.35, 0)
+  const ripple = new THREE.CircleGeometry(0.7, 6)
+  const scree = new THREE.DodecahedronGeometry(0.22, 0)
+  const snow = new THREE.CircleGeometry(0.85, 6)
+  const paint = (geo, color, list, rough) => {
+    if (!list.length) return
+    const mesh = new THREE.InstancedMesh(geo, new THREE.MeshStandardMaterial({ color, roughness: rough, metalness: 0 }), list.length)
     list.forEach((m, i) => mesh.setMatrixAt(i, m))
     mesh.instanceMatrix.needsUpdate = true
     mesh.frustumCulled = false
     scene.add(mesh)
+    return mesh
   }
-  tops(pines, pineG, 0x2f4a2c)
-  tops(rounds, roundG, 0x5a6a32)
-  const rockG = new THREE.DodecahedronGeometry(1, 0)
-  const rocks = new THREE.InstancedMesh(rockG, new THREE.MeshStandardMaterial({ color: 0x6e675f, roughness: 0.95 }), world.rocks.length)
-  world.rocks.forEach((r, i) => {
-    dummy.position.set(r.x, world.height(r.x, r.z) + r.h * 0.2, r.z)
-    dummy.scale.set(r.rad * 0.5, r.h * 0.65, r.rad * 0.48)
-    dummy.rotation.set(r.h, r.x * 0.2, 0.4)
-    dummy.updateMatrix()
-    rocks.setMatrixAt(i, dummy.matrix)
-  })
-  rocks.instanceMatrix.needsUpdate = true
-  rocks.frustumCulled = false
-  scene.add(rocks)
+  paint(grass, 0x3f6a3a, buckets.grass, 0.95)
+  const flowers = paint(flower, 0xffffff, buckets.flower, 0.6)
+  if (flowers) {
+    flowerCol.forEach((c, i) => flowers.setColorAt(i, c))
+    if (flowers.instanceColor) flowers.instanceColor.needsUpdate = true
+  }
+  paint(ripple, 0xd7b48a, buckets.ripple, 1)
+  paint(scree, 0x8d96a0, buckets.scree, 0.95)
+  paint(snow, 0xf7f8fb, buckets.snow, 0.85)
 }
 function block(color, x, y, z, w, h, d, matOpts) {
   const mesh = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), new THREE.MeshStandardMaterial(Object.assign({ color, roughness: 0.8 }, matOpts)))
@@ -390,15 +568,26 @@ function paintMap(target) {
   const g = target.getContext('2d')
   const img = g.createImageData(n, n)
   const rgb = [[110, 75, 50], [150, 114, 74], [62, 54, 44], [198, 163, 107], [120, 116, 112], [42, 104, 128]]
+  const es = WORLD_SIZE / (n - 1)
   for (let j = 0; j < n; j++) {
     for (let i = 0; i < n; i++) {
       const h = world.heights[j * n + i]
-      const col = rgb[world.surf[j * n + i]] || rgb[0]
-      const shade = 0.75 + Math.max(-0.15, Math.min(0.35, h / 48))
+      const x = -HALF + i * es
+      const z = HALF - j * es
+      const w = world.blend(x, z)
+      const surf = world.surf[j * n + i]
+      const zone = [
+        LOOK.forest.map[0] * w.forest + LOOK.desert.map[0] * w.desert + LOOK.mountain.map[0] * w.mountain,
+        LOOK.forest.map[1] * w.forest + LOOK.desert.map[1] * w.desert + LOOK.mountain.map[1] * w.mountain,
+        LOOK.forest.map[2] * w.forest + LOOK.desert.map[2] * w.desert + LOOK.mountain.map[2] * w.mountain
+      ]
+      const base = rgb[surf] || rgb[0]
+      const mix = surf === 5 ? 0.25 : 0.62
+      const shade = 0.78 + Math.max(-0.18, Math.min(0.32, h / 48))
       const o = (j * n + i) * 4
-      img.data[o] = col[0] * shade
-      img.data[o + 1] = col[1] * shade
-      img.data[o + 2] = col[2] * shade
+      img.data[o] = (zone[0] * mix + base[0] * (1 - mix)) * shade
+      img.data[o + 1] = (zone[1] * mix + base[1] * (1 - mix)) * shade
+      img.data[o + 2] = (zone[2] * mix + base[2] * (1 - mix)) * shade
       img.data[o + 3] = 255
     }
   }
@@ -408,35 +597,163 @@ const mapBake = document.createElement('canvas')
 mapBake.width = mapBake.height = world.gridN
 paintMap(mapBake)
 
+let horizon = null
+function viewRegion() {
+  const c = sim.chassis
+  const x = c ? c.position.x : 0
+  const z = c ? c.position.z : -160
+  return world.regionAt(x, z)
+}
+function phaseColor(slot, elev, w) {
+  const day = Math.max(0, Math.min(1, (elev - 0.08) / 0.55))
+  const night = Math.max(0, Math.min(1, (-elev + 0.05) / 0.35))
+  const dusk = Math.max(0, 1 - day - night)
+  const sum = day + dusk + night || 1
+  const pick = (phase) => mixHex({
+    forest: LOOK.forest[phase][slot],
+    desert: LOOK.desert[phase][slot],
+    mountain: LOOK.mountain[phase][slot]
+  }, w)
+  const c = pick('night').multiplyScalar(night / sum)
+  c.add(pick('dusk').multiplyScalar(dusk / sum))
+  c.add(pick('day').multiplyScalar(day / sum))
+  return c
+}
 function applyTime(t) {
   const ang = (t - 0.25) * Math.PI * 2
   const elev = Math.sin(ang)
   const day = Math.max(0, elev)
-  const fogC = new THREE.Color('#070b14')
-  if (elev > -0.2) fogC.lerp(new THREE.Color('#e39a6a'), Math.min(1, (elev + 0.2) / 0.45))
-  if (elev > 0.35) fogC.lerp(new THREE.Color('#c5d6e4'), (elev - 0.35) / 0.65)
+  const here = viewRegion()
+  const w = here.w
+  const fogC = phaseColor(3, elev, w)
+  const top = phaseColor(0, elev, w)
+  const hor = phaseColor(1, elev, w)
+  const grd = phaseColor(2, elev, w)
+  const sunC = phaseColor(4, elev, w)
+  const hemiC = phaseColor(5, elev, w)
+  const groundC = phaseColor(6, elev, w)
   scene.fog.color.copy(fogC)
-  scene.fog.near = 18 + day * 12
-  scene.fog.far = gfx().fog * (0.55 + day * 0.45)
+  scene.fog.near = 22 + day * 16
+  scene.fog.far = gfx().fog * (0.62 + day * 0.4)
   renderer.setClearColor(fogC)
   const low = elev > -0.02 && elev < 0.55 ? 1 : 0
-  renderer.toneMappingExposure = 0.74 + day * 0.28 + low * 0.26
-  sun.color.copy(new THREE.Color('#9db4ff').lerp(new THREE.Color('#ffb068'), Math.min(1, day * 1.4 + 0.2)))
-  if (day > 0.45) sun.color.lerp(new THREE.Color('#fff4dc'), (day - 0.45) / 0.55)
-  sun.intensity = day * 2.45 + low * 0.35
-  hemi.color.set(day < 0.25 ? '#1a2740' : '#ffd0a8')
-  hemi.groundColor.set(day < 0.2 ? '#100e0c' : '#3a2a22')
-  hemi.intensity = 0.08 + day * 0.5 + low * 0.1
-  fill.intensity = 0.1 + day * 0.48 + low * 0.38
-  rim.intensity = 0.12 + day * 0.22 + low * 0.9
-  rim.color.set(low ? '#ffc48a' : '#d7e4ff')
+  const graded = save.settings.gfx !== 'low'
+  renderer.toneMappingExposure = 0.78 + day * 0.26 + low * (graded ? 0.34 : 0.12)
+  sun.color.copy(sunC)
+  sun.intensity = day * 2.35 + low * 0.45
+  hemi.color.copy(hemiC)
+  hemi.groundColor.copy(groundC)
+  hemi.intensity = 0.1 + day * 0.48 + low * 0.12
+  fill.color.copy(hemiC)
+  fill.intensity = 0.12 + day * 0.42 + low * 0.36
+  rim.intensity = 0.14 + day * 0.18 + low * 0.85
+  rim.color.copy(sunC)
   const dir = new THREE.Vector3(Math.cos(ang), Math.max(-0.05, elev), Math.sin(ang) * 0.55).normalize()
   skyMat.uniforms.sun.value.copy(dir)
   skyMat.uniforms.elev.value = elev
+  skyMat.uniforms.top.value.copy(top)
+  skyMat.uniforms.hor.value.copy(hor)
+  skyMat.uniforms.grd.value.copy(grd)
+  skyMat.uniforms.sunCol.value.copy(sunC)
   moon.intensity = Math.max(0, -elev) * 0.42
   moon.color.set('#c5d4ff')
   stars.material.opacity = Math.max(0, Math.min(1, -elev * 1.3))
+  if (horizon) {
+    horizon.material.color.copy(grd).multiplyScalar(0.55)
+    const p = camera.position
+    horizon.position.set(p.x, 0, p.z)
+    horizon.scale.setScalar(Math.max(0.45, scene.fog.far / 300))
+  }
+  const grade = $('grade')
+  const vig = $('vignette')
+  if (grade) grade.classList.toggle('off', !graded)
+  if (vig) vig.classList.toggle('off', !graded)
+  if (grade && graded) {
+    const warm = low ? 0.22 : day > 0.5 ? 0.08 : 0.02
+    const css = '#' + fogC.getHexString()
+    grade.style.background = 'radial-gradient(ellipse at center, transparent 42%, rgba(12,8,6,' + (0.28 + warm) + ') 100%), linear-gradient(180deg, ' + css + '22, transparent 46%)'
+  }
   return dir
+}
+function buildHorizon() {
+  const N = 80
+  const pos = []
+  const idx = []
+  for (let i = 0; i <= N; i++) {
+    const a = (i / N) * Math.PI * 2
+    const jag = 14 + Math.sin(i * 0.65) ** 2 * 22 + Math.sin(i * 2.2) * 5
+    pos.push(Math.cos(a) * 300, 2, Math.sin(a) * 300)
+    pos.push(Math.cos(a) * 460, jag, Math.sin(a) * 460)
+  }
+  for (let i = 0; i < N; i++) {
+    const a = i * 2
+    idx.push(a, a + 1, a + 2, a + 1, a + 3, a + 2)
+  }
+  const geo = new THREE.BufferGeometry()
+  geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3))
+  geo.setIndex(idx)
+  geo.computeVertexNormals()
+  horizon = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ color: 0x6a5344, fog: true, side: THREE.DoubleSide }))
+  horizon.frustumCulled = false
+  scene.add(horizon)
+}
+buildHorizon()
+const moteCount = gfx().dust ? (save.settings.gfx === 'high' ? 120 : 64) : 0
+const motePos = new Float32Array(Math.max(1, moteCount) * 3)
+const moteCol = new Float32Array(Math.max(1, moteCount) * 3)
+for (let i = 0; i < moteCount; i++) {
+  motePos[i * 3] = (Math.random() - 0.5) * 36
+  motePos[i * 3 + 1] = Math.random() * 8
+  motePos[i * 3 + 2] = (Math.random() - 0.5) * 36
+}
+const moteGeo = new THREE.BufferGeometry()
+moteGeo.setAttribute('position', new THREE.BufferAttribute(motePos, 3))
+moteGeo.setAttribute('color', new THREE.BufferAttribute(moteCol, 3))
+const motes = new THREE.Points(moteGeo, new THREE.PointsMaterial({ size: 0.18, vertexColors: true, transparent: true, opacity: 0.7, depthWrite: false, sizeAttenuation: true }))
+motes.visible = moteCount > 0
+motes.frustumCulled = false
+scene.add(motes)
+let moteT = 0
+function tickMotes(dt) {
+  if (!moteCount || mode === 'title') { motes.visible = mode !== 'title' && moteCount > 0; }
+  if (!moteCount) return
+  motes.visible = mode !== 'title'
+  const here = viewRegion()
+  const elev = skyMat.uniforms.elev.value
+  const night = elev < 0.05
+  moteT += dt
+  const p = camera.position
+  motes.position.set(p.x, 0, p.z)
+  const attr = moteGeo.attributes.position
+  const col = moteGeo.attributes.color
+  for (let i = 0; i < moteCount; i++) {
+    let x = attr.getX(i)
+    let y = attr.getY(i)
+    let z = attr.getZ(i)
+    if (here.id === 'mountain') {
+      y -= dt * (1.4 + (i % 5) * 0.15)
+      x += Math.sin(moteT + i) * dt * 0.4
+      if (y < 0.2) y = 6 + (i % 4)
+    } else if (here.id === 'desert') {
+      x += dt * 1.1
+      y += Math.sin(moteT * 0.7 + i) * dt * 0.15
+      if (x > 20) x = -20
+    } else {
+      y += Math.sin(moteT * 1.4 + i) * dt * 0.35
+      x += dt * 0.25
+      if (night) y = 1.2 + (Math.sin(moteT * 2 + i) * 0.5 + 0.5) * 2.2
+      if (x > 18) x = -18
+    }
+    attr.setXYZ(i, x, y, z)
+    if (here.id === 'mountain') col.setXYZ(i, 0.92, 0.95, 1)
+    else if (here.id === 'desert') col.setXYZ(i, 0.92, 0.72, 0.45)
+    else if (night) col.setXYZ(i, 0.85, 1, 0.45)
+    else col.setXYZ(i, 0.95, 0.92, 0.55)
+  }
+  attr.needsUpdate = true
+  col.needsUpdate = true
+  motes.material.opacity = here.id === 'forest' && night ? 0.85 : 0.28
+  motes.material.size = here.id === 'mountain' ? 0.08 : here.id === 'forest' && night ? 0.12 : 0.06
 }
 let sunDir = applyTime(save.clock)
 
@@ -634,6 +951,11 @@ function updateGame(dt) {
       persist()
     }
   }
+  const regNow = world.regionAt(c.position.x, c.position.z).id
+  if (regNow !== lastRegion) {
+    if (lastRegion) toast(world.regionAt(c.position.x, c.position.z).name)
+    lastRegion = regNow
+  }
   const cur = currentStep()
   if (cur) {
     const res = tickAdventure(save, {
@@ -710,6 +1032,16 @@ function drawMap(canvas, big) {
   g.moveTo(0, -7); g.lineTo(5, 6); g.lineTo(-5, 6); g.closePath(); g.fill()
   g.restore()
 }
+function truckAngles() {
+  const c = sim.chassis
+  if (!c) return { pitch: 0, roll: 0 }
+  q.set(c.quaternion.x, c.quaternion.y, c.quaternion.z, c.quaternion.w)
+  fwd.set(0, 0, 1).applyQuaternion(q)
+  const right = new THREE.Vector3(1, 0, 0).applyQuaternion(q)
+  const pitch = Math.atan2(fwd.y, Math.hypot(fwd.x, fwd.z) || 0.001) * 180 / Math.PI
+  const roll = Math.atan2(right.y, Math.hypot(right.x, right.z) || 0.001) * 180 / Math.PI
+  return { pitch, roll }
+}
 function updateHud() {
   const mph = Math.abs(lastSpeed) * 2.237
   $('speed').textContent = String(Math.round(mph))
@@ -724,6 +1056,23 @@ function updateHud() {
   const rk = rankFor(save.rep)
   $('rep').textContent = rk.name + ' · ' + save.rep
   $('surface').textContent = (SURF_NAME[Math.round(lastSurf)] || 'dirt').toUpperCase()
+  const regionEl = $('region')
+  if (regionEl && sim.chassis) {
+    const reg = world.regionAt(sim.chassis.position.x, sim.chassis.position.z)
+    regionEl.textContent = reg.name
+    regionEl.dataset.region = reg.id
+  }
+  const tilt = truckAngles()
+  const pitchEl = $('tilt-pitch')
+  const rollEl = $('tilt-roll')
+  const tiltBox = $('tiltbox')
+  if (pitchEl && rollEl && tiltBox) {
+    pitchEl.textContent = 'P ' + tilt.pitch.toFixed(0) + '°'
+    rollEl.textContent = 'R ' + tilt.roll.toFixed(0) + '°'
+    const worst = Math.max(Math.abs(tilt.pitch), Math.abs(tilt.roll))
+    tiltBox.classList.toggle('warn', worst >= 22 && worst < 36)
+    tiltBox.classList.toggle('bad', worst >= 36)
+  }
   const bogEl = $('bog')
   if (bogEl) {
     const show = hazard.mud > 0.04 || hazard.water > 0.04 || !!hazard.stuck
@@ -781,15 +1130,21 @@ function fillAdventures() {
     row.className = 'job'
     const cleared = save.cleared[adv.id]
     const active = save.active && save.active.id === adv.id
+    const home = adv.region || 'forest'
+    const needRegion = REGION_OPEN[home] || 0
+    const lockedRegion = !regionUnlocked(save, home)
+    const lockedRep = save.rep < adv.rep
     row.innerHTML = '<b></b><span></span>'
-    row.querySelector('b').textContent = adv.name + ' · ' + adv.diff + ' · ' + adv.rep + ' rep' + (cleared ? '  ' + '★'.repeat(cleared.stars) : '')
+    row.querySelector('b').textContent = adv.name + ' · ' + adv.diff + ' · ' + home + (cleared ? '  ' + '★'.repeat(cleared.stars) : '')
     const stepNote = active ? ' Now: ' + adv.steps[save.active.step].text + '.' : ''
-    row.querySelector('span').textContent = adv.text + stepNote
+    const gateNote = lockedRegion ? ' The ' + (home === 'desert' ? 'Red Wash' : home === 'mountain' ? 'Granite Spine' : 'Hollow Forest') + ' opens at ' + needRegion + ' rep.' : ''
+    row.querySelector('span').textContent = adv.text + gateNote + stepNote
     const btn = document.createElement('button')
     btn.type = 'button'
-    btn.textContent = active ? 'Under way' : cleared ? 'Ride it again' : 'Take adventure'
-    btn.disabled = !!active
+    btn.textContent = active ? 'Under way' : lockedRegion ? 'Locked · ' + needRegion + ' rep' : lockedRep ? 'Locked · ' + adv.rep + ' rep' : cleared ? 'Ride it again' : 'Take adventure'
+    btn.disabled = !!active || lockedRegion || lockedRep
     btn.onclick = () => {
+      if (lockedRegion || lockedRep) { toast(btn.textContent); return }
       save.active = { id: adv.id, step: 0, elapsed: 0, resets: 0 }
       toast(adv.name)
       persist(); fillAdventures()
@@ -837,7 +1192,8 @@ function fillGarage() {
     row.innerHTML = '<b></b><span></span>'
     row.querySelector('b').textContent = v.name + (save.vehicle === id ? ' · out' : '')
     const fitted = specWithUpgrades(id, save.upgrades)
-    row.querySelector('span').textContent = (owned ? 'In the shed. ' : 'Needs ' + v.need + ' rep. ') + 'Wade ' + fitted.wade.toFixed(2) + ' m, clearance ' + fitted.clearance.toFixed(2) + ' m.'
+    const ang = crawlAngles(fitted)
+    row.querySelector('span').textContent = (owned ? 'In the shed. ' : 'Needs ' + v.need + ' rep. ') + 'Approach ' + ang.approach + '°, departure ' + ang.departure + '°, breakover ' + ang.breakover + '°. Wade ' + fitted.wade.toFixed(2) + ' m.'
     const btn = document.createElement('button')
     btn.type = 'button'
     if (!owned) btn.textContent = save.rep < v.need ? 'Locked · ' + v.need + ' rep' : 'Take the keys'
@@ -1471,8 +1827,33 @@ function pitchCamp() {
   if (adv && adv.advanced) toast(adv.step.text)
   if (adv && adv.done) toast(adv.adv.name + '  +' + adv.gain + ' rep')
   const bar = $('campbar'); if (bar) bar.hidden = false
+  refreshCampActs()
   persist()
   toast('Camp is set. The fire is yours.')
+}
+function refreshCampActs() {
+  const c = sim.chassis
+  if (!c) return
+  const st = activityState(world, c.position.x, c.position.z, save)
+  for (const id of ['fish', 'hunt', 'cook']) {
+    const b = $('camp-' + id)
+    if (!b) continue
+    const label = id === 'fish' ? 'Fish' : id === 'hunt' ? 'Hunt' : 'Cook'
+    b.classList.toggle('locked', !st[id].ok)
+    b.dataset.reason = st[id].reason || ''
+    b.replaceChildren(document.createTextNode(label))
+    if (!st[id].ok) {
+      const small = document.createElement('small')
+      small.textContent = st[id].reason
+      b.appendChild(small)
+    }
+  }
+}
+function campBlocked(kind) {
+  const c = sim.chassis
+  if (!c) return 'Camp is not set.'
+  const st = activityState(world, c.position.x, c.position.z, save)
+  return st[kind] && st[kind].ok ? '' : (st[kind] && st[kind].reason) || 'Not here'
 }
 function packCamp(silent) {
   if (campGroup) { scene.remove(campGroup); campGroup = null; fireLight = null }
@@ -1507,10 +1888,11 @@ function noteCatch(fish) {
 }
 function openPlay(kind) {
   if (!campOn) return
-  if (kind === 'fish' && !nearWater(world, sim.chassis.position.x, sim.chassis.position.z)) { toast('The creek is too far.'); return }
-  if (kind === 'fish' && !save.camp.rod) { toast('The garage has a rod, once you have the name for it.'); return }
-  if (kind === 'hunt' && !save.camp.hunt) { toast('A camera or a bow waits on your reputation.'); return }
-  play = { kind, phase: kind === 'cook' ? 'pick' : kind === 'hunt' ? 'stalk' : 'cast', t: 0, mark: 0, dir: 1, good: 0, animals: GAME.map((g, i) => ({ ...g, x: 0.15 + i * 0.28 })) }
+  const why = campBlocked(kind)
+  if (why) { toast(why); return }
+  const region = world.regionAt(sim.chassis.position.x, sim.chassis.position.z).id
+  const animals = gameFor(region)
+  play = { kind, phase: kind === 'cook' ? 'pick' : kind === 'hunt' ? 'stalk' : 'cast', t: 0, mark: 0, dir: 1, good: 0, animals: animals.map((g, i) => ({ ...g, x: 0.15 + i * 0.28 })) }
   const recipes = $('play-recipes')
   recipes.replaceChildren()
   recipes.hidden = kind !== 'cook'
@@ -1560,7 +1942,7 @@ function drawHunt() {
   g.fillStyle = '#3d4a32'; g.fillRect(0, 150, cv.width, 130)
   play.animals.forEach(a => {
     const x = a.x * cv.width
-    g.fillStyle = a.id === 'deer' ? '#c4b49a' : a.id === 'turkey' ? '#6a4030' : '#d9d3c4'
+    g.fillStyle = a.id === 'deer' || a.id === 'goat' ? '#c4b49a' : a.id === 'turkey' || a.id === 'quail' ? '#6a4030' : '#d9d3c4'
     g.fillRect(x, 168, a.size * cv.width, 28)
   })
   const ax = play.mark * cv.width
@@ -1710,6 +2092,7 @@ function frame(now) {
   }
   syncTruck()
   updateLamps()
+  tickMotes(dt)
   updateCamera(dt)
   if (mode === 'play' || mode === 'camp') updateGame(dt)
   if (mode === 'camp') flickerFire(dt)
@@ -1743,11 +2126,42 @@ window.OX = {
   open(id) { if (id === 'jobs') fillAdventures(); if (id === 'garage') fillGarage(); if (id === 'store') fillStore(); showPanel(id) },
   use(id) { save.vehicle = id; if (!save.owned.includes(id)) save.owned.push(id); sim.spawn(id, { x: sim.chassis.position.x, y: sim.chassis.position.y + 0.4, z: sim.chassis.position.z }, save.upgrades); buildTruck(sim.spec) },
   goto(id) { const p = poiById[id]; if (!p) return; sim.place(p.x + 4, p.z + 6, 0) },
+  region() { const c = sim.chassis; return c ? world.regionAt(c.position.x, c.position.z) : null },
+  acts() { const c = sim.chassis; return c ? activityState(world, c.position.x, c.position.z, save) : null },
+  vista(x, z, yaw, dist) {
+    holdCam = true
+    freeze = true
+    recovery = null
+    hazard = { stuck: '', mud: 0, water: 0, sink: 0, wade: 0.7, bogAt: 0.6 }
+    mode = 'play'
+    app.classList.add('playing')
+    app.classList.remove('title', 'camping')
+    const bar = $('campbar'); if (bar) bar.hidden = true
+    const rec = $('recover'); if (rec) rec.hidden = true
+    $('fliphint').classList.remove('show')
+    sim.place(x, z, yaw || 0)
+    const y = world.height(x, z)
+    const d = dist || 18
+    const yawN = yaw || 0
+    const camX = x - Math.sin(yawN) * d
+    const camZ = z - Math.cos(yawN) * d * 0.45
+    const camY = Math.max(y, world.height(camX, camZ)) + 6.4
+    camera.position.set(camX, camY, camZ)
+    camera.lookAt(x + Math.sin(yawN) * 28, y + 2.2, z + Math.cos(yawN) * 28)
+    applyTime(save.clock)
+  },
   pitch() { pitchCamp() },
   showPlay(kind) { openPlay(kind) },
   get hazard() { return hazard },
   get rolled() { return rolled() },
   get recovery() { return recovery ? recovery.phase : '' },
+  lean(deg) {
+    const c = sim.chassis
+    const yaw = yawOf(c)
+    c.quaternion.setFromEuler((deg || 28) * Math.PI / 180, yaw, (deg || 28) * 0.25 * Math.PI / 180)
+    c.velocity.set(0, 0, 0)
+    c.angularVelocity.set(0, 0, 0)
+  },
   tip() {
     const c = sim.chassis
     c.quaternion.setFromEuler(Math.PI * 0.55, yawOf(c), 0.2)

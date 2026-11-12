@@ -227,10 +227,11 @@ export function createSim(world) {
       const key = 'r' + i
       keep.add(key)
       if (solids.has(key)) continue
-      const hx = r.rad * 0.45, hy = Math.max(0.9, r.h * 0.6), hz = r.rad * 0.45
+      const hx = r.rad * 0.42, hy = Math.max(0.85, r.h * 0.55), hz = r.rad * 0.4
       const b = new CANNON.Body({ mass: 0 })
       b.addShape(new CANNON.Box(new CANNON.Vec3(hx, hy, hz)))
-      b.position.set(r.x, world.height(r.x, r.z) + hy * 0.45, r.z)
+      b.addShape(new CANNON.Box(new CANNON.Vec3(hx * 0.62, hy * 0.48, hz * 0.62)), new CANNON.Vec3(hx * 0.28, hy * 0.35, -hz * 0.12))
+      b.position.set(r.x, world.height(r.x, r.z) + hy * 0.35, r.z)
       add(key, b)
     }
     for (const [k, b] of solids) {

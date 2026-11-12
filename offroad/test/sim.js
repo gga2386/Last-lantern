@@ -1,12 +1,12 @@
 // OFFROAD_V2 — terrain, reputation, fuel, and solid trees. Run: node offroad/test/sim.js
 import { createWorld, SURF, FRICTION, DRAG, HALF } from '../js/world.js'
-import { OFFROAD_V2, OFFROAD_V3, OFFROAD_V4, OFFROAD_V4_1, OFFROAD_V5, OFFROAD_V5_1, VEHICLES, ADVENTURES, freshSave, buyUpgrade, buyVehicle, buyAux, buyJerry, useJerry, refuel, burnFuel, coerceSave, tickAdventure, tankCapacity, jerrySlots, isDark, TANK, specWithUpgrades, noteAssist } from '../js/economy.js'
-import { canPitch, slopeAt, buyCamp, cookJudge, applyCook, rollFish, aimHit, RECIPES } from '../js/camp.js'
+import { OFFROAD_V2, OFFROAD_V3, OFFROAD_V4, OFFROAD_V4_1, OFFROAD_V5, OFFROAD_V5_1, OFFROAD_V6, VEHICLES, ADVENTURES, freshSave, buyUpgrade, buyVehicle, buyAux, buyJerry, useJerry, refuel, burnFuel, coerceSave, tickAdventure, tankCapacity, jerrySlots, isDark, TANK, specWithUpgrades, noteAssist, crawlAngles, regionUnlocked } from '../js/economy.js'
+import { canPitch, slopeAt, buyCamp, cookJudge, applyCook, rollFish, aimHit, RECIPES, activityState, nearWater, habitat } from '../js/camp.js'
 import { createSim, tractionTrial } from '../js/physics.js'
 
 const fails = []
 const fail = m => fails.push(m)
-if (OFFROAD_V2 !== 1 || OFFROAD_V3 !== 1 || OFFROAD_V4 !== 1 || OFFROAD_V4_1 !== 1 || OFFROAD_V5 !== 1 || OFFROAD_V5_1 !== 1) fail('marker missing')
+if (OFFROAD_V2 !== 1 || OFFROAD_V3 !== 1 || OFFROAD_V4 !== 1 || OFFROAD_V4_1 !== 1 || OFFROAD_V5 !== 1 || OFFROAD_V5_1 !== 1 || OFFROAD_V6 !== 1) fail('marker missing')
 const ids = Object.keys(VEHICLES)
 if (ids.length < 6) fail('roster ' + ids.join(','))
 for (const id of ['mule', 'scout', 'runner', 'wagon', 'hauler', 'van']) if (!VEHICLES[id]) fail('missing ' + id)
@@ -120,7 +120,7 @@ const fuelLeft = burnFuel(TANK, 1, 2)
 if (!(fuelLeft < TANK && fuelLeft > TANK - 1)) fail('fuel burn ' + fuelLeft)
 if (burnFuel(0.01, 1, 5) !== 0) fail('fuel went negative')
 const migrated = coerceSave({ v: 1, money: 400, fuel: 9, vehicle: 'mule', owned: ['mule'], upgrades: { tires: 1, susp: 0, engine: 0, winch: 0 }, discovered: ['yard'], done: ['lookout', 'mill'], settings: { time: 0.2, gfx: 'low' }, x: 1, z: 2, qw: 1 }, 'low')
-if (!migrated || migrated.v !== 4 || migrated.money != null) fail('migration kept cash')
+if (!migrated || migrated.v !== 6 || migrated.money != null) fail('migration kept cash')
 if (!migrated.camp || migrated.camp.tent !== 0 || !migrated.pantry) fail('migration dropped the camp kit')
 if (migrated.rep !== 45 + 50) fail('migration rep ' + migrated.rep)
 if (!migrated.cleared.nightwatch || !migrated.cleared.ford) fail('migration adventures')
@@ -239,4 +239,48 @@ for (let i = 0; i < 200; i++) {
 }
 if (bogged !== 'mud') fail('deep mud did not bog the truck ' + bogged + ' depth ' + deepMud.d.toFixed(2))
 if (Math.abs(bogSim.chassis.position.z - bogStart) > 3) fail('bogged truck still drove')
-console.log('OK OFFROAD_V5_1')
+const yardReg = world.regionAt(yard.x, yard.z)
+const quarryReg = world.regionAt(quarry.x, quarry.z)
+const lookReg = world.regionAt(world.pois.find(p => p.id === 'lookout').x, world.pois.find(p => p.id === 'lookout').z)
+if (yardReg.id !== 'forest') fail('yard should be forest ' + yardReg.id)
+if (quarryReg.id !== 'desert') fail('quarry should be desert ' + quarryReg.id)
+if (lookReg.id !== 'mountain') fail('lookout should be mountain ' + lookReg.id)
+const oasis = world.pois.find(p => p.id === 'oasis')
+const alpine = world.pois.find(p => p.id === 'alpine')
+if (!oasis || world.surface(oasis.x, oasis.z) === SURF.water) fail('oasis camp is wet')
+if (!alpine || world.surface(alpine.x, alpine.z) === SURF.water) fail('alpine camp is wet')
+if (!nearWater(world, oasis.x, oasis.z)) fail('oasis camp should fish')
+if (!nearWater(world, alpine.x, alpine.z)) fail('alpine camp should fish')
+if (world.surface(world.lakes[0].x, world.lakes[0].z) !== SURF.water) fail('oasis pool missing')
+if (world.surface(world.lakes[1].x, world.lakes[1].z) !== SURF.water) fail('alpine lake missing')
+const dry = activityState(world, yard.x, yard.z, freshSave())
+if (dry.fish.ok || dry.fish.reason !== 'Needs water nearby') fail('yard fishing ' + dry.fish.reason)
+if (dry.cook.ok || dry.cook.reason !== 'Needs ingredients') fail('empty pantry should not cook')
+const fed = freshSave()
+fed.pantry.trout = 1
+fed.camp.rod = 1
+fed.camp.hunt = 1
+if (!activityState(world, mill.x, mill.z, fed).fish.ok) fail('mill should allow fishing')
+if (!activityState(world, yard.x, yard.z, fed).hunt.ok) fail('forest should allow hunting with a kit')
+if (activityState(world, yard.x, yard.z, freshSave()).hunt.reason !== 'Needs a field kit') fail('hunt kit reason')
+let slick = null
+for (let i = 0; i < world.gridN && !slick; i += 6) {
+  for (let j = 0; j < world.gridN && !slick; j += 6) {
+    const x = -HALF + (i / (world.gridN - 1)) * (HALF * 2)
+    const z = HALF - (j / (world.gridN - 1)) * (HALF * 2)
+    if (world.regionAt(x, z).id !== 'desert') continue
+    if (world.surface(x, z) !== SURF.rock) continue
+    if (habitat(world, x, z).ok) continue
+    slick = { x, z }
+  }
+}
+if (!slick) fail('desert slickrock should refuse a hunt')
+else if (activityState(world, slick.x, slick.z, fed).hunt.ok) fail('slickrock hunt stayed open')
+if (regionUnlocked(freshSave(), 'desert')) fail('desert opens too early')
+if (!regionUnlocked(Object.assign(freshSave(), { rep: 40 }), 'desert')) fail('desert gate')
+if (regionUnlocked(Object.assign(freshSave(), { rep: 40 }), 'mountain')) fail('mountain opens too early')
+const angles = crawlAngles(specWithUpgrades('mule', { tires: 0, susp: 0, engine: 0, winch: 0, snorkel: 0 }))
+if (!(angles.approach > 10 && angles.breakover > 5)) fail('crawl angles ' + JSON.stringify(angles))
+const kinds = new Set(world.trees.map(t => t.k))
+if (!kinds.has(2) || !kinds.has(3)) fail('desert plants missing ' + [...kinds].join(','))
+console.log('OK OFFROAD_V6')

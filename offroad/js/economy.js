@@ -5,6 +5,21 @@ export const OFFROAD_V4 = 1
 export const OFFROAD_V4_1 = 1
 export const OFFROAD_V5 = 1
 export const OFFROAD_V5_1 = 1
+export const OFFROAD_V6 = 1
+export const REGION_OPEN = { forest: 0, desert: 40, mountain: 120 }
+export function regionUnlocked(save, id) {
+  return (save.rep || 0) >= (REGION_OPEN[id] || 0)
+}
+export function crawlAngles(spec) {
+  const wb = Math.max(0.8, spec.wheelbase || 1.5)
+  const nose = Math.max(0.28, (spec.half ? spec.half[2] : wb * 0.72) - wb * 0.5)
+  const clear = Math.max(0.12, spec.clearance || 0.2)
+  const rad = spec.wheelR || 0.45
+  const approach = Math.atan2(clear + rad * 0.35, nose) * 180 / Math.PI
+  const departure = Math.atan2(clear + rad * 0.28, nose * 1.08) * 180 / Math.PI
+  const breakover = 2 * Math.atan2(2 * clear, wb) * 180 / Math.PI
+  return { approach: Math.round(approach), departure: Math.round(departure), breakover: Math.round(breakover) }
+}
 export const VEHICLES = {
   mule: {
     id: 'mule', name: 'Yard Mule', need: 0, style: 'pickup', mass: 1580,
@@ -95,17 +110,17 @@ export const TANK = 18
 export const SAVE_KEY = 'oxbow_save_v1'
 export const ADVENTURES = [
   {
-    id: 'south', name: 'South Marker', diff: 'Easy', rep: 25, bonus: 'clean', bonusRep: 8,
+    id: 'south', name: 'South Marker', diff: 'Easy', rep: 25, region: 'forest', bonus: 'clean', bonusRep: 8,
     text: 'The yard wants proof you can find the south marker before the light goes.',
     steps: [{ kind: 'reach', poi: 'switchback', text: 'Reach the south marker' }]
   },
   {
-    id: 'nightwatch', name: 'Night Watch', diff: 'Medium', rep: 45, bonus: 'clean', bonusRep: 12,
+    id: 'nightwatch', name: 'Night Watch', diff: 'Medium', rep: 45, region: 'mountain', bonus: 'clean', bonusRep: 12,
     text: 'The fire lookout only counts if you sign the book after dusk.',
     steps: [{ kind: 'night', poi: 'lookout', text: 'Reach the Fire Lookout at night' }]
   },
   {
-    id: 'ford', name: 'Ford to the Mill', diff: 'Medium', rep: 50, bonus: 'clean', bonusRep: 12,
+    id: 'ford', name: 'Ford to the Mill', diff: 'Medium', rep: 50, region: 'forest', bonus: 'clean', bonusRep: 12,
     text: 'Cross Hollow Creek, then check the old bearing at Crow Mill.',
     steps: [
       { kind: 'ford', text: 'Ford the creek' },
@@ -113,22 +128,22 @@ export const ADVENTURES = [
     ]
   },
   {
-    id: 'quarry', name: 'Quarry Climb', diff: 'Hard', rep: 60, bonus: 'timed', bonusRep: 20, limit: 240,
+    id: 'quarry', name: 'Quarry Climb', diff: 'Hard', rep: 60, region: 'desert', bonus: 'timed', bonusRep: 20, limit: 240,
     text: 'The quarry road is a climb. A careful crawl still makes the time.',
     steps: [{ kind: 'reach', poi: 'quarry', text: 'Reach Quarry Camp' }]
   },
   {
-    id: 'cairn', name: 'Ash Cairn', diff: 'Easy', rep: 30, bonus: 'clean', bonusRep: 10,
+    id: 'cairn', name: 'Ash Cairn', diff: 'Easy', rep: 30, region: 'desert', bonus: 'clean', bonusRep: 10,
     text: 'A stone pile sits off the trail. Nobody has logged it this season.',
     steps: [{ kind: 'reach', poi: 'cairn', text: 'Find Ash Cairn' }]
   },
   {
-    id: 'trout', name: 'Mill Trout', diff: 'Medium', rep: 35, bonus: 'clean', bonusRep: 8,
+    id: 'trout', name: 'Mill Trout', diff: 'Medium', rep: 35, region: 'forest', bonus: 'clean', bonusRep: 8,
     text: 'The mill pool holds trout. Bring a rod and a little patience.',
     steps: [{ kind: 'catch', fish: 'trout', poi: 'mill', text: 'Catch a trout near Crow Mill' }]
   },
   {
-    id: 'overnight', name: 'Lookout Night', diff: 'Medium', rep: 40, bonus: 'clean', bonusRep: 10,
+    id: 'overnight', name: 'Lookout Night', diff: 'Medium', rep: 40, region: 'mountain', bonus: 'clean', bonusRep: 10,
     text: 'Pitch camp under the fire lookout and stay until morning.',
     steps: [
       { kind: 'reach', poi: 'lookout', text: 'Reach the Fire Lookout' },
@@ -137,7 +152,7 @@ export const ADVENTURES = [
     ]
   },
   {
-    id: 'loop', name: 'Basin Loop', diff: 'Hard', rep: 70, bonus: 'clean', bonusRep: 18,
+    id: 'loop', name: 'Basin Loop', diff: 'Hard', rep: 70, region: 'mountain', bonus: 'clean', bonusRep: 18,
     text: 'Ride the whole basin: Wren Cabin, Crow Mill, the lookout, then home.',
     steps: [
       { kind: 'reach', poi: 'cabin', text: 'Reach Wren Cabin' },
@@ -145,6 +160,16 @@ export const ADVENTURES = [
       { kind: 'reach', poi: 'lookout', text: 'Reach the Fire Lookout' },
       { kind: 'reach', poi: 'yard', text: 'Return to Oxbow Yard' }
     ]
+  },
+  {
+    id: 'oasis', name: 'Red Oasis', diff: 'Easy', rep: 40, region: 'desert', bonus: 'clean', bonusRep: 10,
+    text: 'The wash hides a pool. Sign the cairn book at the oasis camp.',
+    steps: [{ kind: 'reach', poi: 'oasis', text: 'Reach Red Oasis' }]
+  },
+  {
+    id: 'alpine', name: 'Teal Lake', diff: 'Hard', rep: 80, region: 'mountain', bonus: 'clean', bonusRep: 16,
+    text: 'Climb to the alpine water. The shore is the only flat ground up there.',
+    steps: [{ kind: 'reach', poi: 'alpine', text: 'Reach Teal Shore' }]
   }
 ]
 
@@ -175,7 +200,7 @@ export function clockLabel(clock) {
 }
 export function freshSave(partial) {
   return {
-    v: 4,
+    v: 6,
     rep: 0,
     fuel: TANK,
     aux: 0,
@@ -206,7 +231,7 @@ export function coerceSave(raw, gfx) {
   const base = freshSave({ settings: { gfx: gfx || 'medium', tilt: false, sound: true, shake: true, cycle: 8 } })
   if ((raw.v || 0) >= 2) {
     const s = Object.assign(base, raw)
-    s.v = 4
+    s.v = 6
     s.cosmetics = raw.cosmetics || {}
     s.camp = Object.assign({ tent: 0, pit: 0, chairs: 0, lights: 0, rod: 0, hunt: 0 }, raw.camp || {})
     s.pantry = Object.assign({ trout: 0, fish: 0, meat: 0, salt: 0, oil: 0 }, raw.pantry || {})
