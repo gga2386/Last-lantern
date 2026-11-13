@@ -32,7 +32,7 @@ export async function preloadRigs() {
     ['spare', 'models/accessories/spare.glb'],
     ['kayak', 'models/accessories/kayak.glb'],
     ['gascan', 'models/accessories/gascan.glb'],
-    ['crawlerbody', 'models/crawler_body.glb'],
+    ['crawlerbody', 'models/crawler_shell.glb'],
     ['crawlertire', 'models/crawler_tire.glb'],
     ['wrecker', 'models/wrecker.glb']
   ]
@@ -53,7 +53,9 @@ export function rigModel(key) {
     const cloned = list.map(m => {
       const c = m.clone()
       const n = (c.name || '').toLowerCase()
-      c.userData.paintRole = n === 'body' || n === 'paint' ? 'body' : n === 'tire' ? 'tire' : 'keep'
+      c.userData.paintRole = n === 'body' || n === 'paint' || n === 'atlas' ? 'body' : n === 'tire' ? 'tire' : 'keep'
+      if (n === 'ring') { c.color.set('#f7f8fb'); c.metalness = 0.9; c.roughness = 0.16 }
+      if (n === 'hub') { c.color.set('#ff1f1f'); c.emissive.set('#8a1010'); c.emissiveIntensity = 0.55 }
       return c
     })
     o.material = cloned.length === 1 ? cloned[0] : cloned
@@ -992,7 +994,11 @@ function buildCrawler(THREE, body, spec, kit) {
   const hoodW = half * 2 - 0.16
   const sill = belt + 0.02
   const shell = rigModel('crawlerbody')
-  if (shell) root.add(shell)
+  if (shell) {
+    shell.scale.set(0.68, 0.95, 0.85)
+    shell.position.set(0, 0.1, -0.29)
+    root.add(shell)
+  }
   else {
     const vent = keepMat(THREE, '#2a0c0c', 0.55, 0.2)
     const hoodRear = cabF - 0.12

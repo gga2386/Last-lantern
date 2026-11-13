@@ -1,7 +1,7 @@
-// Crawl Camp. OFFROAD_V10_18
+// Crawl Camp. OFFROAD_V10_19
 import * as THREE from '../vendor/three.module.js'
 import { createWorld, WORLD_SIZE, HALF, SURF, SURF_NAME } from './world.js'
-import { OFFROAD_V2, OFFROAD_V3, OFFROAD_V4, OFFROAD_V4_1, OFFROAD_V5, OFFROAD_V5_1, OFFROAD_V6, OFFROAD_V7, OFFROAD_V7_1, OFFROAD_V7_2, OFFROAD_V7_3, OFFROAD_V8, OFFROAD_V9, OFFROAD_V10, OFFROAD_V10_1, OFFROAD_V10_2, OFFROAD_V10_3, OFFROAD_V10_4, OFFROAD_V10_5, OFFROAD_V10_6, OFFROAD_V10_7, OFFROAD_V10_8, OFFROAD_V10_9, OFFROAD_V10_10, OFFROAD_V10_11, OFFROAD_V10_12, OFFROAD_V10_13, OFFROAD_V10_14, OFFROAD_V10_15, OFFROAD_V10_16, OFFROAD_V10_17, OFFROAD_V10_18, freshSave, SAVE_KEY, VEHICLES, UPGRADES, AUX, JERRY, ADVENTURES, TANK, coerceSave, buyUpgrade, buyVehicle, buyAux, buyJerry, useJerry, refuel, burnFuel, specWithUpgrades, tankCapacity, jerrySlots, rankFor, isDark, clockLabel, tickAdventure, noteAssist, REGION_OPEN, regionUnlocked, crawlAngles } from './economy.js'
+import { OFFROAD_V2, OFFROAD_V3, OFFROAD_V4, OFFROAD_V4_1, OFFROAD_V5, OFFROAD_V5_1, OFFROAD_V6, OFFROAD_V7, OFFROAD_V7_1, OFFROAD_V7_2, OFFROAD_V7_3, OFFROAD_V8, OFFROAD_V9, OFFROAD_V10, OFFROAD_V10_1, OFFROAD_V10_2, OFFROAD_V10_3, OFFROAD_V10_4, OFFROAD_V10_5, OFFROAD_V10_6, OFFROAD_V10_7, OFFROAD_V10_8, OFFROAD_V10_9, OFFROAD_V10_10, OFFROAD_V10_11, OFFROAD_V10_12, OFFROAD_V10_13, OFFROAD_V10_14, OFFROAD_V10_15, OFFROAD_V10_16, OFFROAD_V10_17, OFFROAD_V10_18, OFFROAD_V10_19, freshSave, SAVE_KEY, VEHICLES, UPGRADES, AUX, JERRY, ADVENTURES, TANK, coerceSave, buyUpgrade, buyVehicle, buyAux, buyJerry, useJerry, refuel, burnFuel, specWithUpgrades, tankCapacity, jerrySlots, rankFor, isDark, clockLabel, tickAdventure, noteAssist, REGION_OPEN, regionUnlocked, crawlAngles } from './economy.js'
 import { preloadRigs, buildRig, applyLod, poseRig, applyPaint, factoryPaint, PAINT_SWATCHES, setWoodMap, rigModel } from './rigs.js'
 import { preloadScenery, preloadGround } from './scenery.js'
 import { createRidges } from './horizon.js'
@@ -9,7 +9,7 @@ import { CAMP, campLevel, buyCamp, canPitch, rollFish, reelBand, biteSeconds, ai
 import { ensureCamp, buildCampSite, buildFishMoment, buildHuntMoment, buildCookMoment, buildRoastMoment } from './campview.js'
 import { createSim, ROLL_LIMIT, recoveryCopy } from './physics.js'
 
-export { OFFROAD_V2, OFFROAD_V3, OFFROAD_V4, OFFROAD_V4_1, OFFROAD_V5, OFFROAD_V5_1, OFFROAD_V6, OFFROAD_V7, OFFROAD_V7_1, OFFROAD_V7_2, OFFROAD_V7_3, OFFROAD_V8, OFFROAD_V9, OFFROAD_V10, OFFROAD_V10_1, OFFROAD_V10_2, OFFROAD_V10_3, OFFROAD_V10_4, OFFROAD_V10_5, OFFROAD_V10_6, OFFROAD_V10_7, OFFROAD_V10_8, OFFROAD_V10_9, OFFROAD_V10_10, OFFROAD_V10_11, OFFROAD_V10_12, OFFROAD_V10_13, OFFROAD_V10_14, OFFROAD_V10_15, OFFROAD_V10_16, OFFROAD_V10_17, OFFROAD_V10_18 }
+export { OFFROAD_V2, OFFROAD_V3, OFFROAD_V4, OFFROAD_V4_1, OFFROAD_V5, OFFROAD_V5_1, OFFROAD_V6, OFFROAD_V7, OFFROAD_V7_1, OFFROAD_V7_2, OFFROAD_V7_3, OFFROAD_V8, OFFROAD_V9, OFFROAD_V10, OFFROAD_V10_1, OFFROAD_V10_2, OFFROAD_V10_3, OFFROAD_V10_4, OFFROAD_V10_5, OFFROAD_V10_6, OFFROAD_V10_7, OFFROAD_V10_8, OFFROAD_V10_9, OFFROAD_V10_10, OFFROAD_V10_11, OFFROAD_V10_12, OFFROAD_V10_13, OFFROAD_V10_14, OFFROAD_V10_15, OFFROAD_V10_16, OFFROAD_V10_17, OFFROAD_V10_18, OFFROAD_V10_19 }
 
 const world = createWorld(1)
 const yard = world.pois.find(p => p.id === 'yard')
@@ -1733,23 +1733,24 @@ function buildWrecker() {
   const model = rigModel('wrecker')
   if (model) {
     const g = model
+    g.scale.setScalar(0.22)
     const lamp = new THREE.MeshStandardMaterial({ color: 0xfff6df, emissive: 0xfff1c4, emissiveIntensity: 0.6 })
     g.traverse(o => {
-      if (o.isMesh && o.material && /lamp/i.test(o.material.name || '')) g.userData.lampMat = o.material
+      if (o.isMesh && o.material && /lamp|light/i.test(o.material.name || '')) g.userData.lampMat = o.material
     })
     const spots = []
     for (const s of [-1, 1]) {
-      const spot = new THREE.SpotLight(0xfff4d4, 0, 30, 0.5, 0.4, 1)
-      spot.position.set(s * 0.4, 0.75, 1.55)
+      const spot = new THREE.SpotLight(0xfff4d4, 0, 36, 0.55, 0.4, 1)
+      spot.position.set(s * 2.2, 4.2, 10.5)
       const tgt = new THREE.Object3D()
-      tgt.position.set(s * 0.1, -0.3, 14)
+      tgt.position.set(s * 0.4, 1.2, 28)
       g.add(spot, tgt)
       spot.target = tgt
       spots.push(spot)
     }
     g.userData.spots = spots
     g.userData.lamp = g.userData.lampMat || lamp
-    g.userData.hook = new THREE.Vector3(0, 1.7, -1.7)
+    g.userData.hook = new THREE.Vector3(0, 7.2, -11.2)
     return g
   }
   const g = new THREE.Group()
@@ -2810,6 +2811,7 @@ window.OX = {
   OFFROAD_V10_16,
   OFFROAD_V10_17,
   OFFROAD_V10_18,
+  OFFROAD_V10_19,
   get mode() { return mode },
   get speed() { return lastSpeed },
   get pos() { const c = sim.chassis; return c ? { x: c.position.x, y: c.position.y, z: c.position.z } : null },
@@ -3069,6 +3071,28 @@ window.OX = {
   },
   call() { return startRecovery() },
   rush() { if (recovery && recovery.phase === 'drive') recovery.left = 0.2 },
+  wreckerBox() {
+    if (!recovery) return null
+    const box = new THREE.Box3().setFromObject(recovery.rig)
+    const c = box.getCenter(new THREE.Vector3())
+    const s = box.getSize(new THREE.Vector3())
+    return { cx: +c.x.toFixed(2), cy: +c.y.toFixed(2), cz: +c.z.toFixed(2), sx: +s.x.toFixed(2), sy: +s.y.toFixed(2), sz: +s.z.toFixed(2), sc: recovery.rig.scale.x }
+  },
+  frameWrecker() {
+    if (!recovery) return
+    holdCam = true
+    freeze = true
+    if (truck) truck.visible = false
+    wheels.forEach(w => { w.visible = false })
+    const rig = recovery.rig
+    const box = new THREE.Box3().setFromObject(rig)
+    const center = box.getCenter(new THREE.Vector3())
+    const size = box.getSize(new THREE.Vector3())
+    const dist = Math.max(7, Math.max(size.x, size.z) * 1.15)
+    camera.position.set(center.x + dist * 0.85, center.y + dist * 0.38, center.z + dist * 0.55)
+    camera.lookAt(center.x, center.y + size.y * 0.1, center.z)
+    applyTime(0.36)
+  },
   frameTow() {
     if (!recovery) return
     holdCam = true
