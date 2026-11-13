@@ -28,10 +28,37 @@ export async function preloadRigs() {
     const gltf = await loader.loadAsync('models/' + style + '.glb')
     templates.set(style, gltf.scene)
   }))
-  await Promise.all([['spare', 'spare'], ['kayak', 'kayak'], ['gascan', 'gascan']].map(async ([key, file]) => {
-    const gltf = await loader.loadAsync('models/accessories/' + file + '.glb')
+  const packs = [
+    ['spare', 'models/accessories/spare.glb'],
+    ['kayak', 'models/accessories/kayak.glb'],
+    ['gascan', 'models/accessories/gascan.glb'],
+    ['crawlerbody', 'models/crawler_body.glb'],
+    ['crawlertire', 'models/crawler_tire.glb'],
+    ['wrecker', 'models/wrecker.glb']
+  ]
+  await Promise.all(packs.map(async ([key, file]) => {
+    const gltf = await loader.loadAsync(file)
     extras.set(key, gltf.scene)
   }))
+}
+
+export function rigModel(key) {
+  const src = extras.get(key)
+  if (!src) return null
+  const g = src.clone(true)
+  g.traverse(o => {
+    if (!o.isMesh || !o.material) return
+    o.castShadow = true
+    const list = Array.isArray(o.material) ? o.material : [o.material]
+    const cloned = list.map(m => {
+      const c = m.clone()
+      const n = (c.name || '').toLowerCase()
+      c.userData.paintRole = n === 'body' || n === 'paint' ? 'body' : n === 'tire' ? 'tire' : 'keep'
+      return c
+    })
+    o.material = cloned.length === 1 ? cloned[0] : cloned
+  })
+  return g
 }
 
 export function factoryPaint(spec) {
@@ -962,70 +989,52 @@ function buildCrawler(THREE, body, spec, kit) {
     mesh.position.set(x, y, z)
     return mesh
   }
-  const vent = keepMat(THREE, '#2a0c0c', 0.55, 0.2)
-
-  soft(bodyMat, half * 2, cabH, cabLen, 0, rocker + cabH / 2, cabZ, 0.09)
-  soft(bodyMat, half * 2 + 0.12, 0.07, cabLen + 0.26, 0, roofY + 0.02, cabZ - 0.05, 0.04)
-
   const hoodW = half * 2 - 0.16
   const sill = belt + 0.02
-  const hoodRear = cabF - 0.12
-  const hoodBottom = railY + 0.04
-  const hoodH = Math.max(0.46, sill - hoodBottom)
-  const hoodLen = Math.max(0.7, nose - hoodRear)
-  const hoodZ = (nose + hoodRear) / 2
-  soft(bodyMat, hoodW, hoodH, hoodLen, 0, hoodBottom + hoodH / 2, hoodZ, 0.07)
-  const scoopZ = cabF + hoodLen * 0.24
-  soft(bodyMat, hoodW * 0.36, 0.07, hoodLen * 0.32, 0, sill + 0.02, scoopZ, 0.03)
-  slab(vent, hoodW * 0.2, 0.016, 0.1, 0, sill + 0.055, scoopZ + hoodLen * 0.1)
-  soft(bodyMat, half * 2 - 0.04, 0.09, 0.2, 0, sill - 0.02, cabF, 0.03)
-
-  const grilleH = Math.min(0.28, hoodH * 0.42)
-  const grilleY = hoodBottom + grilleH * 0.5 + 0.02
-  slab(cageMat, hoodW * 0.88, grilleH, 0.05, 0, grilleY, nose + 0.01)
-  for (const s of [-1, 1]) {
-    const light = add(new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.045, 0.03, 10), lamp))
-    light.rotation.x = Math.PI / 2
-    light.position.set(s * hoodW * 0.32, grilleY + 0.01, nose + 0.04)
+  const shell = rigModel('crawlerbody')
+  if (shell) root.add(shell)
+  else {
+    const vent = keepMat(THREE, '#2a0c0c', 0.55, 0.2)
+    const hoodRear = cabF - 0.12
+    const hoodBottom = railY + 0.04
+    const hoodH = Math.max(0.46, sill - hoodBottom)
+    const hoodLen = Math.max(0.7, nose - hoodRear)
+    soft(bodyMat, half * 2, cabH, cabLen, 0, rocker + cabH / 2, cabZ, 0.09)
+    soft(bodyMat, half * 2 + 0.12, 0.07, cabLen + 0.26, 0, roofY + 0.02, cabZ - 0.05, 0.04)
+    soft(bodyMat, hoodW, hoodH, hoodLen, 0, hoodBottom + hoodH / 2, (nose + hoodRear) / 2, 0.07)
+    const scoopZ = cabF + hoodLen * 0.24
+    soft(bodyMat, hoodW * 0.36, 0.07, hoodLen * 0.32, 0, sill + 0.02, scoopZ, 0.03)
+    slab(vent, hoodW * 0.2, 0.016, 0.1, 0, sill + 0.055, scoopZ + hoodLen * 0.1)
+    soft(bodyMat, half * 2 - 0.04, 0.09, 0.2, 0, sill - 0.02, cabF, 0.03)
+    const grilleH = Math.min(0.28, hoodH * 0.42)
+    const grilleY = hoodBottom + grilleH * 0.5 + 0.02
+    slab(cageMat, hoodW * 0.88, grilleH, 0.05, 0, grilleY, nose + 0.01)
+    for (const s of [-1, 1]) {
+      const light = add(new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.045, 0.03, 10), lamp))
+      light.rotation.x = Math.PI / 2
+      light.position.set(s * hoodW * 0.32, grilleY + 0.01, nose + 0.04)
+    }
+    const winFront = cabF - 0.09
+    const winRear = cabB + 0.11
+    const winTop = roofY - 0.055
+    const winZ = (winFront + winRear) / 2
+    const winLen = winFront - winRear
+    const winH = winTop - sill
+    const winY = (winTop + sill) / 2
+    for (const s of [-1, 1]) {
+      const xGlass = s * (half + 0.012)
+      const xFrame = s * (half + 0.028)
+      slab(tint, 0.018, winH - 0.03, winLen - 0.07, xGlass, winY, winZ)
+      slab(bodyMat, 0.028, 0.038, winLen + 0.02, xFrame, winTop, winZ)
+      slab(bodyMat, 0.028, 0.042, winLen + 0.02, xFrame, sill, winZ)
+      slab(bodyMat, 0.028, winH + 0.02, 0.042, xFrame, winY, winFront)
+      slab(bodyMat, 0.028, winH + 0.02, 0.042, xFrame, winY, winRear)
+      slab(seam, 0.03, 0.028, 0.11, s * (half + 0.04), sill - 0.12, winZ + 0.2)
+    }
+    const windshield = slab(glass, half * 2 - 0.18, 0.64, 0.028, 0, belt + 0.32, cabF + 0.015)
+    windshield.rotation.x = -0.34
+    slab(glass, half * 1.4, 0.52, 0.03, 0, belt + 0.34, cabB - 0.02)
   }
-
-  const winFront = cabF - 0.09
-  const winRear = cabB + 0.11
-  const winTop = roofY - 0.055
-  const winBot = sill
-  const winZ = (winFront + winRear) / 2
-  const winLen = winFront - winRear
-  const winH = winTop - winBot
-  const winY = (winTop + winBot) / 2
-  for (const s of [-1, 1]) {
-    const xGlass = s * (half + 0.012)
-    const xFrame = s * (half + 0.028)
-    slab(tint, 0.018, winH - 0.03, winLen - 0.07, xGlass, winY, winZ)
-    slab(bodyMat, 0.028, 0.038, winLen + 0.02, xFrame, winTop, winZ)
-    slab(bodyMat, 0.028, 0.042, winLen + 0.02, xFrame, winBot, winZ)
-    slab(bodyMat, 0.028, winH + 0.02, 0.042, xFrame, winY, winFront)
-    slab(bodyMat, 0.028, winH + 0.02, 0.042, xFrame, winY, winRear)
-    slab(seam, 0.016, belt - rocker - 0.1, 0.02, xGlass, rocker + (belt - rocker) * 0.46, winFront)
-    slab(seam, 0.016, belt - rocker - 0.1, 0.02, xGlass, rocker + (belt - rocker) * 0.46, winRear)
-    slab(seam, 0.016, 0.016, cabLen - 0.1, xGlass, sill - 0.01, cabZ)
-    slab(bodyMat, 0.04, 0.065, cabLen + 0.02, s * (half + 0.008), rocker + 0.028, cabZ)
-    slab(seam, 0.03, 0.028, 0.11, s * (half + 0.04), sill - 0.12, winZ + 0.2)
-    slab(seam, 0.06, 0.08, 0.11, s * (half + 0.07), belt + 0.12, winFront)
-    slab(seam, 0.016, 0.07, 0.016, s * (half + 0.03), belt + 0.06, winFront - 0.01)
-  }
-
-  const windshield = slab(glass, half * 2 - 0.18, 0.64, 0.028, 0, belt + 0.32, cabF + 0.015)
-  windshield.rotation.x = -0.34
-  for (const s of [-1, 1]) {
-    const pillar = slab(bodyMat, 0.05, 0.66, 0.036, s * (half - 0.045), belt + 0.32, cabF + 0.02)
-    pillar.rotation.x = -0.34
-  }
-  slab(bodyMat, half * 2 - 0.14, 0.04, 0.03, 0, belt + 0.015, cabF + 0.03)
-  slab(glass, half * 1.4, 0.52, 0.03, 0, belt + 0.34, cabB - 0.02)
-  slab(bodyMat, half * 1.55, 0.03, 0.022, 0, belt + 0.62, cabB - 0.012)
-  slab(bodyMat, half * 1.55, 0.03, 0.022, 0, belt + 0.06, cabB - 0.012)
-  slab(bodyMat, 0.04, 0.52, 0.022, half * 0.72, belt + 0.34, cabB - 0.012)
-  slab(bodyMat, 0.04, 0.52, 0.022, -half * 0.72, belt + 0.34, cabB - 0.012)
 
   for (const x of [-0.4, 0.4]) bar([x, railY, nose - 0.22], [x, railY, tail + 0.04], 0.028)
   bar([-0.4, railY, zF], [0.4, railY, zF], 0.026)
@@ -1188,6 +1197,12 @@ function buildCrawler(THREE, body, spec, kit) {
 }
 
 function beadlock(THREE, radius, level) {
+  const tireModel = rigModel('crawlertire')
+  if (tireModel) {
+    tireModel.scale.setScalar(radius)
+    tireModel.userData.hardware = true
+    return tireModel
+  }
   const g = new THREE.Group()
   g.userData.hardware = true
   const tire = keepMat(THREE, '#141414', 0.94, 0)
