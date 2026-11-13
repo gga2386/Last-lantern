@@ -961,9 +961,10 @@ function buildCrawler(THREE, body, spec, kit) {
   const tube = 0.03
   const half = 0.76
   const connY = spec.axles[0][1] + drop + spec.rest
-  const tireTop = connY - spec.rest + spec.wheelR
-  const railY = tireTop + 0.22
-  const rocker = railY + 0.14
+  const hubY = connY - spec.rest
+  const tireTop = hubY + spec.wheelR
+  const rocker = hubY + 0.1
+  const railY = rocker - 0.04
   const cabH = 1.26
   const belt = rocker + cabH * 0.44
   const roofY = rocker + cabH
@@ -995,9 +996,25 @@ function buildCrawler(THREE, body, spec, kit) {
   const sill = belt + 0.02
   const shell = rigModel('crawlerbody')
   if (shell) {
-    shell.scale.set(0.68, 0.95, 0.85)
-    shell.position.set(0, 0.1, -0.29)
+    const shellSX = 0.64
+    const shellSY = 0.9
+    const shellSZ = 0.85
+    const shellZ = -0.29
+    shell.scale.set(shellSX, shellSY, shellSZ)
+    shell.position.set(0, rocker - 0.526 * shellSY, shellZ)
     root.add(shell)
+    const backZ = -0.42 * shellSZ + shellZ
+    const topY = 1.855 * shellSY + shell.position.y
+    const wallW = 1.16 * shellSX * 2 - 0.04
+    const wallH = Math.max(0.4, topY - rocker)
+    slab(bodyMat, wallW, wallH, 0.12, 0, rocker + wallH / 2, backZ + 0.04)
+    const glassH = wallH * 0.34
+    const glassY = rocker + wallH * 0.62
+    slab(glass, wallW * 0.62, glassH, 0.04, 0, glassY, backZ - 0.02)
+    slab(bodyMat, wallW * 0.7, 0.045, 0.03, 0, glassY + glassH / 2, backZ - 0.03)
+    slab(bodyMat, wallW * 0.7, 0.045, 0.03, 0, glassY - glassH / 2, backZ - 0.03)
+    slab(bodyMat, 0.05, glassH + 0.06, 0.03, wallW * 0.32, glassY, backZ - 0.03)
+    slab(bodyMat, 0.05, glassH + 0.06, 0.03, -wallW * 0.32, glassY, backZ - 0.03)
   }
   else {
     const vent = keepMat(THREE, '#2a0c0c', 0.55, 0.2)
@@ -1132,7 +1149,7 @@ function buildCrawler(THREE, body, spec, kit) {
     })
     links.push({
       mesh: upper,
-      mount: new THREE.Vector3(a[0] * 0.18, railY + 0.32, a[2] - Math.sign(a[2] || 1) * 0.2),
+      mount: new THREE.Vector3(a[0] * 0.18, railY + 0.08, a[2] - Math.sign(a[2] || 1) * 0.2),
       index: i,
       inboard: 0.42
     })
@@ -1477,10 +1494,11 @@ export function poseRig(THREE, group, wheels) {
     if (!w0 || !w1) continue
     p.a.copy(w0.position).sub(group.position).applyQuaternion(p.inv)
     p.b.copy(w1.position).sub(group.position).applyQuaternion(p.inv)
-    p.a.x *= 0.82
-    p.b.x *= 0.82
+    p.a.x *= 0.9
+    p.b.x *= 0.9
     spanPart(THREE, axle.bar, p.a, p.b, p.up, p)
     axle.diff.position.copy(p.a).add(p.b).multiplyScalar(0.5)
+    axle.diff.quaternion.copy(axle.bar.quaternion)
   }
   if (ud.shaft && axles.length === 2) {
     spanPart(THREE, ud.shaft, axles[0].diff.position, axles[1].diff.position, p.up, p)
