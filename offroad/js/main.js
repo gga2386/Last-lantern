@@ -1,16 +1,16 @@
-// Crawl Camp. OFFROAD_V10_21
+// Crawl Camp. OFFROAD_V10_22
 import * as THREE from '../vendor/three.module.js'
 import { createWorld, WORLD_SIZE, HALF, SURF, SURF_NAME } from './world.js'
-import { OFFROAD_V2, OFFROAD_V3, OFFROAD_V4, OFFROAD_V4_1, OFFROAD_V5, OFFROAD_V5_1, OFFROAD_V6, OFFROAD_V7, OFFROAD_V7_1, OFFROAD_V7_2, OFFROAD_V7_3, OFFROAD_V8, OFFROAD_V9, OFFROAD_V10, OFFROAD_V10_1, OFFROAD_V10_2, OFFROAD_V10_3, OFFROAD_V10_4, OFFROAD_V10_5, OFFROAD_V10_6, OFFROAD_V10_7, OFFROAD_V10_8, OFFROAD_V10_9, OFFROAD_V10_10, OFFROAD_V10_11, OFFROAD_V10_12, OFFROAD_V10_13, OFFROAD_V10_14, OFFROAD_V10_15, OFFROAD_V10_16, OFFROAD_V10_17, OFFROAD_V10_18, OFFROAD_V10_19, OFFROAD_V10_20, OFFROAD_V10_21, freshSave, SAVE_KEY, VEHICLES, UPGRADES, AUX, JERRY, ADVENTURES, TANK, coerceSave, buyUpgrade, buyVehicle, buyAux, buyJerry, useJerry, refuel, burnFuel, specWithUpgrades, tankCapacity, jerrySlots, rankFor, isDark, clockLabel, tickAdventure, noteAssist, REGION_OPEN, regionUnlocked, crawlAngles } from './economy.js'
+import { OFFROAD_V2, OFFROAD_V3, OFFROAD_V4, OFFROAD_V4_1, OFFROAD_V5, OFFROAD_V5_1, OFFROAD_V6, OFFROAD_V7, OFFROAD_V7_1, OFFROAD_V7_2, OFFROAD_V7_3, OFFROAD_V8, OFFROAD_V9, OFFROAD_V10, OFFROAD_V10_1, OFFROAD_V10_2, OFFROAD_V10_3, OFFROAD_V10_4, OFFROAD_V10_5, OFFROAD_V10_6, OFFROAD_V10_7, OFFROAD_V10_8, OFFROAD_V10_9, OFFROAD_V10_10, OFFROAD_V10_11, OFFROAD_V10_12, OFFROAD_V10_13, OFFROAD_V10_14, OFFROAD_V10_15, OFFROAD_V10_16, OFFROAD_V10_17, OFFROAD_V10_18, OFFROAD_V10_19, OFFROAD_V10_20, OFFROAD_V10_21, OFFROAD_V10_22, freshSave, SAVE_KEY, VEHICLES, UPGRADES, AUX, JERRY, ADVENTURES, TANK, coerceSave, buyUpgrade, buyVehicle, buyAux, buyJerry, useJerry, refuel, burnFuel, specWithUpgrades, tankCapacity, jerrySlots, rankFor, isDark, clockLabel, tickAdventure, noteAssist, REGION_OPEN, regionUnlocked, crawlAngles } from './economy.js'
 import { preloadRigs, buildRig, applyLod, poseRig, applyPaint, factoryPaint, PAINT_SWATCHES, setWoodMap, rigModel } from './rigs.js'
 import { preloadScenery, preloadGround, preloadRocks } from './scenery.js'
 import { createRidges } from './horizon.js'
 import { CAMP, campLevel, buyCamp, canPitch, rollFish, reelBand, biteSeconds, aimHit, RECIPES, canCook, cookJudge, applyCook, activityState, gameFor, spotVisual, roastGrade, roastColor, roastStamp, applyRoast } from './camp.js'
 import { ensureCamp, buildCampSite, buildFishMoment, buildHuntMoment, buildCookMoment, buildRoastMoment } from './campview.js'
 import { createSim, ROLL_LIMIT, recoveryCopy } from './physics.js'
-import { courseFeatures, paintRuts, rutNear, takeRutDirty } from './trail.js'
+import { SIDES, courseFeatures, paintRuts, rutNear, takeRutDirty } from './trail.js'
 
-export { OFFROAD_V2, OFFROAD_V3, OFFROAD_V4, OFFROAD_V4_1, OFFROAD_V5, OFFROAD_V5_1, OFFROAD_V6, OFFROAD_V7, OFFROAD_V7_1, OFFROAD_V7_2, OFFROAD_V7_3, OFFROAD_V8, OFFROAD_V9, OFFROAD_V10, OFFROAD_V10_1, OFFROAD_V10_2, OFFROAD_V10_3, OFFROAD_V10_4, OFFROAD_V10_5, OFFROAD_V10_6, OFFROAD_V10_7, OFFROAD_V10_8, OFFROAD_V10_9, OFFROAD_V10_10, OFFROAD_V10_11, OFFROAD_V10_12, OFFROAD_V10_13, OFFROAD_V10_14, OFFROAD_V10_15, OFFROAD_V10_16, OFFROAD_V10_17, OFFROAD_V10_18, OFFROAD_V10_19, OFFROAD_V10_20, OFFROAD_V10_21 }
+export { OFFROAD_V2, OFFROAD_V3, OFFROAD_V4, OFFROAD_V4_1, OFFROAD_V5, OFFROAD_V5_1, OFFROAD_V6, OFFROAD_V7, OFFROAD_V7_1, OFFROAD_V7_2, OFFROAD_V7_3, OFFROAD_V8, OFFROAD_V9, OFFROAD_V10, OFFROAD_V10_1, OFFROAD_V10_2, OFFROAD_V10_3, OFFROAD_V10_4, OFFROAD_V10_5, OFFROAD_V10_6, OFFROAD_V10_7, OFFROAD_V10_8, OFFROAD_V10_9, OFFROAD_V10_10, OFFROAD_V10_11, OFFROAD_V10_12, OFFROAD_V10_13, OFFROAD_V10_14, OFFROAD_V10_15, OFFROAD_V10_16, OFFROAD_V10_17, OFFROAD_V10_18, OFFROAD_V10_19, OFFROAD_V10_20, OFFROAD_V10_21, OFFROAD_V10_22 }
 
 const world = createWorld(1)
 const yard = world.pois.find(p => p.id === 'yard')
@@ -401,6 +401,7 @@ function instanced(geo, color, matrices, roughness, sourceMat) {
 }
 let sceneryPack = {}
 let groundTex = null
+let woodTex = null
 function scatterVariants(models, matrices) {
   if (!models || !models.length || !matrices.length) return
   const buckets = models.map(() => [])
@@ -416,7 +417,8 @@ function trailDress() {
   const grass = []
   const fern = []
   const stones = []
-  for (let i = 0; i < 180; i++) {
+  const pines = []
+  for (let i = 0; i < (gfx().trees > 200 ? 340 : 160); i++) {
     const z = -166 + (i % 90) * 1.55
     const side = i < 90 ? -1 : 1
     const x = side * (2.5 + ((i * 17) % 28) / 10)
@@ -428,13 +430,18 @@ function trailDress() {
     const sc = i % 4 === 0 ? 0.35 + (i % 3) * 0.08 : 0.55 + (i % 5) * 0.1
     dummy.scale.setScalar(sc)
     dummy.updateMatrix()
-    if (i % 5 === 0) stones.push(dummy.matrix.clone())
+    if (i % 11 === 0) {
+      dummy.scale.setScalar(0.85 + (i % 3) * 0.15)
+      dummy.updateMatrix()
+      pines.push(dummy.matrix.clone())
+    } else if (i % 5 === 0) stones.push(dummy.matrix.clone())
     else if (i % 3 === 0) fern.push(dummy.matrix.clone())
     else grass.push(dummy.matrix.clone())
   }
   scatterVariants(sceneryPack.grass, grass)
   scatterVariants(sceneryPack.bush, fern)
   scatterVariants(sceneryPack.rock, stones)
+  scatterVariants(sceneryPack.pine, pines)
 }
 function scatter() {
   const dummy = new THREE.Object3D()
@@ -1053,6 +1060,23 @@ function syncTruck() {
     }
     poseRig(THREE, truck, wheels)
   }
+  const wet = Math.max(0, Math.min(1, (hazard.water || 0) / 0.35))
+  wetPaint(truck, wet)
+  for (const w of wheels) wetPaint(w, wet)
+}
+function wetPaint(root, wet) {
+  if (!root) return
+  root.traverse(o => {
+    if (!o.isMesh || !o.material) return
+    const list = Array.isArray(o.material) ? o.material : [o.material]
+    for (const m of list) {
+      if (!m.color) continue
+      if (!m.userData.dry) m.userData.dry = m.color.clone()
+      if (m.userData.dryRough == null) m.userData.dryRough = m.roughness == null ? 0.6 : m.roughness
+      m.color.copy(m.userData.dry).multiplyScalar(1 - wet * 0.42)
+      if (m.roughness != null) m.roughness = m.userData.dryRough * (1 - wet * 0.5) + wet * 0.18
+    }
+  })
 }
 function updateCamera(dt) {
   const c = sim.chassis
@@ -1190,6 +1214,28 @@ function drawMap(canvas, big) {
   const w = canvas.width, h = canvas.height
   g.drawImage(mapBake, 0, 0, w, h)
   const px = (x, z) => [(x + HALF) / WORLD_SIZE * w, (HALF - z) / WORLD_SIZE * h]
+  g.lineCap = 'round'
+  g.lineJoin = 'round'
+  g.strokeStyle = '#c4a574'
+  g.lineWidth = big ? 4 : 2
+  g.beginPath()
+  const [mx0, my0] = px(0, -166)
+  const [mx1, my1] = px(0, -36)
+  g.moveTo(mx0, my0)
+  g.lineTo(mx1, my1)
+  g.stroke()
+  const sideInk = { rocks: '#d7c4a4', hill: '#e0b090', creek: '#8ec8c4', narrow: '#b7d7a8' }
+  for (const side of SIDES) {
+    g.strokeStyle = sideInk[side.id] || '#e6d2a2'
+    g.lineWidth = big ? (side.narrow ? 2 : 3) : (side.narrow ? 1 : 1.6)
+    g.beginPath()
+    side.pts.forEach((p, i) => {
+      const [sx, sy] = px(p[0], p[1])
+      if (i === 0) g.moveTo(sx, sy)
+      else g.lineTo(sx, sy)
+    })
+    g.stroke()
+  }
   for (const p of world.pois) {
     const [x, y] = px(p.x, p.z)
     const known = save.discovered.includes(p.id)
@@ -2240,7 +2286,7 @@ if (gfx().dust) {
     const m = new THREE.Mesh(new THREE.PlaneGeometry(0.6, 0.6), mat.clone())
     m.visible = false
     scene.add(m)
-    dust.push({ m, life: 0, vx: 0, vz: 0 })
+    dust.push({ m, life: 0, vx: 0, vz: 0, vy: 0, splash: false })
   }
 }
 let dustN = 0
@@ -2252,8 +2298,10 @@ function puff(x, y, z, mud, splash) {
   d.m.material.color.set(splash ? 0xe8f6f8 : mud ? 0x4a3018 : 0xc4a27a)
   d.m.position.set(x, y + (mud || splash ? 0.2 : 0), z)
   d.m.scale.setScalar(splash ? 0.85 : mud ? 0.7 : 0.4)
-  d.vx = (Math.random() - 0.5) * (mud ? 2.4 : 1.5)
-  d.vz = (Math.random() - 0.5) * (mud ? 2.4 : 1.5)
+  d.splash = !!splash
+  d.vx = (Math.random() - 0.5) * (splash ? 1.8 : mud ? 2.4 : 1.5)
+  d.vz = (Math.random() - 0.5) * (splash ? 1.8 : mud ? 2.4 : 1.5)
+  d.vy = splash ? 3.2 + Math.random() : 0.6
 }
 
 function resize() {
@@ -2274,6 +2322,7 @@ try {
   wood.wrapS = wood.wrapT = THREE.RepeatWrapping
   wood.repeat.set(1.4, 0.55)
   setWoodMap(wood)
+  woodTex = wood
 } catch (e) {}
 sceneryPack = await preloadScenery(THREE)
 groundTex = await preloadGround(THREE)
@@ -2313,6 +2362,46 @@ function syncFlex() {
   ropeLine.geometry.setAttribute('position', new THREE.Float32BufferAttribute(seq, 3))
   ropeLine.geometry.computeBoundingSphere()
 }
+function trailPost(x, z, label) {
+  const y = world.height(x, z)
+  const post = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.09, 1.25, 6), new THREE.MeshStandardMaterial({ color: 0x6a4330, roughness: 0.86 }))
+  post.position.set(x, y + 0.62, z)
+  post.castShadow = true
+  scene.add(post)
+  const c = document.createElement('canvas')
+  c.width = 256; c.height = 64
+  const g = c.getContext('2d')
+  g.fillStyle = '#3a2418'
+  g.fillRect(0, 0, 256, 64)
+  g.strokeStyle = '#c4a574'
+  g.lineWidth = 4
+  g.strokeRect(4, 4, 248, 56)
+  g.fillStyle = '#f4efe6'
+  g.font = '700 28px sans-serif'
+  g.textAlign = 'center'
+  g.fillText(label.toUpperCase(), 128, 42)
+  const tex = new THREE.CanvasTexture(c)
+  tex.colorSpace = THREE.SRGBColorSpace
+  const board = new THREE.Mesh(new THREE.PlaneGeometry(1.15, 0.29), new THREE.MeshBasicMaterial({ map: tex, side: THREE.DoubleSide }))
+  board.position.set(x, y + 1.15, z)
+  board.rotation.y = Math.PI / 2
+  scene.add(board)
+}
+function trailCairn(x, z) {
+  const y = world.height(x, z)
+  const stone = new THREE.MeshStandardMaterial({ color: 0x8a8478, roughness: 0.95 })
+  const sizes = [[0.42, 0.22], [0.3, 0.18], [0.18, 0.14]]
+  let lift = 0
+  sizes.forEach(([w, h], i) => {
+    const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, w * 0.8), stone)
+    lift += h * 0.5
+    m.position.set(x + i * 0.04, y + lift, z - i * 0.03)
+    m.rotation.y = i * 0.4
+    m.castShadow = true
+    scene.add(m)
+    lift += h * 0.5
+  })
+}
 function buildCourse() {
   const colors = { wood: 0x8a5a32, steel: 0x9aa3ab, bark: 0x5c4030, rock: 0x7e7870 }
   const mats = {}
@@ -2324,6 +2413,11 @@ function buildCourse() {
         const normal = groundTex.gravel.normal.clone()
         normal.repeat.set(1, 1)
         mats[name] = new THREE.MeshStandardMaterial({ map, normalMap: normal, roughness: 0.92, metalness: 0 })
+      } else if (name === 'wood' && woodTex) {
+        const map = woodTex.clone()
+        map.repeat.set(1.2, 2.4)
+        map.needsUpdate = true
+        mats[name] = new THREE.MeshStandardMaterial({ map, color: 0xc8a078, roughness: 0.84, metalness: 0 })
       } else mats[name] = new THREE.MeshStandardMaterial({ color: colors[name] || 0x888888, roughness: name === 'steel' ? 0.45 : 0.92, metalness: name === 'steel' ? 0.35 : 0 })
     }
     return mats[name]
@@ -2378,6 +2472,76 @@ function buildCourse() {
     sheet.position.set(cx, world.height(cx, cz - 3.2) - 0.08, cz)
     scene.add(sheet)
   }
+  const puddleMat = creekMat.clone()
+  puddleMat.color.set(0x3a6a58)
+  puddleMat.opacity = 0.62
+  for (const [px, pz, pr] of [[0.3, -148, 1.15], [-0.5, -134, 1.05], [0.6, -120, 0.95]]) {
+    const puddle = new THREE.Mesh(new THREE.CircleGeometry(pr, 18), puddleMat)
+    puddle.rotation.x = -Math.PI / 2
+    puddle.position.set(px, world.height(px, pz) + 0.05, pz)
+    scene.add(puddle)
+  }
+  const road = document.createElement('canvas')
+  road.width = 64
+  road.height = 512
+  const rg = road.getContext('2d')
+  rg.fillStyle = '#6a4a32'
+  rg.fillRect(0, 0, 64, 512)
+  rg.fillStyle = '#3a2818'
+  rg.fillRect(18, 0, 8, 512)
+  rg.fillRect(38, 0, 8, 512)
+  rg.fillStyle = '#2a241c'
+  for (let i = 0; i < 18; i++) rg.fillRect(8 + (i * 17) % 40, i * 28, 10, 6)
+  const roadTex = new THREE.CanvasTexture(road)
+  roadTex.wrapS = roadTex.wrapT = THREE.RepeatWrapping
+  roadTex.colorSpace = THREE.SRGBColorSpace
+  const roadGeo = new THREE.PlaneGeometry(6.4, 128, 1, 32)
+  roadGeo.rotateX(-Math.PI / 2)
+  const rp = roadGeo.attributes.position
+  for (let i = 0; i < rp.count; i++) {
+    const x = rp.getX(i)
+    const z = rp.getZ(i) - 100
+    rp.setY(i, world.height(x, z) + 0.04)
+  }
+  rp.needsUpdate = true
+  roadGeo.computeVertexNormals()
+  const roadMesh = new THREE.Mesh(roadGeo, new THREE.MeshStandardMaterial({ map: roadTex, roughness: 0.95 }))
+  roadMesh.position.set(0, 0, -100)
+  roadMesh.receiveShadow = true
+  scene.add(roadMesh)
+  const sideMat = roadMesh.material
+  for (const side of SIDES) {
+    const pos = []
+    const uv = []
+    const idx = []
+    side.pts.forEach((p, i) => {
+      const prev = side.pts[Math.max(0, i - 1)]
+      const next = side.pts[Math.min(side.pts.length - 1, i + 1)]
+      let dx = next[0] - prev[0], dz = next[1] - prev[1]
+      const len = Math.hypot(dx, dz) || 1
+      dx /= len; dz /= len
+      const half = side.width * 0.5
+      const y = world.height(p[0], p[1]) + 0.05
+      pos.push(p[0] - dz * half, y, p[1] + dx * half, p[0] + dz * half, y, p[1] - dx * half)
+      uv.push(0, i * 0.45, 1, i * 0.45)
+      if (i) {
+        const v = i * 2
+        idx.push(v - 2, v, v - 1, v - 1, v, v + 1)
+      }
+    })
+    const geo = new THREE.BufferGeometry()
+    geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3))
+    geo.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2))
+    geo.setIndex(idx)
+    geo.computeVertexNormals()
+    const mesh = new THREE.Mesh(geo, sideMat)
+    mesh.receiveShadow = true
+    scene.add(mesh)
+    const split = side.pts[1]
+    const rejoin = side.pts[side.pts.length - 2]
+    trailPost(side.pts[0][0] + Math.sign(split[0] || 1) * 2.6, side.pts[0][1], side.name.split(' ')[0])
+    trailCairn(rejoin[0], rejoin[1])
+  }
   syncFlex()
 }
 const rutCanvas = document.createElement('canvas')
@@ -2387,7 +2551,7 @@ const rutMesh = new THREE.Mesh(new THREE.PlaneGeometry(40, 40), new THREE.MeshBa
 rutMesh.rotation.x = -Math.PI / 2
 rutMesh.visible = false
 scene.add(rutMesh)
-const trackGeo = new THREE.PlaneGeometry(0.42, 0.26)
+const trackGeo = new THREE.PlaneGeometry(0.34, 0.72)
 trackGeo.rotateX(-Math.PI / 2)
 const trackMesh = new THREE.InstancedMesh(trackGeo, new THREE.MeshBasicMaterial({ transparent: true, opacity: 0.82, depthWrite: false }), 200)
 trackMesh.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(200 * 3), 3)
@@ -2407,12 +2571,12 @@ function refreshRuts() {
   const marks = rutNear(c.position.x, c.position.z, 28).sort((a, b) => b.d - a.d).slice(0, 200)
   trackMesh.count = marks.length
   marks.forEach((m, i) => {
-    trackDummy.position.set(m.x, world.height(m.x, m.z) + 0.06, m.z)
-    trackDummy.rotation.set(0, 0, 0)
-    trackDummy.scale.set(1, 1, 0.7 + m.d * 2)
+    trackDummy.position.set(m.x, world.height(m.x, m.z) + 0.07, m.z)
+    trackDummy.rotation.set(0, m.h || 0, 0)
+    trackDummy.scale.set(0.7, 1, 1.4 + m.d * 4)
     trackDummy.updateMatrix()
     trackMesh.setMatrixAt(i, trackDummy.matrix)
-    trackColor.set(m.s === 6 ? 0x5c6a78 : m.s === 3 ? 0x8a6840 : 0x2a1c12)
+    trackColor.set(m.s === 6 ? 0x2e3844 : m.s === 3 ? 0x6a4a28 : 0x1a100c)
     trackMesh.setColorAt(i, trackColor)
   })
   trackMesh.instanceMatrix.needsUpdate = true
@@ -2936,7 +3100,7 @@ function frame(now) {
     const w = wheels[Math.floor(Math.random() * wheels.length)]
     if (w) puff(w.position.x, w.position.y, w.position.z, lastSurf !== SURF.sand)
   }
-  if (mode === 'play' && wheels[0] && lastSurf === SURF.water && Math.abs(lastSpeed) > 0.8 && Math.random() < 0.7) {
+  if (mode === 'play' && wheels[0] && (lastSurf === SURF.water || hazard.water > 0.08) && Math.abs(lastSpeed) > 0.6 && Math.random() < 0.85) {
     const w = wheels[Math.floor(Math.random() * wheels.length)]
     if (w) puff(w.position.x, w.position.y + 0.15, w.position.z, false, true)
   }
@@ -2949,8 +3113,9 @@ function frame(now) {
   for (const d of dust) {
     if (d.life <= 0) continue
     d.life -= dt
+    d.vy = (d.vy || 0) - dt * (d.splash ? 9 : 1.2)
     d.m.position.x += d.vx * dt
-    d.m.position.y += dt * 0.8
+    d.m.position.y += d.vy * dt
     d.m.position.z += d.vz * dt
     d.m.scale.setScalar(0.4 + (0.7 - d.life))
     d.m.material.opacity = Math.max(0, d.life) * 0.4
@@ -2972,6 +3137,10 @@ function frame(now) {
     if (dt > 0.022 && dprScale > 0.65) {
       dprScale *= 0.85
       resize()
+    }
+    if (frameMs > 26 && renderer.shadowMap.enabled) {
+      renderer.shadowMap.enabled = false
+      sun.castShadow = false
     }
   }
   frameMs = performance.now() - frameStart
@@ -3003,6 +3172,7 @@ window.OX = {
   OFFROAD_V10_19,
   OFFROAD_V10_20,
   OFFROAD_V10_21,
+  OFFROAD_V10_22,
   get mode() { return mode },
   get speed() { return lastSpeed },
   get pos() { const c = sim.chassis; return c ? { x: c.position.x, y: c.position.y, z: c.position.z } : null },
@@ -3024,6 +3194,7 @@ window.OX = {
   get lights() { return { mode: save.lights, high: !!save.highbeam, on: !!(truck && truck.userData && truck.userData.lamps[0].intensity > 0) } },
   setClock(t) { save.clock = t; applyTime(t) },
   place(x, z, yaw) { sim.place(x, z, yaw || 0); buildTruck(sim.spec) },
+  setGear(g) { gear = g || 'D' },
   setCam(kind, dist, yaw, pitch) { camMode = kind; if (dist) orbitDist = dist; if (yaw != null) orbitYaw = yaw; if (pitch != null) orbitPitch = pitch },
   open(id) { if (id === 'jobs') fillAdventures(); if (id === 'garage') fillGarage(); if (id === 'store') fillStore(); if (id === 'paint') openPaint(); if (id === 'camp-colors') openCampColors(); else if (id !== 'paint') showPanel(id) },
   campColors() { openCampColors() },

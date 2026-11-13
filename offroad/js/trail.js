@@ -64,25 +64,26 @@ export function rutDepth(x, z) {
   const cell = ruts.get(key(x, z))
   return cell ? cell.d : 0
 }
-function stamp(x, z, amount, surf) {
+function stamp(x, z, amount, surf, heading) {
   const k = key(x, z)
   if (!ruts.has(k) && ruts.size >= 900) return
   const prev = ruts.get(k)
-  const d = Math.min(0.2, (prev ? prev.d : 0) + amount)
-  ruts.set(k, { d, s: surf })
+  const d = Math.min(0.22, (prev ? prev.d : 0) + amount)
+  ruts.set(k, { d, s: surf, h: heading })
   dirty = true
 }
 export function digRut(x, z, amount, surf, wheel) {
-  const id = wheel == null ? 0 : wheel
-  const prev = lastWheel.get(id)
-  lastWheel.set(id, { x, z })
+  const id = wheel == null ? null : wheel
+  const prev = id == null ? null : lastWheel.get(id)
+  if (id != null) lastWheel.set(id, { x, z })
+  const heading = prev ? Math.atan2(x - prev.x, z - prev.z) : 0
   const dist = prev ? Math.hypot(x - prev.x, z - prev.z) : 0
   const steps = Math.min(8, Math.max(1, Math.round(dist / CELL)))
   for (let i = 0; i <= steps; i++) {
     const t = steps ? i / steps : 1
     const px = prev ? prev.x + (x - prev.x) * t : x
     const pz = prev ? prev.z + (z - prev.z) * t : z
-    stamp(px, pz, amount / steps, surf)
+    stamp(px, pz, amount / steps, surf, heading)
   }
 }
 export function rutCount() { return ruts.size }
@@ -94,7 +95,7 @@ export function rutNear(cx, cz, span) {
     const x = Number(parts[0]) * CELL
     const z = Number(parts[1]) * CELL
     if (Math.abs(x - cx) > half || Math.abs(z - cz) > half) continue
-    out.push({ x, z, d: cell.d, s: cell.s })
+    out.push({ x, z, d: cell.d, s: cell.s, h: cell.h || 0 })
   }
   return out
 }
@@ -148,6 +149,82 @@ function nail(x, y, z) {
   return { kind: 'decor', shape: 'bolt', x, y, z, hx: 0.035, hy: 0.02, hz: 0.035, yaw: 0, mat: 'steel' }
 }
 
+// Crawler sits here facing +z. The two diagonal boulders are under the front-right and rear-left tires.
+export const CROSS = { x: 12, z: -108, yaw: 0 }
+
+// Optional lines off the forest road. Each one leaves the main track and comes back.
+export const SIDES = [
+  {
+    id: 'rocks', name: 'Rock line', width: 3.4, reach: 5.2,
+    pts: [[0, -156], [8, -148], [14, -132], [16, -116], [14, -104], [8, -92], [0, -82]]
+  },
+  {
+    id: 'hill', name: 'Hill cut', width: 3.2, reach: 5.4,
+    pts: [[0, -128], [14, -120], [28, -110], [36, -100], [36, -88], [18, -78], [0, -70]]
+  },
+  {
+    id: 'creek', name: 'Creek loop', width: 3.3, reach: 5.2,
+    pts: [[0, -146], [12, -140], [26, -134], [36, -128], [26, -120], [12, -112], [0, -106]]
+  },
+  {
+    id: 'narrow', name: 'Deer track', width: 1.8, reach: 3.2, narrow: true,
+    pts: [[0, -162], [-8, -156], [-18, -144], [-16, -130], [-20, -116], [-10, -102], [0, -92]]
+  }
+]
+
+export function distToPoly(x, z, pts) {
+  let best = 1e9
+  for (let i = 0; i < pts.length - 1; i++) {
+    const a = pts[i], b = pts[i + 1]
+    const dx = b[0] - a[0], dz = b[1] - a[1]
+    const l2 = dx * dx + dz * dz || 1
+    let t = ((x - a[0]) * dx + (z - a[1]) * dz) / l2
+    if (t < 0) t = 0
+    else if (t > 1) t = 1
+    const px = a[0] + dx * t, pz = a[1] + dz * t
+    const d = Math.hypot(x - px, z - pz)
+    if (d < best) best = d
+  }
+  return best
+}
+
+export function nearSide(x, z, pad = 0) {
+  for (const side of SIDES) {
+    if (distToPoly(x, z, side.pts) < side.width * 0.5 + pad) return side
+  }
+  return null
+}
+
+export function sideGroove(x, z) {
+  let best = 0
+  for (const side of SIDES) {
+    const d = distToPoly(x, z, side.pts)
+    if (d > side.width * 0.55) continue
+    const lane = Math.abs(d - side.width * 0.28)
+    const groove = Math.exp(-(lane * lane) / (side.narrow ? 0.015 : 0.035))
+    best = Math.max(best, groove * (side.narrow ? 0.045 : 0.07))
+  }
+  return best
+}
+
+export function roadGroove(x, z) {
+  if (z > -36 || z < -166 || Math.abs(x) > 3.2) return 0
+  const lane = Math.abs(Math.abs(x) - 1.05)
+  const groove = Math.exp(-(lane * lane) / 0.05)
+  const fade = smooth((z + 166) / 8) * smooth((-36 - z) / 8)
+  return groove * 0.08 * fade
+}
+
+export function puddleAt(x, z) {
+  const spots = [[0.3, -148, 1.15], [-0.5, -134, 1.05], [0.6, -120, 0.95]]
+  let best = 0
+  for (const [cx, cz, r] of spots) {
+    const d = Math.hypot(x - cx, z - cz)
+    if (d < r) best = Math.max(best, smooth(1 - d / r))
+  }
+  return best
+}
+
 export const BOULDERS = [
   { model: 'boulder_01', x: 23.55, z: -102.7, yaw: 0.35, s: [1.05, 0.4, 1.05] },
   { model: 'rock_09', x: 20.42, z: -105.45, yaw: 1.1, s: [0.85, 0.09, 0.85] },
@@ -157,7 +234,9 @@ export const BOULDERS = [
   { model: 'rock_07', x: 19.4, z: -93.8, yaw: 1.6, s: [0.95, 0.32, 0.95] },
   { model: 'rock_09', x: 14.1, z: -93.2, yaw: 0.4, s: [0.9, 0.22, 0.9] },
   { model: 'boulder_01', x: 22.6, z: -93.4, yaw: 2.4, s: [1.15, 0.55, 1.1] },
-  { model: 'rock_07', x: 17.8, z: -91.2, yaw: 0.9, s: [0.8, 0.28, 0.8] }
+  { model: 'rock_07', x: 17.8, z: -91.2, yaw: 0.9, s: [0.8, 0.28, 0.8] },
+  { model: 'boulder_01', x: 13.58, z: -106.65, yaw: 0.4, s: [0.9, 0.26, 0.9], role: 'cross' },
+  { model: 'boulder_01', x: 10.42, z: -109.39, yaw: 1.7, s: [0.86, 0.24, 0.86], role: 'cross' }
 ]
 
 export function courseFeatures(world) {
@@ -206,6 +285,9 @@ export function courseFeatures(world) {
     const sag = Math.sin(t * Math.PI) * 0.16
     list.push({ kind: 'flex', i, x: 84, y: ropeY + 0.08 - sag, z, hx: 1.05, hy: 0.035, hz: 0.26, mat: 'wood' })
   }
+  const camberY = world.height(30, -114.2)
+  list.push(box(30, camberY + 0.28, -114.2, 2.3, 0.14, 0.85, 'rock', 0, 0.32))
+  list.push(box(30.9, camberY + 0.55, -114.2, 0.7, 0.16, 0.55, 'rock', 0, 0.32))
   for (const rock of BOULDERS) {
     list.push({
       kind: 'boulder',

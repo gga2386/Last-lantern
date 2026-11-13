@@ -86,15 +86,15 @@ export function createSim(world) {
     const b = new CANNON.Body({ mass: 26, linearDamping: 0.82, angularDamping: 0.9 })
     b.addShape(new CANNON.Box(new CANNON.Vec3(f.hx, f.hy, f.hz)))
     b.position.set(f.x, f.y, f.z)
-    b.linearFactor.set(0.05, 1, 0.05)
-    b.angularFactor.set(0.25, 0.02, 0.25)
+    b.linearFactor.set(0.45, 1, 0.12)
+    b.angularFactor.set(0.35, 0.55, 0.35)
     cw.addBody(b)
     flexBodies.push(b)
   }
   for (let i = 0; i < flexBodies.length - 1; i++) {
     const a = flexBodies[i]
     const c = flexBodies[i + 1]
-    cw.addConstraint(new CANNON.DistanceConstraint(a, c, a.position.distanceTo(c.position), 14000))
+    cw.addConstraint(new CANNON.DistanceConstraint(a, c, a.position.distanceTo(c.position), 11000))
   }
   for (const end of [flexBodies[0], flexBodies[flexBodies.length - 1]]) {
     if (!end) continue
