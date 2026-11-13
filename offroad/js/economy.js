@@ -29,6 +29,7 @@ export const OFFROAD_V10_13 = 1
 export const OFFROAD_V10_14 = 1
 export const OFFROAD_V10_15 = 1
 export const OFFROAD_V10_16 = 1
+export const OFFROAD_V10_17 = 1
 export const REGION_OPEN = { forest: 0, desert: 40, mountain: 120 }
 export function regionUnlocked(save, id) {
   return (save.rep || 0) >= (REGION_OPEN[id] || 0)
@@ -117,7 +118,7 @@ export const VEHICLES = {
   crawler: {
     id: 'crawler', name: 'Spine Crawler', need: 260, style: 'crawler', mass: 1180,
     half: [1.05, 0.42, 1.7], bed: 0.95, dark: 0x1a1c22, glass: 0x9ec9d4,
-    force: 5400, maxSpeed: 4.15, steer: 0.34, wheelR: 0.66,
+    force: 5400, maxSpeed: 4.15, steer: 0.34, wheelR: 0.74,
     track: 1.58, wheelbase: 1.37, axleF: 1.349, axleR: 1.387,
     axles: [[1.575, 0.76, 1.349], [-1.575, 0.76, 1.349], [1.575, 0.76, -1.387], [-1.575, 0.76, -1.387]],
     rest: 0.42, travel: 0.38, stiff: 20, grip: 1.22, visualDrop: -1.28, wheelScale: 0.62,
