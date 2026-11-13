@@ -94,3 +94,21 @@ Original models were built for Crawl Camp and contain no third-party content. Tr
 | Corn | Corn | Poly by Google | https://poly.pizza/m/3zsUEPnTdFt | CC-BY 3.0 |
 | Can | Open beans can | Quaternius | https://opengameart.org/content/lowpoly-survival-pack | CC0 |
 | Marshmallow | Roasting stick and marshmallow | Original, built in the game | made for this game | original |
+
+## Crawl rocks
+
+Decimated from Poly Haven scans, CC0. https://polyhaven.com/license
+
+| Use | Title | Author | Source | License |
+| --- | --- | --- | --- | --- |
+| Tall crawl boulder | Boulder 01, decimated to about 1,600 triangles with a 512px PBR set | Rico Cilliers | https://polyhaven.com/a/boulder_01 | CC0 |
+| Garden rock | Rock 07, decimated with a 512px PBR set | Jenelle van Heerden | https://polyhaven.com/a/rock_07 | CC0 |
+| Low crawl rock | Rock 09, decimated with a 512px PBR set | Jenelle van Heerden | https://polyhaven.com/a/rock_09 | CC0 |
+
+The forest trail uses the Quaternius nature kit already credited above (grass, bushes, small rocks) plus original roots, stones, and the bridges. Convex hulls were generated from these decimated meshes for the tire collision.
+
+## Terrain tools
+
+The crawl line (plank bridge, log crossing, trestle, stepped rocks, fallen tree, mud bog, dunes, and snow) is original geometry in this project. Treat it as CC0.
+
+Terrain Studio was checked and not used. The name covers two different tools. The open-source browser editor (ProceduralTerrains, React + Three.js) bakes height on the GPU and the copy inspected had an empty LICENSE file, so its maps are not cleared to ship. Real-world DEM imports in that editor add a second data license. terrainstudio.org is a separate mesh exporter and does not grant a game-asset license. Gaea and World Machine free tiers were skipped for the same reason: this world already shares one CPU height function with the physics heightfield, the road, and the camps. Replacing that with a baked map would split the ground the tires stand on from the ground you see. Height detail here is the same noise approach as Blender A.N.T., and the ground photos stay the ambientCG CC0 set above.

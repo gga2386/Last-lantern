@@ -1,12 +1,13 @@
 // Oxbow terrain. Pure functions: hills, a creek, trails, and a surface grid.
+import { bogDrop, bogMask, creekDrop, duneAdd, hillAdd, inCourse, snowMask } from './trail.js'
 export const OFFROAD_V1 = 1
 export const WORLD_SIZE = 560
 export const HALF = WORLD_SIZE / 2
-export const SURF = { dirt: 0, trail: 1, mud: 2, sand: 3, rock: 4, water: 5 }
-export const SURF_NAME = ['dirt', 'trail', 'mud', 'sand', 'rock', 'water']
-// Wheel frictionSlip multipliers. Mud and water are deliberately slick.
-export const FRICTION = [2.2, 3.15, 0.58, 1.02, 2.65, 0.4]
-export const DRAG = [0.15, 0.1, 1.15, 0.7, 0.22, 2.2]
+export const SURF = { dirt: 0, trail: 1, mud: 2, sand: 3, rock: 4, water: 5, snow: 6 }
+export const SURF_NAME = ['dirt', 'trail', 'mud', 'sand', 'rock', 'water', 'snow']
+// Wheel frictionSlip multipliers. Rock grips. Mud, snow, and water slip. Sand drags.
+export const FRICTION = [2.2, 3.15, 0.58, 1.02, 2.65, 0.4, 0.5]
+export const DRAG = [0.15, 0.1, 1.15, 0.7, 0.22, 2.2, 1.3]
 
 function mulberry32(a) {
   return function () {
@@ -101,6 +102,8 @@ export function createWorld(seed = 1) {
     const z = (rng() * 2 - 1) * (HALF - 40)
     if (Math.abs(z - riverZ(x)) < 26) continue
     if (lakeAt(x, z, 6)) continue
+    if (inCourse(x, z)) continue
+    if (snowMask(x, z) > 0.05) continue
     if (pois.some(p => Math.hypot(p.x - x, p.z - z) < p.r + 8)) continue
     const reg = regionAt(x, z).id
     if (reg === 'forest' && rng() < 0.62) continue
@@ -152,6 +155,10 @@ export function createWorld(seed = 1) {
     const az = Math.abs(z) - (HALF - 24)
     const e = Math.max(ax, 0) + Math.max(az, 0)
     if (e > 0) h += e * 1.35
+    h += hillAdd(x, z)
+    h += duneAdd(x, z)
+    h -= bogDrop(x, z)
+    h -= creekDrop(x, z)
     return h
   }
 
@@ -267,10 +274,14 @@ export function createWorld(seed = 1) {
       if (lake && lake.d < lake.r * 0.72) s = SURF.water
       else if (lake && lake.d < lake.r * 0.98) s = SURF.sand
       else if (sl > 0.55 || (reg.id === 'mountain' && sl > 0.42 && h > 12)) s = SURF.rock
+      else if (reg.id === 'mountain' && h > 18 && sl < 0.48 && rd > 24) s = SURF.snow
       else if (rd < 11 && h < 2.65) s = SURF.water
       else if (rd < 20 && h < 5.2) s = SURF.mud
       else if (reg.id === 'desert' && sl < 0.42 && rd > 22 && h < 16 && wet < 0.72) s = SURF.sand
       else if (sl < 0.28 && h > 6 && h < 18 && wet < 0.42) s = SURF.sand
+      if (bogMask(x, z) > 0.4) s = SURF.mud
+      if (creekDrop(x, z) > 0.42) s = SURF.water
+      if (snowMask(x, z) > 0.35 && s !== SURF.water) s = SURF.snow
       surf[j * GRID + i] = s
     }
   }
@@ -278,6 +289,8 @@ export function createWorld(seed = 1) {
 
   function mudDepth(x, z) {
     if (surface(x, z) !== SURF.mud) return 0
+    const bog = bogMask(x, z)
+    if (bog > 0.25) return 0.5 + bog * 0.55
     const rd = Math.abs(z - riverZ(x))
     const t = Math.max(0, Math.min(1, (20 - rd) / 9))
     const wobble = n(x * 0.045, z * 0.045)
@@ -285,6 +298,8 @@ export function createWorld(seed = 1) {
   }
   function waterDepth(x, z) {
     if (surface(x, z) !== SURF.water) return 0
+    const creek = creekDrop(x, z)
+    if (creek > 0.42) return 0.16 + Math.min(0.2, creek * 0.1)
     const lake = lakeAt(x, z)
     if (lake) return 0.4 + Math.max(0, 1 - lake.d / (lake.r * 0.72)) * 1.75
     const fd = Math.hypot(x - ford.x, z - ford.z)
@@ -316,6 +331,7 @@ export function createWorld(seed = 1) {
       const z = -HALF + j * step + (tr() - 0.5) * step * 0.7
       const s = surface(x, z)
       if (s === SURF.water || s === SURF.trail || s === SURF.rock) continue
+      if (inCourse(x, z) || snowMask(x, z) > 0.45) continue
       if (pois.some(p => Math.hypot(p.x - x, p.z - z) < p.r + 6)) continue
       if (lakeAt(x, z, 4)) continue
       const reg = regionAt(x, z).id

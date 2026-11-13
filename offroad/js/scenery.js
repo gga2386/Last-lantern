@@ -83,6 +83,22 @@ export async function preloadScenery(THREE) {
   return out
 }
 
+export async function preloadRocks(THREE) {
+  const loader = new GLTFLoader()
+  const ids = ['boulder_01', 'rock_07', 'rock_09']
+  const out = {}
+  await Promise.all(ids.map(async id => {
+    const gltf = await loader.loadAsync('models/rocks/' + id + '.glb')
+    gltf.scene.traverse(o => {
+      if (!o.isMesh) return
+      o.castShadow = true
+      o.receiveShadow = true
+    })
+    out[id] = gltf.scene
+  }))
+  return out
+}
+
 export async function preloadGround(THREE) {
   const loader = new THREE.TextureLoader()
   const names = ['forest', 'sand', 'reddirt', 'mud', 'gravel']
