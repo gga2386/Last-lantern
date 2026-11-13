@@ -3,12 +3,12 @@ import * as THREE from '../vendor/three.module.js'
 import { createWorld, WORLD_SIZE, HALF, SURF, SURF_NAME } from './world.js'
 import { OFFROAD_V2, OFFROAD_V3, OFFROAD_V4, OFFROAD_V4_1, OFFROAD_V5, OFFROAD_V5_1, OFFROAD_V6, OFFROAD_V7, OFFROAD_V7_1, OFFROAD_V7_2, OFFROAD_V7_3, OFFROAD_V8, OFFROAD_V9, OFFROAD_V10, OFFROAD_V10_1, OFFROAD_V10_2, OFFROAD_V10_3, OFFROAD_V10_4, OFFROAD_V10_5, OFFROAD_V10_6, OFFROAD_V10_7, OFFROAD_V10_8, OFFROAD_V10_9, OFFROAD_V10_10, OFFROAD_V10_11, OFFROAD_V10_12, OFFROAD_V10_13, OFFROAD_V10_14, OFFROAD_V10_15, OFFROAD_V10_16, OFFROAD_V10_17, OFFROAD_V10_18, OFFROAD_V10_19, OFFROAD_V10_20, OFFROAD_V10_21, freshSave, SAVE_KEY, VEHICLES, UPGRADES, AUX, JERRY, ADVENTURES, TANK, coerceSave, buyUpgrade, buyVehicle, buyAux, buyJerry, useJerry, refuel, burnFuel, specWithUpgrades, tankCapacity, jerrySlots, rankFor, isDark, clockLabel, tickAdventure, noteAssist, REGION_OPEN, regionUnlocked, crawlAngles } from './economy.js'
 import { preloadRigs, buildRig, applyLod, poseRig, applyPaint, factoryPaint, PAINT_SWATCHES, setWoodMap, rigModel } from './rigs.js'
-import { preloadScenery, preloadGround } from './scenery.js'
+import { preloadScenery, preloadGround, preloadRocks } from './scenery.js'
 import { createRidges } from './horizon.js'
 import { CAMP, campLevel, buyCamp, canPitch, rollFish, reelBand, biteSeconds, aimHit, RECIPES, canCook, cookJudge, applyCook, activityState, gameFor, spotVisual, roastGrade, roastColor, roastStamp, applyRoast } from './camp.js'
 import { ensureCamp, buildCampSite, buildFishMoment, buildHuntMoment, buildCookMoment, buildRoastMoment } from './campview.js'
 import { createSim, ROLL_LIMIT, recoveryCopy } from './physics.js'
-import { courseFeatures, paintRuts, takeRutDirty } from './trail.js'
+import { courseFeatures, paintRuts, rutNear, takeRutDirty } from './trail.js'
 
 export { OFFROAD_V2, OFFROAD_V3, OFFROAD_V4, OFFROAD_V4_1, OFFROAD_V5, OFFROAD_V5_1, OFFROAD_V6, OFFROAD_V7, OFFROAD_V7_1, OFFROAD_V7_2, OFFROAD_V7_3, OFFROAD_V8, OFFROAD_V9, OFFROAD_V10, OFFROAD_V10_1, OFFROAD_V10_2, OFFROAD_V10_3, OFFROAD_V10_4, OFFROAD_V10_5, OFFROAD_V10_6, OFFROAD_V10_7, OFFROAD_V10_8, OFFROAD_V10_9, OFFROAD_V10_10, OFFROAD_V10_11, OFFROAD_V10_12, OFFROAD_V10_13, OFFROAD_V10_14, OFFROAD_V10_15, OFFROAD_V10_16, OFFROAD_V10_17, OFFROAD_V10_18, OFFROAD_V10_19, OFFROAD_V10_20, OFFROAD_V10_21 }
 
@@ -277,15 +277,14 @@ function buildTerrain() {
       shader.uniforms.tMud = { value: groundTex.mud.color }
       shader.uniforms.tGravel = { value: groundTex.gravel.color }
       shader.vertexShader = shader.vertexShader
-        .replace('#include <common>', '#include <common>\nattribute vec3 biome;\nattribute float surf;\nvarying vec3 vBiome;\nvarying float vSurf;\nvarying float vWorldY;')
-        .replace('#include <uv_vertex>', '#include <uv_vertex>\nvBiome = biome;\nvSurf = surf;\nvWorldY = position.y;')
+        .replace('#include <common>', '#include <common>\nattribute vec3 biome;\nattribute float surf;\nvarying vec3 vBiome;\nvarying float vSurf;\nvarying float vWorldY;\nvarying float vWorldX;\nvarying float vWorldZ;')
+        .replace('#include <uv_vertex>', '#include <uv_vertex>\nvBiome = biome;\nvSurf = surf;\nvWorldY = position.y;\nvWorldX = position.x;\nvWorldZ = position.z;')
       shader.fragmentShader = shader.fragmentShader
-        .replace('#include <common>', '#include <common>\nuniform sampler2D tForest;\nuniform sampler2D tSand;\nuniform sampler2D tRed;\nuniform sampler2D tMud;\nuniform sampler2D tGravel;\nvarying vec3 vBiome;\nvarying float vSurf;\nvarying float vWorldY;')
+        .replace('#include <common>', '#include <common>\nuniform sampler2D tForest;\nuniform sampler2D tSand;\nuniform sampler2D tRed;\nuniform sampler2D tMud;\nuniform sampler2D tGravel;\nvarying vec3 vBiome;\nvarying float vSurf;\nvarying float vWorldY;\nvarying float vWorldX;\nvarying float vWorldZ;')
         .replace('#include <color_fragment>', `#include <color_fragment>
           vec2 guv = vMapUv * 42.0;
           float mudM = smoothstep(1.5, 1.8, vSurf) * (1.0 - smoothstep(2.2, 2.6, vSurf));
           float sandM = smoothstep(2.5, 2.9, vSurf) * (1.0 - smoothstep(3.4, 3.8, vSurf));
-          float snowM = smoothstep(5.5, 6.0, vSurf);
           vec3 groundT;
           if (mudM > 0.5) groundT = texture2D(tMud, guv).rgb;
           else if (vBiome.y > vBiome.x && vBiome.y >= vBiome.z) {
@@ -293,9 +292,12 @@ function buildTerrain() {
             else groundT = texture2D(tRed, guv).rgb;
           } else if (vBiome.z > vBiome.x) groundT = texture2D(tGravel, guv).rgb;
           else groundT = texture2D(tForest, guv).rgb;
-          float snowLine = smoothstep(17.0, 23.0, vWorldY) * smoothstep(0.45, 0.8, vBiome.z);
-          vec3 snowT = groundT * 0.55 + vec3(0.4, 0.42, 0.45);
-          groundT = mix(groundT, snowT, clamp(max(snowM, snowLine) * 0.72, 0.0, 0.72));
+          float snowD = length(vec2(vWorldX + 156.0, vWorldZ - 198.0));
+          float snowDisk = 1.0 - smoothstep(12.0, 26.0, snowD);
+          float snowHigh = smoothstep(19.0, 25.0, vWorldY) * smoothstep(0.5, 0.85, vBiome.z);
+          float snowAmt = clamp(max(snowDisk, snowHigh * 0.8), 0.0, 1.0);
+          vec3 snowT = mix(groundT, vec3(0.8, 0.83, 0.86), 0.78);
+          groundT = mix(groundT, snowT, snowAmt);
           diffuseColor.rgb *= groundT;
         `)
     }
@@ -409,6 +411,31 @@ function scatterVariants(models, matrices) {
     parts.forEach(part => instanced(part.geometry, 0xffffff, list, 0.86, part.material))
   })
 }
+function trailDress() {
+  const dummy = new THREE.Object3D()
+  const grass = []
+  const fern = []
+  const stones = []
+  for (let i = 0; i < 180; i++) {
+    const z = -166 + (i % 90) * 1.55
+    const side = i < 90 ? -1 : 1
+    const x = side * (2.5 + ((i * 17) % 28) / 10)
+    if (world.regionAt(x, z).id !== 'forest') continue
+    const s = world.surface(x, z)
+    if (s === SURF.water || s === SURF.rock) continue
+    dummy.position.set(x, world.height(x, z), z)
+    dummy.rotation.set(0, i * 0.37, 0)
+    const sc = i % 4 === 0 ? 0.35 + (i % 3) * 0.08 : 0.55 + (i % 5) * 0.1
+    dummy.scale.setScalar(sc)
+    dummy.updateMatrix()
+    if (i % 5 === 0) stones.push(dummy.matrix.clone())
+    else if (i % 3 === 0) fern.push(dummy.matrix.clone())
+    else grass.push(dummy.matrix.clone())
+  }
+  scatterVariants(sceneryPack.grass, grass)
+  scatterVariants(sceneryPack.bush, fern)
+  scatterVariants(sceneryPack.rock, stones)
+}
 function scatter() {
   const dummy = new THREE.Object3D()
   const trees = world.trees.slice(0, gfx().trees)
@@ -447,6 +474,7 @@ function scatter() {
   scatterVariants(pack.dead, groups.dead)
   scatterVariants(pack.cactus, groups.cactus)
   scatterVariants(pack.scrub, groups.scrub)
+  trailDress()
   const up = new THREE.Vector3(0, 1, 0)
   const nrm = new THREE.Vector3()
   const rockCols = { desert: new THREE.Color('#c47a58'), forest: new THREE.Color('#8a8478'), mountain: new THREE.Color('#d5dde6') }
@@ -2216,14 +2244,14 @@ if (gfx().dust) {
   }
 }
 let dustN = 0
-function puff(x, y, z, mud) {
+function puff(x, y, z, mud, splash) {
   if (!dust.length) return
   const d = dust[dustN++ % dust.length]
   d.life = mud ? 0.9 : 0.7
   d.m.visible = true
-  d.m.material.color.set(mud ? 0x4a3018 : 0xc4a27a)
-  d.m.position.set(x, y + (mud ? 0.2 : 0), z)
-  d.m.scale.setScalar(mud ? 0.7 : 0.4)
+  d.m.material.color.set(splash ? 0xe8f6f8 : mud ? 0x4a3018 : 0xc4a27a)
+  d.m.position.set(x, y + (mud || splash ? 0.2 : 0), z)
+  d.m.scale.setScalar(splash ? 0.85 : mud ? 0.7 : 0.4)
   d.vx = (Math.random() - 0.5) * (mud ? 2.4 : 1.5)
   d.vz = (Math.random() - 0.5) * (mud ? 2.4 : 1.5)
 }
@@ -2249,6 +2277,42 @@ try {
 } catch (e) {}
 sceneryPack = await preloadScenery(THREE)
 groundTex = await preloadGround(THREE)
+const rockPack = await preloadRocks(THREE)
+const flexView = []
+const ropeLine = new THREE.Line(
+  new THREE.BufferGeometry(),
+  new THREE.LineBasicMaterial({ color: 0x6a4a32 })
+)
+scene.add(ropeLine)
+function syncFlex() {
+  const bodies = sim.flex || []
+  for (let i = 0; i < bodies.length && i < flexView.length; i++) {
+    const b = bodies[i]
+    flexView[i].position.set(b.position.x, b.position.y, b.position.z)
+    flexView[i].quaternion.set(b.quaternion.x, b.quaternion.y, b.quaternion.z, b.quaternion.w)
+  }
+  if (bodies.length < 2) return
+  const left = []
+  const right = []
+  for (const b of bodies) {
+    left.push(b.position.x - 1.05, b.position.y + 0.08, b.position.z)
+    right.push(b.position.x + 1.05, b.position.y + 0.08, b.position.z)
+  }
+  const back = []
+  for (let i = right.length - 3; i >= 0; i -= 3) back.push(right[i], right[i + 1], right[i + 2])
+  const a = bodies[0].position
+  const c = bodies[bodies.length - 1].position
+  const seq = [
+    a.x - 1.05, a.y + 1.7, a.z - 0.4,
+    ...left,
+    c.x - 1.05, c.y + 1.7, c.z + 0.4,
+    c.x + 1.05, c.y + 1.7, c.z + 0.4,
+    ...back,
+    a.x + 1.05, a.y + 1.7, a.z - 0.4
+  ]
+  ropeLine.geometry.setAttribute('position', new THREE.Float32BufferAttribute(seq, 3))
+  ropeLine.geometry.computeBoundingSphere()
+}
 function buildCourse() {
   const colors = { wood: 0x8a5a32, steel: 0x9aa3ab, bark: 0x5c4030, rock: 0x7e7870 }
   const mats = {}
@@ -2270,44 +2334,89 @@ function buildCourse() {
       mesh = new THREE.Mesh(new THREE.CylinderGeometry(f.radius, f.radius, f.len, 8), matFor(f.mat))
       if (f.axis === 'x') mesh.rotation.z = Math.PI / 2
       else if (f.axis === 'z') mesh.rotation.x = Math.PI / 2
-    } else if (f.kind === 'steps') {
-      const g = new THREE.Group()
-      for (const p of f.parts) {
-        const m = new THREE.Mesh(new THREE.BoxGeometry(p.hx * 2, p.hy * 2, p.hz * 2), matFor('rock'))
-        m.position.set(p.x, p.y, p.z)
-        m.castShadow = true
-        m.receiveShadow = true
-        g.add(m)
-      }
+    } else if (f.kind === 'boulder') {
+      const src = rockPack[f.model]
+      if (!src) continue
+      const g = src.clone(true)
       g.position.set(f.x, f.y, f.z)
       g.rotation.y = f.yaw || 0
+      g.scale.set(f.s[0], f.s[1], f.s[2])
+      g.traverse(o => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true } })
       scene.add(g)
       continue
+    } else if (f.kind === 'flex') {
+      mesh = new THREE.Mesh(new THREE.BoxGeometry(f.hx * 2, f.hy * 2, f.hz * 2), matFor('wood'))
+      flexView.push(mesh)
+    } else if (f.kind === 'decor' && f.shape === 'fern') {
+      const src = sceneryPack.bush && sceneryPack.bush[0]
+      if (src) {
+        const g = new THREE.Group()
+        const parts = src.parts || []
+        parts.forEach(p => {
+          const m = new THREE.Mesh(p.geometry, p.material)
+          g.add(m)
+        })
+        g.position.set(f.x, f.y, f.z)
+        g.rotation.y = f.yaw || 0
+        g.scale.setScalar(0.7)
+        scene.add(g)
+      }
+      continue
     } else if (f.kind === 'box' || f.kind === 'decor') {
-      mesh = new THREE.Mesh(new THREE.BoxGeometry(f.hx * 2, f.hy * 2, f.hz * 2), matFor(f.mat))
-      mesh.rotation.y = f.yaw || 0
+      mesh = new THREE.Mesh(new THREE.BoxGeometry(f.hx * 2, f.hy * 2, f.hz * 2), matFor(f.mat || 'rock'))
+      mesh.rotation.set(f.rx || 0, f.yaw || 0, 0)
     } else continue
     mesh.position.set(f.x, f.y, f.z)
     mesh.castShadow = f.kind !== 'decor'
     mesh.receiveShadow = true
     scene.add(mesh)
   }
+  const creekMat = new THREE.MeshStandardMaterial({ color: 0x2f86a0, transparent: true, opacity: 0.72, roughness: 0.08, metalness: 0.12, depthWrite: false })
+  for (const [cx, cz, w, d] of [[36, -128, 7.2, 4.2], [66, -128, 8.4, 5.2], [84, -128, 6.4, 4.4]]) {
+    const sheet = new THREE.Mesh(new THREE.PlaneGeometry(w, d), creekMat)
+    sheet.rotation.x = -Math.PI / 2
+    sheet.position.set(cx, world.height(cx, cz - 3.2) - 0.08, cz)
+    scene.add(sheet)
+  }
+  syncFlex()
 }
 const rutCanvas = document.createElement('canvas')
-rutCanvas.width = rutCanvas.height = 96
+rutCanvas.width = rutCanvas.height = 160
 const rutTex = new THREE.CanvasTexture(rutCanvas)
-const rutMesh = new THREE.Mesh(new THREE.PlaneGeometry(32, 32), new THREE.MeshBasicMaterial({ map: rutTex, transparent: true, depthWrite: false }))
+const rutMesh = new THREE.Mesh(new THREE.PlaneGeometry(40, 40), new THREE.MeshBasicMaterial({ map: rutTex, transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2 }))
 rutMesh.rotation.x = -Math.PI / 2
 rutMesh.visible = false
 scene.add(rutMesh)
+const trackGeo = new THREE.PlaneGeometry(0.42, 0.26)
+trackGeo.rotateX(-Math.PI / 2)
+const trackMesh = new THREE.InstancedMesh(trackGeo, new THREE.MeshBasicMaterial({ transparent: true, opacity: 0.82, depthWrite: false }), 200)
+trackMesh.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(200 * 3), 3)
+trackMesh.frustumCulled = false
+trackMesh.count = 0
+scene.add(trackMesh)
+const trackDummy = new THREE.Object3D()
+const trackColor = new THREE.Color()
 function refreshRuts() {
   const c = sim.chassis
   if (!c || mode !== 'play') return
-  rutMesh.position.set(c.position.x, world.height(c.position.x, c.position.z) + 0.05, c.position.z)
+  rutMesh.position.set(c.position.x, world.height(c.position.x, c.position.z) + 0.08, c.position.z)
   if (!takeRutDirty()) return
-  paintRuts(rutCanvas.getContext('2d'), 96, c.position.x, c.position.z, 32)
+  paintRuts(rutCanvas.getContext('2d'), 160, c.position.x, c.position.z, 40)
   rutTex.needsUpdate = true
   rutMesh.visible = true
+  const marks = rutNear(c.position.x, c.position.z, 28).sort((a, b) => b.d - a.d).slice(0, 200)
+  trackMesh.count = marks.length
+  marks.forEach((m, i) => {
+    trackDummy.position.set(m.x, world.height(m.x, m.z) + 0.06, m.z)
+    trackDummy.rotation.set(0, 0, 0)
+    trackDummy.scale.set(1, 1, 0.7 + m.d * 2)
+    trackDummy.updateMatrix()
+    trackMesh.setMatrixAt(i, trackDummy.matrix)
+    trackColor.set(m.s === 6 ? 0x5c6a78 : m.s === 3 ? 0x8a6840 : 0x2a1c12)
+    trackMesh.setColorAt(i, trackColor)
+  })
+  trackMesh.instanceMatrix.needsUpdate = true
+  if (trackMesh.instanceColor) trackMesh.instanceColor.needsUpdate = true
 }
 buildTerrain()
 scatter()
@@ -2780,7 +2889,9 @@ let frameN = 0
 let acc = 0
 const errors = []
 window.addEventListener('error', e => errors.push(String(e.message || e.error || 'error')))
+let frameMs = 0
 function frame(now) {
+  const frameStart = performance.now()
   frameN++
   const dt = Math.min(0.05, (now - last) / 1000)
   last = now
@@ -2825,6 +2936,11 @@ function frame(now) {
     const w = wheels[Math.floor(Math.random() * wheels.length)]
     if (w) puff(w.position.x, w.position.y, w.position.z, lastSurf !== SURF.sand)
   }
+  if (mode === 'play' && wheels[0] && lastSurf === SURF.water && Math.abs(lastSpeed) > 0.8 && Math.random() < 0.7) {
+    const w = wheels[Math.floor(Math.random() * wheels.length)]
+    if (w) puff(w.position.x, w.position.y + 0.15, w.position.z, false, true)
+  }
+  syncFlex()
   refreshRuts()
   if (dust.length && mode === 'play' && Math.abs(lastSpeed) > 4 && lastSurf !== 4 && lastSurf !== 5 && lastSurf !== SURF.snow) {
     const w = wheels[2]
@@ -2858,6 +2974,7 @@ function frame(now) {
       resize()
     }
   }
+  frameMs = performance.now() - frameStart
   requestAnimationFrame(frame)
 }
 requestAnimationFrame(frame)
@@ -2889,8 +3006,18 @@ window.OX = {
   get mode() { return mode },
   get speed() { return lastSpeed },
   get pos() { const c = sim.chassis; return c ? { x: c.position.x, y: c.position.y, z: c.position.z } : null },
+  get pose() {
+    const c = sim.chassis
+    if (!c) return null
+    return { x: c.position.x, y: c.position.y, z: c.position.z, qx: c.quaternion.x, qy: c.quaternion.y, qz: c.quaternion.z, qw: c.quaternion.w }
+  },
   get ready() { return !!sim.chassis },
   get frames() { return frameN },
+  get frameMs() { return frameMs },
+  stats() {
+    const r = renderer.info.render
+    return { calls: r.calls, triangles: r.triangles, frameMs, gfx: save.settings.gfx }
+  },
   get errors() { return errors },
   get gfx() { return save.settings.gfx },
   get clock() { return save.clock },

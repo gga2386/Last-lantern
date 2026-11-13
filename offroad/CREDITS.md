@@ -95,6 +95,18 @@ Original models were built for Crawl Camp and contain no third-party content. Tr
 | Can | Open beans can | Quaternius | https://opengameart.org/content/lowpoly-survival-pack | CC0 |
 | Marshmallow | Roasting stick and marshmallow | Original, built in the game | made for this game | original |
 
+## Crawl rocks
+
+Decimated from Poly Haven scans, CC0. https://polyhaven.com/license
+
+| Use | Title | Author | Source | License |
+| --- | --- | --- | --- | --- |
+| Tall crawl boulder | Boulder 01, decimated to about 1,600 triangles with a 512px PBR set | Rico Cilliers | https://polyhaven.com/a/boulder_01 | CC0 |
+| Garden rock | Rock 07, decimated with a 512px PBR set | Jenelle van Heerden | https://polyhaven.com/a/rock_07 | CC0 |
+| Low crawl rock | Rock 09, decimated with a 512px PBR set | Jenelle van Heerden | https://polyhaven.com/a/rock_09 | CC0 |
+
+The forest trail uses the Quaternius nature kit already credited above (grass, bushes, small rocks) plus original roots, stones, and the bridges. Convex hulls were generated from these decimated meshes for the tire collision.
+
 ## Terrain tools
 
 The crawl line (plank bridge, log crossing, trestle, stepped rocks, fallen tree, mud bog, dunes, and snow) is original geometry in this project. Treat it as CC0.

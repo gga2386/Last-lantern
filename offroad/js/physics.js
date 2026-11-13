@@ -2,6 +2,7 @@
 import * as CANNON from '../vendor/cannon-es.js'
 import { FRICTION, DRAG, SURF, heightfieldData } from './world.js'
 import { courseFeatures, digRut, rutDepth } from './trail.js'
+import { HULLS } from './rockhulls.js'
 import { specWithUpgrades } from './economy.js'
 
 // Tipped past this and the cab offers Call for recovery. Mud and flood use the same dialog.
@@ -46,23 +47,61 @@ export function createSim(world) {
   const look = world.pois.find(p => p.id === 'lookout')
   addBox(look.x, look.y + 3.2, look.z, 1.3, 3.2, 1.3)
   for (const p of world.pois) if (p.kind === 'store') addBox(p.x + 5.5, (p.y || 0) + 1.4, p.z, 2.8, 1.4, 2.1)
-  for (const f of courseFeatures(world)) {
-    if (f.kind === 'decor') continue
+  const flexBodies = []
+  const course = courseFeatures(world)
+  for (const f of course) {
+    if (f.kind === 'decor' || f.kind === 'flex') continue
     const b = new CANNON.Body({ mass: 0 })
     if (f.kind === 'log') {
       b.addShape(new CANNON.Cylinder(f.radius, f.radius, f.len, 8))
       if (f.axis === 'x') b.quaternion.setFromEuler(0, 0, Math.PI / 2)
       else if (f.axis === 'z') b.quaternion.setFromEuler(Math.PI / 2, 0, 0)
-    } else if (f.kind === 'steps') {
-      for (const p of f.parts) b.addShape(new CANNON.Box(new CANNON.Vec3(p.hx, p.hy, p.hz)), new CANNON.Vec3(p.x, p.y, p.z))
-      if (f.yaw) b.quaternion.setFromEuler(0, f.yaw, 0)
+    } else if (f.kind === 'boulder') {
+      const hull = HULLS[f.model]
+      if (!hull) continue
+      const s = f.s || [1, 1, 1]
+      let cx = 0, cy = 0, cz = 0
+      for (const v of hull.vertices) { cx += v[0]; cy += v[1]; cz += v[2] }
+      cx /= hull.vertices.length; cy /= hull.vertices.length; cz /= hull.vertices.length
+      const verts = hull.vertices.map(v => new CANNON.Vec3((v[0] - cx) * s[0], (v[1] - cy) * s[1], (v[2] - cz) * s[2]))
+      b.addShape(new CANNON.ConvexPolyhedron({ vertices: verts, faces: hull.faces }))
+      const ox = cx * s[0], oy = cy * s[1], oz = cz * s[2]
+      const yaw = f.yaw || 0
+      const cos = Math.cos(yaw), sin = Math.sin(yaw)
+      b.position.set(f.x + ox * cos + oz * sin, f.y + oy, f.z - ox * sin + oz * cos)
+      if (yaw) b.quaternion.setFromEuler(0, yaw, 0)
+      cw.addBody(b)
+      props.push(b)
+      continue
     } else if (f.kind === 'box') {
       b.addShape(new CANNON.Box(new CANNON.Vec3(f.hx, f.hy, f.hz)))
-      if (f.yaw) b.quaternion.setFromEuler(0, f.yaw, 0)
+      if (f.rx || f.yaw) b.quaternion.setFromEuler(f.rx || 0, f.yaw || 0, 0)
     } else continue
     b.position.set(f.x, f.y, f.z)
     cw.addBody(b)
     props.push(b)
+  }
+  const flexes = course.filter(f => f.kind === 'flex').sort((a, b) => a.i - b.i)
+  for (const f of flexes) {
+    const b = new CANNON.Body({ mass: 26, linearDamping: 0.82, angularDamping: 0.9 })
+    b.addShape(new CANNON.Box(new CANNON.Vec3(f.hx, f.hy, f.hz)))
+    b.position.set(f.x, f.y, f.z)
+    b.linearFactor.set(0.05, 1, 0.05)
+    b.angularFactor.set(0.25, 0.02, 0.25)
+    cw.addBody(b)
+    flexBodies.push(b)
+  }
+  for (let i = 0; i < flexBodies.length - 1; i++) {
+    const a = flexBodies[i]
+    const c = flexBodies[i + 1]
+    cw.addConstraint(new CANNON.DistanceConstraint(a, c, a.position.distanceTo(c.position), 14000))
+  }
+  for (const end of [flexBodies[0], flexBodies[flexBodies.length - 1]]) {
+    if (!end) continue
+    const anchor = new CANNON.Body({ mass: 0 })
+    anchor.position.set(end.position.x, end.position.y, end.position.z)
+    cw.addBody(anchor)
+    cw.addConstraint(new CANNON.DistanceConstraint(anchor, end, 0.05, 28000))
   }
 
   let vehicle = null
@@ -236,7 +275,7 @@ export function createSim(world) {
         const px = hit && Number.isFinite(hit.x) ? hit.x : w.chassisConnectionPointWorld.x
         const pz = hit && Number.isFinite(hit.z) ? hit.z : w.chassisConnectionPointWorld.z
         const s = world.surface(px, pz)
-        if (s === SURF.mud || s === SURF.sand || s === SURF.snow) digRut(px, pz, dt * 0.05)
+        if (s === SURF.mud || s === SURF.sand || s === SURF.snow) digRut(px, pz, dt * 0.08, s, i)
       }
     }
     const stuck = sunk ? 'mud' : flooded ? 'water' : ''
@@ -324,7 +363,7 @@ export function createSim(world) {
     chassis.force.set(0, 0, 0)
     chassis.torque.set(0, 0, 0)
   }
-  return { cw, ground, props, spawn, step, reset, place, syncSolids, upright, get chassis() { return chassis }, get vehicle() { return vehicle }, get spec() { return spec } }
+  return { cw, ground, props, spawn, step, reset, place, syncSolids, upright, get chassis() { return chassis }, get vehicle() { return vehicle }, get spec() { return spec }, get flex() { return flexBodies } }
 }
 
 // Flat-ground traction check used by the node test. High grip should out-accelerate ice.
