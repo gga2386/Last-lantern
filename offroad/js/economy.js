@@ -30,6 +30,7 @@ export const OFFROAD_V10_14 = 1
 export const OFFROAD_V10_15 = 1
 export const OFFROAD_V10_16 = 1
 export const OFFROAD_V10_17 = 1
+export const OFFROAD_V10_18 = 1
 export const REGION_OPEN = { forest: 0, desert: 40, mountain: 120 }
 export function regionUnlocked(save, id) {
   return (save.rep || 0) >= (REGION_OPEN[id] || 0)

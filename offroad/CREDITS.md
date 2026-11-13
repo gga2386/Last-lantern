@@ -12,7 +12,9 @@ Used inside the game. CC-BY 3.0 items require this attribution. Do not republish
 | Creek Wagon | Range Rover | IvOfficial | https://poly.pizza/m/8zk4o6nALW | CC-BY 3.0 |
 | Basin Hauler | L200 crew cab | Muhammad Reyhan | https://poly.pizza/m/4qjS9tFhsJg | CC-BY 3.0 |
 | Lantern Van | UAZ-452 utility van | mehozavr | https://opengameart.org/content/uaz-452-utility-van-lowpoly | CC0 |
-| Spine Crawler | Procedural short-cab crawler | made for Crawl Camp | made for this game | original |
+| Spine Crawler body | Smooth regular-cab pickup | made for Crawl Camp | modeled in Blender for this game | original / CC0 |
+| Crawler tires | Rounded mud-terrain tires | made for Crawl Camp | modeled in Blender for this game | original / CC0 |
+| Yard wrecker | Recovery tow truck | made for Crawl Camp | modeled in Blender for this game | original / CC0 |
 
 ## Accessories
 
