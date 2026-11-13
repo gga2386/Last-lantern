@@ -1,5 +1,5 @@
 // Oxbow terrain. Pure functions: hills, a creek, trails, and a surface grid.
-import { bogDrop, bogMask, creekDrop, duneAdd, hillAdd, inCourse, snowMask } from './trail.js'
+import { CROSS, bogDrop, bogMask, creekDrop, duneAdd, hillAdd, inCourse, nearSide, puddleAt, roadGroove, sideGroove, SIDES, snowMask } from './trail.js'
 export const OFFROAD_V1 = 1
 export const WORLD_SIZE = 560
 export const HALF = WORLD_SIZE / 2
@@ -103,6 +103,7 @@ export function createWorld(seed = 1) {
     if (Math.abs(z - riverZ(x)) < 26) continue
     if (lakeAt(x, z, 6)) continue
     if (inCourse(x, z)) continue
+    if (nearSide(x, z, 2.5)) continue
     if (snowMask(x, z) > 0.05) continue
     if (pois.some(p => Math.hypot(p.x - x, p.z - z) < p.r + 8)) continue
     const reg = regionAt(x, z).id
@@ -186,11 +187,19 @@ export function createWorld(seed = 1) {
     trace(yard, ford, 16).concat(trace(ford, quarry, 18).slice(1)),
     trace(ford, mill, 14).concat(trace(mill, look, 16).slice(1))
   ]
+  const sidePaths = SIDES.map(side => {
+    const pts = side.pts.map(p => ({ x: p[0], z: p[1], h: terrain(p[0], p[1]) }))
+    for (let k = 0; k < 2; k++) {
+      const cp = pts.map(p => p.h)
+      for (let i = 1; i < pts.length - 1; i++) pts[i].h = cp[i - 1] * 0.25 + cp[i] * 0.5 + cp[i + 1] * 0.25
+    }
+    return { id: side.id, name: side.name, width: side.width, reach: side.reach, pts }
+  })
   function nearestTrail(x, z) {
-    let bestD = 1e9, bestH = 0
-    for (const trail of trails) {
-      for (let i = 0; i < trail.length - 1; i++) {
-        const a = trail[i], b = trail[i + 1]
+    let bestD = 1e9, bestH = 0, reach = 8
+    const consider = (pts, r) => {
+      for (let i = 0; i < pts.length - 1; i++) {
+        const a = pts[i], b = pts[i + 1]
         const dx = b.x - a.x, dz = b.z - a.z
         const l2 = dx * dx + dz * dz || 1
         let t = ((x - a.x) * dx + (z - a.z) * dz) / l2
@@ -198,13 +207,17 @@ export function createWorld(seed = 1) {
         else if (t > 1) t = 1
         const px = a.x + dx * t, pz = a.z + dz * t
         const d = Math.hypot(x - px, z - pz)
-        if (d < bestD) { bestD = d; bestH = a.h + (b.h - a.h) * t }
+        if (d < bestD) { bestD = d; bestH = a.h + (b.h - a.h) * t; reach = r }
       }
     }
-    return { d: bestD, h: bestH }
+    for (const trail of trails) consider(trail, 8)
+    for (const side of sidePaths) consider(side.pts, side.reach)
+    return { d: bestD, h: bestH, reach }
   }
   for (const p of pois) p.y = terrain(p.x, p.z)
 
+  let crossLock = false
+  let crossBase = null
   function height(x, z) {
     let h = terrain(x, z)
     for (const p of pois) {
@@ -212,7 +225,19 @@ export function createWorld(seed = 1) {
       if (d < p.r) h = lerp(h, p.y, smooth(1 - d / p.r) * 0.9)
     }
     const tr = nearestTrail(x, z)
-    if (tr.d < 8) h = lerp(h, tr.h, smooth(1 - tr.d / 8) * 0.72)
+    if (tr.d < tr.reach) h = lerp(h, tr.h, smooth(1 - tr.d / tr.reach) * 0.72)
+    h -= roadGroove(x, z)
+    h -= sideGroove(x, z)
+    h -= puddleAt(x, z) * 0.16
+    if (!crossLock && crossBase == null) {
+      crossLock = true
+      crossBase = height(CROSS.x, CROSS.z)
+      crossLock = false
+    }
+    if (!crossLock && crossBase != null) {
+      const d = Math.hypot(x - CROSS.x, z - CROSS.z)
+      if (d < 7) h = lerp(h, crossBase, smooth(1 - d / 7))
+    }
     return h
   }
 
@@ -231,12 +256,11 @@ export function createWorld(seed = 1) {
     }
   }
   function stampTrail() {
-    const r = 4.4
-    for (const trail of trails) {
-      for (let s = 0; s < trail.length - 1; s++) {
-        const a = trail[s], b = trail[s + 1]
+    const paint = (pts, r) => {
+      for (let s = 0; s < pts.length - 1; s++) {
+        const a = pts[s], b = pts[s + 1]
         const len = Math.hypot(b.x - a.x, b.z - a.z)
-        const steps = Math.ceil(len)
+        const steps = Math.max(1, Math.ceil(len))
         for (let k = 0; k <= steps; k++) {
           const t = k / steps
           const x = a.x + (b.x - a.x) * t
@@ -257,6 +281,8 @@ export function createWorld(seed = 1) {
         }
       }
     }
+    for (const trail of trails) paint(trail, 4.4)
+    for (const side of sidePaths) paint(side.pts, side.width * 0.55)
   }
   for (let j = 0; j < GRID; j++) {
     for (let i = 0; i < GRID; i++) {
@@ -280,6 +306,7 @@ export function createWorld(seed = 1) {
       else if (reg.id === 'desert' && sl < 0.42 && rd > 22 && h < 16 && wet < 0.72) s = SURF.sand
       else if (sl < 0.28 && h > 6 && h < 18 && wet < 0.42) s = SURF.sand
       if (bogMask(x, z) > 0.4) s = SURF.mud
+      if (puddleAt(x, z) > 0.45) s = SURF.water
       if (creekDrop(x, z) > 0.42) s = SURF.water
       if (snowMask(x, z) > 0.35 && s !== SURF.water) s = SURF.snow
       surf[j * GRID + i] = s
@@ -297,6 +324,8 @@ export function createWorld(seed = 1) {
     return 0.06 + t * 0.72 + wobble * 0.18
   }
   function waterDepth(x, z) {
+    const puddle = puddleAt(x, z)
+    if (puddle > 0.45) return 0.08 + puddle * 0.1
     if (surface(x, z) !== SURF.water) return 0
     const creek = creekDrop(x, z)
     if (creek > 0.42) return 0.16 + Math.min(0.2, creek * 0.1)
@@ -353,7 +382,7 @@ export function createWorld(seed = 1) {
   }
 
   return {
-    seed, size: WORLD_SIZE, half: HALF, height, surface, mudDepth, waterDepth, currentDir, pois, ford, rocks, trails, trees,
+    seed, size: WORLD_SIZE, half: HALF, height, surface, mudDepth, waterDepth, currentDir, pois, ford, rocks, trails, sides: SIDES, trees,
     gridN: GRID, heights, surf, riverZ, regionAt, blend: regionWeights, lakeAt, lakes: LAKES
   }
 }

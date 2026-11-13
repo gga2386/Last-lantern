@@ -105,7 +105,7 @@ Decimated from Poly Haven scans, CC0. https://polyhaven.com/license
 | Garden rock | Rock 07, decimated with a 512px PBR set | Jenelle van Heerden | https://polyhaven.com/a/rock_07 | CC0 |
 | Low crawl rock | Rock 09, decimated with a 512px PBR set | Jenelle van Heerden | https://polyhaven.com/a/rock_09 | CC0 |
 
-The forest trail uses the Quaternius nature kit already credited above (grass, bushes, small rocks) plus original roots, stones, and the bridges. Convex hulls were generated from these decimated meshes for the tire collision.
+The forest trail uses the Quaternius nature kit already credited above (grass, bushes, pines, small rocks) plus original roots, stones, road ruts, puddles, junction posts, cairns, and the bridges. Convex hulls were generated from these decimated meshes for the tire collision. The cross-up pair is the same Boulder 01 mesh, scaled into two ledges on a flattened pad. The four side trails (rock line, hill cut, creek loop, deer track) are original paths on the same dirt surface as the main road.
 
 ## Terrain tools
 
