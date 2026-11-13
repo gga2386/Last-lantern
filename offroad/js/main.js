@@ -1,15 +1,16 @@
-// Crawl Camp. OFFROAD_V10_20
+// Crawl Camp. OFFROAD_V10_21
 import * as THREE from '../vendor/three.module.js'
 import { createWorld, WORLD_SIZE, HALF, SURF, SURF_NAME } from './world.js'
-import { OFFROAD_V2, OFFROAD_V3, OFFROAD_V4, OFFROAD_V4_1, OFFROAD_V5, OFFROAD_V5_1, OFFROAD_V6, OFFROAD_V7, OFFROAD_V7_1, OFFROAD_V7_2, OFFROAD_V7_3, OFFROAD_V8, OFFROAD_V9, OFFROAD_V10, OFFROAD_V10_1, OFFROAD_V10_2, OFFROAD_V10_3, OFFROAD_V10_4, OFFROAD_V10_5, OFFROAD_V10_6, OFFROAD_V10_7, OFFROAD_V10_8, OFFROAD_V10_9, OFFROAD_V10_10, OFFROAD_V10_11, OFFROAD_V10_12, OFFROAD_V10_13, OFFROAD_V10_14, OFFROAD_V10_15, OFFROAD_V10_16, OFFROAD_V10_17, OFFROAD_V10_18, OFFROAD_V10_19, OFFROAD_V10_20, freshSave, SAVE_KEY, VEHICLES, UPGRADES, AUX, JERRY, ADVENTURES, TANK, coerceSave, buyUpgrade, buyVehicle, buyAux, buyJerry, useJerry, refuel, burnFuel, specWithUpgrades, tankCapacity, jerrySlots, rankFor, isDark, clockLabel, tickAdventure, noteAssist, REGION_OPEN, regionUnlocked, crawlAngles } from './economy.js'
+import { OFFROAD_V2, OFFROAD_V3, OFFROAD_V4, OFFROAD_V4_1, OFFROAD_V5, OFFROAD_V5_1, OFFROAD_V6, OFFROAD_V7, OFFROAD_V7_1, OFFROAD_V7_2, OFFROAD_V7_3, OFFROAD_V8, OFFROAD_V9, OFFROAD_V10, OFFROAD_V10_1, OFFROAD_V10_2, OFFROAD_V10_3, OFFROAD_V10_4, OFFROAD_V10_5, OFFROAD_V10_6, OFFROAD_V10_7, OFFROAD_V10_8, OFFROAD_V10_9, OFFROAD_V10_10, OFFROAD_V10_11, OFFROAD_V10_12, OFFROAD_V10_13, OFFROAD_V10_14, OFFROAD_V10_15, OFFROAD_V10_16, OFFROAD_V10_17, OFFROAD_V10_18, OFFROAD_V10_19, OFFROAD_V10_20, OFFROAD_V10_21, freshSave, SAVE_KEY, VEHICLES, UPGRADES, AUX, JERRY, ADVENTURES, TANK, coerceSave, buyUpgrade, buyVehicle, buyAux, buyJerry, useJerry, refuel, burnFuel, specWithUpgrades, tankCapacity, jerrySlots, rankFor, isDark, clockLabel, tickAdventure, noteAssist, REGION_OPEN, regionUnlocked, crawlAngles } from './economy.js'
 import { preloadRigs, buildRig, applyLod, poseRig, applyPaint, factoryPaint, PAINT_SWATCHES, setWoodMap, rigModel } from './rigs.js'
 import { preloadScenery, preloadGround } from './scenery.js'
 import { createRidges } from './horizon.js'
 import { CAMP, campLevel, buyCamp, canPitch, rollFish, reelBand, biteSeconds, aimHit, RECIPES, canCook, cookJudge, applyCook, activityState, gameFor, spotVisual, roastGrade, roastColor, roastStamp, applyRoast } from './camp.js'
 import { ensureCamp, buildCampSite, buildFishMoment, buildHuntMoment, buildCookMoment, buildRoastMoment } from './campview.js'
 import { createSim, ROLL_LIMIT, recoveryCopy } from './physics.js'
+import { courseFeatures, paintRuts, takeRutDirty } from './trail.js'
 
-export { OFFROAD_V2, OFFROAD_V3, OFFROAD_V4, OFFROAD_V4_1, OFFROAD_V5, OFFROAD_V5_1, OFFROAD_V6, OFFROAD_V7, OFFROAD_V7_1, OFFROAD_V7_2, OFFROAD_V7_3, OFFROAD_V8, OFFROAD_V9, OFFROAD_V10, OFFROAD_V10_1, OFFROAD_V10_2, OFFROAD_V10_3, OFFROAD_V10_4, OFFROAD_V10_5, OFFROAD_V10_6, OFFROAD_V10_7, OFFROAD_V10_8, OFFROAD_V10_9, OFFROAD_V10_10, OFFROAD_V10_11, OFFROAD_V10_12, OFFROAD_V10_13, OFFROAD_V10_14, OFFROAD_V10_15, OFFROAD_V10_16, OFFROAD_V10_17, OFFROAD_V10_18, OFFROAD_V10_19, OFFROAD_V10_20 }
+export { OFFROAD_V2, OFFROAD_V3, OFFROAD_V4, OFFROAD_V4_1, OFFROAD_V5, OFFROAD_V5_1, OFFROAD_V6, OFFROAD_V7, OFFROAD_V7_1, OFFROAD_V7_2, OFFROAD_V7_3, OFFROAD_V8, OFFROAD_V9, OFFROAD_V10, OFFROAD_V10_1, OFFROAD_V10_2, OFFROAD_V10_3, OFFROAD_V10_4, OFFROAD_V10_5, OFFROAD_V10_6, OFFROAD_V10_7, OFFROAD_V10_8, OFFROAD_V10_9, OFFROAD_V10_10, OFFROAD_V10_11, OFFROAD_V10_12, OFFROAD_V10_13, OFFROAD_V10_14, OFFROAD_V10_15, OFFROAD_V10_16, OFFROAD_V10_17, OFFROAD_V10_18, OFFROAD_V10_19, OFFROAD_V10_20, OFFROAD_V10_21 }
 
 const world = createWorld(1)
 const yard = world.pois.find(p => p.id === 'yard')
@@ -183,24 +184,24 @@ scene.fog = new THREE.Fog(0xe39a6a, 28, gfx().fog)
 
 const LOOK = {
   forest: {
-    day: ['#4a739c', '#c9ddd6', '#1c3328', '#9bb8ae', '#fff6e4', '#d7ebe4', '#1d3328'],
+    day: ['#9ec4e6', '#d7e7f2', '#2a4a38', '#b7d0c8', '#fff8ec', '#e7f3ef', '#2d4a38'],
     dusk: ['#2a3c58', '#e88848', '#142018', '#c46a3c', '#ffb060', '#ffd0a4', '#241c14'],
     night: ['#070c16', '#121820', '#050806', '#070c14', '#9eb4ff', '#1a2744', '#0c100e'],
-    ground: ['#3e6240', '#7a6244', '#3c3428', '#c6b48a', '#667064', '#246878'],
+    ground: ['#3e6240', '#7a6244', '#3c3428', '#c6b48a', '#667064', '#246878', '#d5dde4'],
     map: [46, 92, 58]
   },
   desert: {
     day: ['#7eb4d6', '#f3c49a', '#c47a52', '#e7c2a0', '#ffe0b0', '#ffd8b4', '#a86848'],
     dusk: ['#5a3a52', '#f0a060', '#8a4030', '#e09058', '#ff9040', '#ffc098', '#6a3028'],
     night: ['#140c18', '#2a1820', '#120c0c', '#100c10', '#c8b8e8', '#2a2038', '#1a100c'],
-    ground: ['#c47a52', '#d2a06a', '#8a5840', '#e8c8a0', '#b15a42', '#3c92a0'],
+    ground: ['#c47a52', '#d2a06a', '#8a5840', '#e8c8a0', '#b15a42', '#3c92a0', '#e4d8c8'],
     map: [186, 116, 74]
   },
   mountain: {
     day: ['#6a92c4', '#d5e2ee', '#8a949e', '#c5d2de', '#fff6ea', '#dce8f2', '#6a727c'],
     dusk: ['#2a3c5c', '#f0b080', '#5a6068', '#c88868', '#ffc090', '#f0d0c0', '#4a5058'],
     night: ['#060810', '#121820', '#0c1014', '#080c12', '#b0c4ff', '#1a2438', '#101418'],
-    ground: ['#6d786c', '#8a7c68', '#4a4840', '#d4d0c8', '#8e96a0', '#1c8e98'],
+    ground: ['#6d786c', '#8a7c68', '#4a4840', '#d4d0c8', '#8e96a0', '#1c8e98', '#c5ced6'],
     map: [118, 132, 150]
   }
 }
@@ -224,8 +225,8 @@ function groundColor(x, z, surf, h) {
   if (nearLake && surf !== SURF.water) c.lerp(new THREE.Color(nearLake.region === 'desert' ? '#e0c09a' : '#8d959e'), 0.8)
   const edge = Math.max(Math.abs(x), Math.abs(z)) > HALF - 48
   if (!edge && !nearLake && w.mountain > 0.45 && h > 18 && surf !== SURF.water) {
-    const snow = Math.min(1, (h - 16) / 7) * w.mountain
-    c.lerp(SNOW, snow * 0.9)
+    const snow = Math.min(1, (h - 17) / 8) * w.mountain
+    c.lerp(SNOW, snow * 0.45)
   }
   return c
 }
@@ -276,14 +277,15 @@ function buildTerrain() {
       shader.uniforms.tMud = { value: groundTex.mud.color }
       shader.uniforms.tGravel = { value: groundTex.gravel.color }
       shader.vertexShader = shader.vertexShader
-        .replace('#include <common>', '#include <common>\nattribute vec3 biome;\nattribute float surf;\nvarying vec3 vBiome;\nvarying float vSurf;')
-        .replace('#include <uv_vertex>', '#include <uv_vertex>\nvBiome = biome;\nvSurf = surf;')
+        .replace('#include <common>', '#include <common>\nattribute vec3 biome;\nattribute float surf;\nvarying vec3 vBiome;\nvarying float vSurf;\nvarying float vWorldY;')
+        .replace('#include <uv_vertex>', '#include <uv_vertex>\nvBiome = biome;\nvSurf = surf;\nvWorldY = position.y;')
       shader.fragmentShader = shader.fragmentShader
-        .replace('#include <common>', '#include <common>\nuniform sampler2D tForest;\nuniform sampler2D tSand;\nuniform sampler2D tRed;\nuniform sampler2D tMud;\nuniform sampler2D tGravel;\nvarying vec3 vBiome;\nvarying float vSurf;')
+        .replace('#include <common>', '#include <common>\nuniform sampler2D tForest;\nuniform sampler2D tSand;\nuniform sampler2D tRed;\nuniform sampler2D tMud;\nuniform sampler2D tGravel;\nvarying vec3 vBiome;\nvarying float vSurf;\nvarying float vWorldY;')
         .replace('#include <color_fragment>', `#include <color_fragment>
           vec2 guv = vMapUv * 42.0;
           float mudM = smoothstep(1.5, 1.8, vSurf) * (1.0 - smoothstep(2.2, 2.6, vSurf));
           float sandM = smoothstep(2.5, 2.9, vSurf) * (1.0 - smoothstep(3.4, 3.8, vSurf));
+          float snowM = smoothstep(5.5, 6.0, vSurf);
           vec3 groundT;
           if (mudM > 0.5) groundT = texture2D(tMud, guv).rgb;
           else if (vBiome.y > vBiome.x && vBiome.y >= vBiome.z) {
@@ -291,6 +293,9 @@ function buildTerrain() {
             else groundT = texture2D(tRed, guv).rgb;
           } else if (vBiome.z > vBiome.x) groundT = texture2D(tGravel, guv).rgb;
           else groundT = texture2D(tForest, guv).rgb;
+          float snowLine = smoothstep(17.0, 23.0, vWorldY) * smoothstep(0.45, 0.8, vBiome.z);
+          vec3 snowT = groundT * 0.55 + vec3(0.4, 0.42, 0.45);
+          groundT = mix(groundT, snowT, clamp(max(snowM, snowLine) * 0.72, 0.0, 0.72));
           diffuseColor.rgb *= groundT;
         `)
     }
@@ -712,7 +717,7 @@ function paintMap(target) {
   const n = world.gridN
   const g = target.getContext('2d')
   const img = g.createImageData(n, n)
-  const rgb = [[110, 75, 50], [150, 114, 74], [62, 54, 44], [198, 163, 107], [120, 116, 112], [42, 104, 128]]
+  const rgb = [[110, 75, 50], [150, 114, 74], [62, 54, 44], [198, 163, 107], [120, 116, 112], [42, 104, 128], [236, 240, 244]]
   const es = WORLD_SIZE / (n - 1)
   for (let j = 0; j < n; j++) {
     for (let i = 0; i < n; i++) {
@@ -777,19 +782,19 @@ function applyTime(t) {
   const hemiC = phaseColor(5, elev, w)
   const groundC = phaseColor(6, elev, w)
   scene.fog.color.copy(hor)
-  scene.fog.near = 78 + day * 40
-  scene.fog.far = 420 + day * 70
+  scene.fog.near = 96 + day * 70
+  scene.fog.far = 460 + day * 110
   renderer.setClearColor(hor)
   const low = elev > -0.02 && elev < 0.55 ? 1 : 0
   const graded = save.settings.gfx !== 'low'
-  renderer.toneMappingExposure = 0.78 + day * 0.26 + low * (graded ? 0.34 : 0.12)
+  renderer.toneMappingExposure = 0.74 + day * 0.48 + low * (graded ? 0.16 : 0.06)
   sun.color.copy(sunC)
-  sun.intensity = day * 1.95 + low * 0.4
+  sun.intensity = day * 2.35 + low * 0.28
   hemi.color.copy(hemiC)
   hemi.groundColor.copy(groundC)
-  hemi.intensity = 0.22 + day * 0.58 + low * 0.16
+  hemi.intensity = 0.26 + day * 0.78 + low * 0.1
   fill.color.copy(hemiC)
-  fill.intensity = 0.18 + day * 0.4 + low * 0.32
+  fill.intensity = 0.16 + day * 0.48 + low * 0.2
   rim.intensity = 0.22 + day * 0.24 + low * 0.7
   rim.color.copy(sunC)
   const dir = new THREE.Vector3(Math.cos(ang), Math.max(-0.05, elev), Math.sin(ang) * 0.55).normalize()
@@ -808,9 +813,10 @@ function applyTime(t) {
   if (grade) grade.classList.toggle('off', !graded)
   if (vig) vig.classList.toggle('off', !graded)
   if (grade && graded) {
-    const warm = low ? 0.22 : day > 0.5 ? 0.08 : 0.02
+    const warm = low ? 0.16 : day > 0.5 ? 0.02 : 0.02
     const css = '#' + fogC.getHexString()
-    grade.style.background = 'radial-gradient(ellipse at center, transparent 42%, rgba(12,8,6,' + (0.28 + warm) + ') 100%), linear-gradient(180deg, ' + css + '22, transparent 46%)'
+    const edge = day > 0.55 ? 0.08 : 0.22 + warm
+    grade.style.background = 'radial-gradient(ellipse at center, transparent 50%, rgba(12,8,6,' + edge + ') 100%), linear-gradient(180deg, ' + css + '18, transparent 42%)'
   }
   return dir
 }
@@ -2243,9 +2249,70 @@ try {
 } catch (e) {}
 sceneryPack = await preloadScenery(THREE)
 groundTex = await preloadGround(THREE)
+function buildCourse() {
+  const colors = { wood: 0x8a5a32, steel: 0x9aa3ab, bark: 0x5c4030, rock: 0x7e7870 }
+  const mats = {}
+  const matFor = (name) => {
+    if (!mats[name]) {
+      if (name === 'rock' && groundTex && groundTex.gravel) {
+        const map = groundTex.gravel.color.clone()
+        map.repeat.set(1, 1)
+        const normal = groundTex.gravel.normal.clone()
+        normal.repeat.set(1, 1)
+        mats[name] = new THREE.MeshStandardMaterial({ map, normalMap: normal, roughness: 0.92, metalness: 0 })
+      } else mats[name] = new THREE.MeshStandardMaterial({ color: colors[name] || 0x888888, roughness: name === 'steel' ? 0.45 : 0.92, metalness: name === 'steel' ? 0.35 : 0 })
+    }
+    return mats[name]
+  }
+  for (const f of courseFeatures(world)) {
+    let mesh
+    if (f.kind === 'log') {
+      mesh = new THREE.Mesh(new THREE.CylinderGeometry(f.radius, f.radius, f.len, 8), matFor(f.mat))
+      if (f.axis === 'x') mesh.rotation.z = Math.PI / 2
+      else if (f.axis === 'z') mesh.rotation.x = Math.PI / 2
+    } else if (f.kind === 'steps') {
+      const g = new THREE.Group()
+      for (const p of f.parts) {
+        const m = new THREE.Mesh(new THREE.BoxGeometry(p.hx * 2, p.hy * 2, p.hz * 2), matFor('rock'))
+        m.position.set(p.x, p.y, p.z)
+        m.castShadow = true
+        m.receiveShadow = true
+        g.add(m)
+      }
+      g.position.set(f.x, f.y, f.z)
+      g.rotation.y = f.yaw || 0
+      scene.add(g)
+      continue
+    } else if (f.kind === 'box' || f.kind === 'decor') {
+      mesh = new THREE.Mesh(new THREE.BoxGeometry(f.hx * 2, f.hy * 2, f.hz * 2), matFor(f.mat))
+      mesh.rotation.y = f.yaw || 0
+    } else continue
+    mesh.position.set(f.x, f.y, f.z)
+    mesh.castShadow = f.kind !== 'decor'
+    mesh.receiveShadow = true
+    scene.add(mesh)
+  }
+}
+const rutCanvas = document.createElement('canvas')
+rutCanvas.width = rutCanvas.height = 96
+const rutTex = new THREE.CanvasTexture(rutCanvas)
+const rutMesh = new THREE.Mesh(new THREE.PlaneGeometry(32, 32), new THREE.MeshBasicMaterial({ map: rutTex, transparent: true, depthWrite: false }))
+rutMesh.rotation.x = -Math.PI / 2
+rutMesh.visible = false
+scene.add(rutMesh)
+function refreshRuts() {
+  const c = sim.chassis
+  if (!c || mode !== 'play') return
+  rutMesh.position.set(c.position.x, world.height(c.position.x, c.position.z) + 0.05, c.position.z)
+  if (!takeRutDirty()) return
+  paintRuts(rutCanvas.getContext('2d'), 96, c.position.x, c.position.z, 32)
+  rutTex.needsUpdate = true
+  rutMesh.visible = true
+}
 buildTerrain()
 scatter()
 buildCamps()
+buildCourse()
 sim.spawn('mule', { x: yard.x, z: yard.z + 8 }, save.upgrades)
 let campOn = false
 let campBusy = false
@@ -2754,7 +2821,12 @@ function frame(now) {
     if (w) puff(w.position.x, w.position.y, w.position.z, true)
   }
   if (blades) blades.rotation.z += dt * 0.7
-  if (dust.length && mode === 'play' && Math.abs(lastSpeed) > 4 && lastSurf !== 4 && lastSurf !== 5) {
+  if (mode === 'play' && wheels[0] && (lastSurf === SURF.mud || lastSurf === SURF.sand || lastSurf === SURF.snow) && Math.abs(lastSpeed) > 1.1 && Math.random() < 0.55) {
+    const w = wheels[Math.floor(Math.random() * wheels.length)]
+    if (w) puff(w.position.x, w.position.y, w.position.z, lastSurf !== SURF.sand)
+  }
+  refreshRuts()
+  if (dust.length && mode === 'play' && Math.abs(lastSpeed) > 4 && lastSurf !== 4 && lastSurf !== 5 && lastSurf !== SURF.snow) {
     const w = wheels[2]
     if (w && Math.random() < 0.6) puff(w.position.x, w.position.y, w.position.z)
   }
@@ -2813,6 +2885,7 @@ window.OX = {
   OFFROAD_V10_18,
   OFFROAD_V10_19,
   OFFROAD_V10_20,
+  OFFROAD_V10_21,
   get mode() { return mode },
   get speed() { return lastSpeed },
   get pos() { const c = sim.chassis; return c ? { x: c.position.x, y: c.position.y, z: c.position.z } : null },
@@ -2823,6 +2896,7 @@ window.OX = {
   get clock() { return save.clock },
   get lights() { return { mode: save.lights, high: !!save.highbeam, on: !!(truck && truck.userData && truck.userData.lamps[0].intensity > 0) } },
   setClock(t) { save.clock = t; applyTime(t) },
+  place(x, z, yaw) { sim.place(x, z, yaw || 0); buildTruck(sim.spec) },
   setCam(kind, dist, yaw, pitch) { camMode = kind; if (dist) orbitDist = dist; if (yaw != null) orbitYaw = yaw; if (pitch != null) orbitPitch = pitch },
   open(id) { if (id === 'jobs') fillAdventures(); if (id === 'garage') fillGarage(); if (id === 'store') fillStore(); if (id === 'paint') openPaint(); if (id === 'camp-colors') openCampColors(); else if (id !== 'paint') showPanel(id) },
   campColors() { openCampColors() },

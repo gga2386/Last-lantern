@@ -94,3 +94,9 @@ Original models were built for Crawl Camp and contain no third-party content. Tr
 | Corn | Corn | Poly by Google | https://poly.pizza/m/3zsUEPnTdFt | CC-BY 3.0 |
 | Can | Open beans can | Quaternius | https://opengameart.org/content/lowpoly-survival-pack | CC0 |
 | Marshmallow | Roasting stick and marshmallow | Original, built in the game | made for this game | original |
+
+## Terrain tools
+
+The crawl line (plank bridge, log crossing, trestle, stepped rocks, fallen tree, mud bog, dunes, and snow) is original geometry in this project. Treat it as CC0.
+
+Terrain Studio was checked and not used. The name covers two different tools. The open-source browser editor (ProceduralTerrains, React + Three.js) bakes height on the GPU and the copy inspected had an empty LICENSE file, so its maps are not cleared to ship. Real-world DEM imports in that editor add a second data license. terrainstudio.org is a separate mesh exporter and does not grant a game-asset license. Gaea and World Machine free tiers were skipped for the same reason: this world already shares one CPU height function with the physics heightfield, the road, and the camps. Replacing that with a baked map would split the ground the tires stand on from the ground you see. Height detail here is the same noise approach as Blender A.N.T., and the ground photos stay the ambientCG CC0 set above.

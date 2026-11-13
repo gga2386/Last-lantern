@@ -1,12 +1,13 @@
 // OFFROAD_V2 — terrain, reputation, fuel, and solid trees. Run: node offroad/test/sim.js
 import { createWorld, SURF, FRICTION, DRAG, HALF } from '../js/world.js'
-import { OFFROAD_V2, OFFROAD_V3, OFFROAD_V4, OFFROAD_V4_1, OFFROAD_V5, OFFROAD_V5_1, OFFROAD_V6, OFFROAD_V7, OFFROAD_V7_1, OFFROAD_V7_2, OFFROAD_V7_3, OFFROAD_V8, OFFROAD_V9, OFFROAD_V10, OFFROAD_V10_1, OFFROAD_V10_2, OFFROAD_V10_3, OFFROAD_V10_4, OFFROAD_V10_5, OFFROAD_V10_6, OFFROAD_V10_7, OFFROAD_V10_8, OFFROAD_V10_9, OFFROAD_V10_10, OFFROAD_V10_11, OFFROAD_V10_12, OFFROAD_V10_13, OFFROAD_V10_14, OFFROAD_V10_15, OFFROAD_V10_16, OFFROAD_V10_17, OFFROAD_V10_18, OFFROAD_V10_19, OFFROAD_V10_20, VEHICLES, ADVENTURES, freshSave, buyUpgrade, buyVehicle, buyAux, buyJerry, useJerry, refuel, burnFuel, coerceSave, tickAdventure, tankCapacity, jerrySlots, isDark, TANK, specWithUpgrades, noteAssist, crawlAngles, regionUnlocked } from '../js/economy.js'
+import { bogMask, courseFeatures, creekDrop, digRut, duneAdd, rutCount, rutDepth } from '../js/trail.js'
+import { OFFROAD_V2, OFFROAD_V3, OFFROAD_V4, OFFROAD_V4_1, OFFROAD_V5, OFFROAD_V5_1, OFFROAD_V6, OFFROAD_V7, OFFROAD_V7_1, OFFROAD_V7_2, OFFROAD_V7_3, OFFROAD_V8, OFFROAD_V9, OFFROAD_V10, OFFROAD_V10_1, OFFROAD_V10_2, OFFROAD_V10_3, OFFROAD_V10_4, OFFROAD_V10_5, OFFROAD_V10_6, OFFROAD_V10_7, OFFROAD_V10_8, OFFROAD_V10_9, OFFROAD_V10_10, OFFROAD_V10_11, OFFROAD_V10_12, OFFROAD_V10_13, OFFROAD_V10_14, OFFROAD_V10_15, OFFROAD_V10_16, OFFROAD_V10_17, OFFROAD_V10_18, OFFROAD_V10_19, OFFROAD_V10_20, OFFROAD_V10_21, VEHICLES, ADVENTURES, freshSave, buyUpgrade, buyVehicle, buyAux, buyJerry, useJerry, refuel, burnFuel, coerceSave, tickAdventure, tankCapacity, jerrySlots, isDark, TANK, specWithUpgrades, noteAssist, crawlAngles, regionUnlocked } from '../js/economy.js'
 import { canPitch, slopeAt, buyCamp, cookJudge, applyCook, rollFish, aimHit, RECIPES, activityState, nearWater, habitat, CAMP, spotVisual, roastGrade, roastStamp, applyRoast, campCosmetic } from '../js/camp.js'
 import { createSim, tractionTrial, ROLL_LIMIT, recoveryCopy } from '../js/physics.js'
 
 const fails = []
 const fail = m => fails.push(m)
-if (OFFROAD_V2 !== 1 || OFFROAD_V3 !== 1 || OFFROAD_V4 !== 1 || OFFROAD_V4_1 !== 1 || OFFROAD_V5 !== 1 || OFFROAD_V5_1 !== 1 || OFFROAD_V6 !== 1 || OFFROAD_V7 !== 1 || OFFROAD_V7_1 !== 1 || OFFROAD_V7_2 !== 1 || OFFROAD_V7_3 !== 1 || OFFROAD_V8 !== 1 || OFFROAD_V9 !== 1 || OFFROAD_V10 !== 1 || OFFROAD_V10_1 !== 1 || OFFROAD_V10_2 !== 1 || OFFROAD_V10_3 !== 1 || OFFROAD_V10_4 !== 1 || OFFROAD_V10_5 !== 1 || OFFROAD_V10_6 !== 1 || OFFROAD_V10_7 !== 1 || OFFROAD_V10_8 !== 1 || OFFROAD_V10_9 !== 1 || OFFROAD_V10_10 !== 1 || OFFROAD_V10_11 !== 1 || OFFROAD_V10_12 !== 1 || OFFROAD_V10_13 !== 1 || OFFROAD_V10_14 !== 1 || OFFROAD_V10_15 !== 1 || OFFROAD_V10_16 !== 1 || OFFROAD_V10_17 !== 1 || OFFROAD_V10_18 !== 1 || OFFROAD_V10_19 !== 1 || OFFROAD_V10_20 !== 1) fail('marker missing')
+if (OFFROAD_V2 !== 1 || OFFROAD_V3 !== 1 || OFFROAD_V4 !== 1 || OFFROAD_V4_1 !== 1 || OFFROAD_V5 !== 1 || OFFROAD_V5_1 !== 1 || OFFROAD_V6 !== 1 || OFFROAD_V7 !== 1 || OFFROAD_V7_1 !== 1 || OFFROAD_V7_2 !== 1 || OFFROAD_V7_3 !== 1 || OFFROAD_V8 !== 1 || OFFROAD_V9 !== 1 || OFFROAD_V10 !== 1 || OFFROAD_V10_1 !== 1 || OFFROAD_V10_2 !== 1 || OFFROAD_V10_3 !== 1 || OFFROAD_V10_4 !== 1 || OFFROAD_V10_5 !== 1 || OFFROAD_V10_6 !== 1 || OFFROAD_V10_7 !== 1 || OFFROAD_V10_8 !== 1 || OFFROAD_V10_9 !== 1 || OFFROAD_V10_10 !== 1 || OFFROAD_V10_11 !== 1 || OFFROAD_V10_12 !== 1 || OFFROAD_V10_13 !== 1 || OFFROAD_V10_14 !== 1 || OFFROAD_V10_15 !== 1 || OFFROAD_V10_16 !== 1 || OFFROAD_V10_17 !== 1 || OFFROAD_V10_18 !== 1 || OFFROAD_V10_19 !== 1 || OFFROAD_V10_20 !== 1 || OFFROAD_V10_21 !== 1) fail('marker missing')
 const ids = Object.keys(VEHICLES)
 if (ids.length < 6) fail('roster ' + ids.join(','))
 for (const id of ['mule', 'scout', 'runner', 'wagon', 'hauler', 'crawler', 'van']) if (!VEHICLES[id]) fail('missing ' + id)
@@ -408,4 +409,43 @@ const hidden = coerceSave({
 }, 'medium')
 if (!hidden || hidden.cosmetics.mule.showUp.snorkel !== false || hidden.cosmetics.mule.paint.body !== '#ffffff') fail('showUp did not survive the save')
 if (hidden.aux !== 2 || hidden.jerry !== 1 || hidden.upgrades.tires !== 2) fail('fitted parts dropped on load')
-console.log('OK OFFROAD_V10_20')
+if (!(FRICTION[SURF.snow] < FRICTION[SURF.sand] && DRAG[SURF.snow] > DRAG[SURF.dirt] && DRAG[SURF.snow] < DRAG[SURF.water])) fail('snow physics')
+const bank = world.height(36, -131.5)
+const bed = world.height(36, -128)
+if (!(bed < bank - 0.6)) fail('creek not cut ' + bed.toFixed(2) + ' ' + bank.toFixed(2))
+if (world.surface(36, -128) !== SURF.water) fail('creek not wet')
+if (world.waterDepth(36, -128) > 0.55) fail('creek too deep to ford ' + world.waterDepth(36, -128).toFixed(2))
+if (bogMask(52, -142) < 0.8) fail('bog mask')
+if (world.surface(52, -142) !== SURF.mud || world.mudDepth(52, -142) < 0.7) fail('bog too firm')
+const foot = world.height(36, -102)
+const crest = world.height(36, -84)
+if (!(crest > foot + 3)) fail('hill too gentle ' + (crest - foot).toFixed(2))
+if (Math.abs(duneAdd(130, -80)) < 0.2) fail('dunes missing')
+let snowN = 0
+for (const s of world.surf) if (s === SURF.snow) snowN++
+if (snowN < 80) fail('no snow field ' + snowN)
+const course = courseFeatures(world)
+if (course.filter(f => f.kind === 'box' && f.mat === 'wood').length < 7) fail('plank bridge')
+if (!course.some(f => f.kind === 'log' && f.mat === 'bark')) fail('fallen tree')
+if (course.filter(f => f.mat === 'steel').length < 4) fail('trestle')
+if (course.filter(f => f.kind === 'steps').length < 5) fail('rock garden')
+if (course.filter(f => f.kind === 'decor').length < 10) fail('trail detail')
+const deck = course.find(f => f.kind === 'box' && f.mat === 'wood')
+const ride = createSim(world)
+ride.spawn('crawler', { x: deck.x, z: deck.z, y: deck.y + 1.6 })
+for (let i = 0; i < 90; i++) ride.step(1 / 60, { throttle: 0, brake: 1, steer: 0, handbrake: true, lock: false, winch: false, fuel: 18 })
+if (ride.chassis.position.y < world.height(deck.x, deck.z) + 0.7) fail('fell through the plank bridge ' + ride.chassis.position.y.toFixed(2))
+const gardenRock = course.find(f => f.kind === 'steps')
+const perch = createSim(world)
+perch.spawn('crawler', { x: gardenRock.x, z: gardenRock.z, y: gardenRock.y + 2.2 })
+for (let i = 0; i < 100; i++) perch.step(1 / 60, { throttle: 0, brake: 1, steer: 0, handbrake: true, lock: false, winch: false, fuel: 18 })
+if (perch.chassis.position.y < world.height(gardenRock.x, gardenRock.z) + 0.45) fail('fell through a garden rock')
+digRut(3, 4, 0.12)
+if (rutDepth(3, 4) < 0.1) fail('rut did not stick')
+const bogRun = createSim(world)
+bogRun.spawn('mule', { x: 52, z: -146, y: world.height(52, -146) + 2 })
+const rutsBefore = rutCount()
+for (let i = 0; i < 80; i++) bogRun.step(1 / 60, { throttle: 1, brake: 0, steer: 0, handbrake: false, lock: false, winch: false, fuel: 18 })
+if (rutCount() <= rutsBefore) fail('tires left no rut in the bog')
+if (creekDrop(36, -128) < 0.8) fail('creek drop')
+console.log('OK OFFROAD_V10_21')

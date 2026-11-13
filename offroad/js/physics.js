@@ -1,6 +1,7 @@
 // Vehicle and terrain collision. cannon-es raycast vehicle on a heightfield.
 import * as CANNON from '../vendor/cannon-es.js'
 import { FRICTION, DRAG, SURF, heightfieldData } from './world.js'
+import { courseFeatures, digRut, rutDepth } from './trail.js'
 import { specWithUpgrades } from './economy.js'
 
 // Tipped past this and the cab offers Call for recovery. Mud and flood use the same dialog.
@@ -45,6 +46,24 @@ export function createSim(world) {
   const look = world.pois.find(p => p.id === 'lookout')
   addBox(look.x, look.y + 3.2, look.z, 1.3, 3.2, 1.3)
   for (const p of world.pois) if (p.kind === 'store') addBox(p.x + 5.5, (p.y || 0) + 1.4, p.z, 2.8, 1.4, 2.1)
+  for (const f of courseFeatures(world)) {
+    if (f.kind === 'decor') continue
+    const b = new CANNON.Body({ mass: 0 })
+    if (f.kind === 'log') {
+      b.addShape(new CANNON.Cylinder(f.radius, f.radius, f.len, 8))
+      if (f.axis === 'x') b.quaternion.setFromEuler(0, 0, Math.PI / 2)
+      else if (f.axis === 'z') b.quaternion.setFromEuler(Math.PI / 2, 0, 0)
+    } else if (f.kind === 'steps') {
+      for (const p of f.parts) b.addShape(new CANNON.Box(new CANNON.Vec3(p.hx, p.hy, p.hz)), new CANNON.Vec3(p.x, p.y, p.z))
+      if (f.yaw) b.quaternion.setFromEuler(0, f.yaw, 0)
+    } else if (f.kind === 'box') {
+      b.addShape(new CANNON.Box(new CANNON.Vec3(f.hx, f.hy, f.hz)))
+      if (f.yaw) b.quaternion.setFromEuler(0, f.yaw, 0)
+    } else continue
+    b.position.set(f.x, f.y, f.z)
+    cw.addBody(b)
+    props.push(b)
+  }
 
   let vehicle = null
   let chassis = null
@@ -126,10 +145,12 @@ export function createSim(world) {
       const w = vehicle.wheelInfos[i]
       const p = w.chassisConnectionPointWorld
       const s = world.surface(p.x, p.z)
-      const grip = FRICTION[s] * spec.grip * (input.lock ? 1.55 : 1) * (input.grip || 1) * (s === 4 ? 1.15 : 1)
+      const soft = s === SURF.mud || s === SURF.sand || s === SURF.snow
+      const rut = soft ? rutDepth(p.x, p.z) : 0
+      const grip = FRICTION[s] * spec.grip * (input.lock ? 1.55 : 1) * (input.grip || 1) * (s === SURF.rock ? 1.15 : 1) * (1 - Math.min(0.55, rut * 2.4))
       w.frictionSlip = grip
       surfSum += s
-      dragSum += DRAG[s]
+      dragSum += DRAG[s] + rut * 2.2
       const steer = (i < 2 ? 1 : 0) * input.steer * spec.steer * (input.lock ? 0.65 : 1) * (low ? 0.82 : 1)
       vehicle.setSteeringValue(steer, i)
       let engine = 0
@@ -167,7 +188,15 @@ export function createSim(world) {
         }
       }
     }
-    const drag = dragSum / 4 + bog * 1.7 + Math.min(water, spec.wade || 1) * 0.9
+    const wheelsN = vehicle.wheelInfos.length || 1
+    let squat = 0
+    for (let i = 0; i < vehicle.wheelInfos.length; i++) {
+      const p = vehicle.wheelInfos[i].chassisConnectionPointWorld
+      const s = world.surface(p.x, p.z)
+      if (s === SURF.mud || s === SURF.sand || s === SURF.snow) squat += rutDepth(p.x, p.z)
+    }
+    if (squat > 0) chassis.applyForce(new CANNON.Vec3(0, -spec.mass * 4 * (squat / wheelsN), 0), chassis.position)
+    const drag = dragSum / wheelsN + bog * 1.7 + Math.min(water, spec.wade || 1) * 0.9
     const damp = Math.exp(-drag * dt)
     chassis.velocity.scale(damp, chassis.velocity)
     if (water > 0.15) {
@@ -199,8 +228,19 @@ export function createSim(world) {
       chassis.torque.z += -up.x * spec.winch * 0.85
     }
     cw.step(dt)
+    if (throttle > 0.08 && Math.abs(speed) > 0.35) {
+      for (let i = 0; i < vehicle.wheelInfos.length; i++) {
+        const w = vehicle.wheelInfos[i]
+        if (!w.isInContact) continue
+        const hit = w.raycastResult && w.raycastResult.hitPointWorld
+        const px = hit && Number.isFinite(hit.x) ? hit.x : w.chassisConnectionPointWorld.x
+        const pz = hit && Number.isFinite(hit.z) ? hit.z : w.chassisConnectionPointWorld.z
+        const s = world.surface(px, pz)
+        if (s === SURF.mud || s === SURF.sand || s === SURF.snow) digRut(px, pz, dt * 0.05)
+      }
+    }
     const stuck = sunk ? 'mud' : flooded ? 'water' : ''
-    return { speed, surf: surfSum / 4, stuck, mud: bog, water, sink: Math.min(bog, spec.wheelR), wade: spec.wade, bogAt: spec.bogAt }
+    return { speed, surf: surfSum / wheelsN, stuck, mud: bog, water, sink: Math.min(bog, spec.wheelR), wade: spec.wade, bogAt: spec.bogAt, rut: squat / wheelsN }
   }
 
   function reset() {
