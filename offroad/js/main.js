@@ -1,7 +1,7 @@
-// Crawl Camp. OFFROAD_V10_22
+// Crawl Camp. OFFROAD_V10_23
 import * as THREE from '../vendor/three.module.js'
 import { createWorld, WORLD_SIZE, HALF, SURF, SURF_NAME } from './world.js'
-import { OFFROAD_V2, OFFROAD_V3, OFFROAD_V4, OFFROAD_V4_1, OFFROAD_V5, OFFROAD_V5_1, OFFROAD_V6, OFFROAD_V7, OFFROAD_V7_1, OFFROAD_V7_2, OFFROAD_V7_3, OFFROAD_V8, OFFROAD_V9, OFFROAD_V10, OFFROAD_V10_1, OFFROAD_V10_2, OFFROAD_V10_3, OFFROAD_V10_4, OFFROAD_V10_5, OFFROAD_V10_6, OFFROAD_V10_7, OFFROAD_V10_8, OFFROAD_V10_9, OFFROAD_V10_10, OFFROAD_V10_11, OFFROAD_V10_12, OFFROAD_V10_13, OFFROAD_V10_14, OFFROAD_V10_15, OFFROAD_V10_16, OFFROAD_V10_17, OFFROAD_V10_18, OFFROAD_V10_19, OFFROAD_V10_20, OFFROAD_V10_21, OFFROAD_V10_22, freshSave, SAVE_KEY, VEHICLES, UPGRADES, AUX, JERRY, ADVENTURES, TANK, coerceSave, buyUpgrade, buyVehicle, buyAux, buyJerry, useJerry, refuel, burnFuel, specWithUpgrades, tankCapacity, jerrySlots, rankFor, isDark, clockLabel, tickAdventure, noteAssist, REGION_OPEN, regionUnlocked, crawlAngles } from './economy.js'
+import { OFFROAD_V2, OFFROAD_V3, OFFROAD_V4, OFFROAD_V4_1, OFFROAD_V5, OFFROAD_V5_1, OFFROAD_V6, OFFROAD_V7, OFFROAD_V7_1, OFFROAD_V7_2, OFFROAD_V7_3, OFFROAD_V8, OFFROAD_V9, OFFROAD_V10, OFFROAD_V10_1, OFFROAD_V10_2, OFFROAD_V10_3, OFFROAD_V10_4, OFFROAD_V10_5, OFFROAD_V10_6, OFFROAD_V10_7, OFFROAD_V10_8, OFFROAD_V10_9, OFFROAD_V10_10, OFFROAD_V10_11, OFFROAD_V10_12, OFFROAD_V10_13, OFFROAD_V10_14, OFFROAD_V10_15, OFFROAD_V10_16, OFFROAD_V10_17, OFFROAD_V10_18, OFFROAD_V10_19, OFFROAD_V10_20, OFFROAD_V10_21, OFFROAD_V10_22, OFFROAD_V10_23, freshSave, SAVE_KEY, VEHICLES, UPGRADES, AUX, JERRY, ADVENTURES, TANK, coerceSave, buyUpgrade, buyVehicle, buyAux, buyJerry, useJerry, refuel, burnFuel, specWithUpgrades, tankCapacity, jerrySlots, rankFor, isDark, clockLabel, tickAdventure, noteAssist, REGION_OPEN, regionUnlocked, crawlAngles } from './economy.js'
 import { preloadRigs, buildRig, applyLod, poseRig, applyPaint, factoryPaint, PAINT_SWATCHES, setWoodMap, rigModel } from './rigs.js'
 import { preloadScenery, preloadGround, preloadRocks } from './scenery.js'
 import { createRidges } from './horizon.js'
@@ -10,7 +10,7 @@ import { ensureCamp, buildCampSite, buildFishMoment, buildHuntMoment, buildCookM
 import { createSim, ROLL_LIMIT, recoveryCopy } from './physics.js'
 import { SIDES, courseFeatures, paintRuts, rutNear, takeRutDirty } from './trail.js'
 
-export { OFFROAD_V2, OFFROAD_V3, OFFROAD_V4, OFFROAD_V4_1, OFFROAD_V5, OFFROAD_V5_1, OFFROAD_V6, OFFROAD_V7, OFFROAD_V7_1, OFFROAD_V7_2, OFFROAD_V7_3, OFFROAD_V8, OFFROAD_V9, OFFROAD_V10, OFFROAD_V10_1, OFFROAD_V10_2, OFFROAD_V10_3, OFFROAD_V10_4, OFFROAD_V10_5, OFFROAD_V10_6, OFFROAD_V10_7, OFFROAD_V10_8, OFFROAD_V10_9, OFFROAD_V10_10, OFFROAD_V10_11, OFFROAD_V10_12, OFFROAD_V10_13, OFFROAD_V10_14, OFFROAD_V10_15, OFFROAD_V10_16, OFFROAD_V10_17, OFFROAD_V10_18, OFFROAD_V10_19, OFFROAD_V10_20, OFFROAD_V10_21, OFFROAD_V10_22 }
+export { OFFROAD_V2, OFFROAD_V3, OFFROAD_V4, OFFROAD_V4_1, OFFROAD_V5, OFFROAD_V5_1, OFFROAD_V6, OFFROAD_V7, OFFROAD_V7_1, OFFROAD_V7_2, OFFROAD_V7_3, OFFROAD_V8, OFFROAD_V9, OFFROAD_V10, OFFROAD_V10_1, OFFROAD_V10_2, OFFROAD_V10_3, OFFROAD_V10_4, OFFROAD_V10_5, OFFROAD_V10_6, OFFROAD_V10_7, OFFROAD_V10_8, OFFROAD_V10_9, OFFROAD_V10_10, OFFROAD_V10_11, OFFROAD_V10_12, OFFROAD_V10_13, OFFROAD_V10_14, OFFROAD_V10_15, OFFROAD_V10_16, OFFROAD_V10_17, OFFROAD_V10_18, OFFROAD_V10_19, OFFROAD_V10_20, OFFROAD_V10_21, OFFROAD_V10_22, OFFROAD_V10_23 }
 
 const world = createWorld(1)
 const yard = world.pois.find(p => p.id === 'yard')
@@ -54,6 +54,8 @@ let wheelSteer = 0
 let wheelHold = false
 let orbit = 0.8
 let orbitYaw = 0.4
+let camYaw = 0
+let camYawReady = false
 let orbitPitch = 0.35
 let orbitDist = 11
 let dprScale = 1
@@ -964,6 +966,7 @@ function startPlay(fromSave) {
   sim.spawn(specId, pose, save.upgrades)
   buildTruck(specWithUpgrades(specId, save.upgrades))
   mode = 'play'
+  camYawReady = false
   app.classList.remove('title')
   app.classList.add('playing')
   closePanels()
@@ -985,13 +988,21 @@ function readPad() {
   out.hand = btn(0) > 0.5 ? 1 : 0
   return out
 }
+function shapeSteer(v) {
+  const dead = 0.08
+  const a = Math.abs(v)
+  if (a <= dead) return 0
+  const t = Math.min(1, (a - dead) / (1 - dead))
+  return Math.sign(v) * t * t * (0.6 + 0.4 * t)
+}
 function sampleInput(dt) {
   const gp = readPad()
-  if (!wheelHold) wheelSteer += (0 - wheelSteer) * Math.min(1, dt * 7)
-  let target = wheelSteer + (keys.d - keys.a) + gp.steer
-  if (save.settings.tilt) target += tiltV
-  target = Math.max(-1, Math.min(1, target))
-  steerSm += (target - steerSm) * Math.min(1, dt * 8)
+  if (!wheelHold) wheelSteer += (0 - wheelSteer) * (1 - Math.exp(-dt * 8))
+  let raw = wheelSteer + (keys.d - keys.a) + gp.steer
+  if (save.settings.tilt) raw += tiltV
+  raw = Math.max(-1, Math.min(1, raw))
+  const target = shapeSteer(raw)
+  steerSm += (target - steerSm) * (1 - Math.exp(-dt * 10))
   const wheelEl = $('wheel')
   if (wheelEl) {
     const shown = wheelHold ? wheelSteer : steerSm
@@ -1116,11 +1127,20 @@ function updateCamera(dt) {
     )
     camera.lookAt(p.x, p.y + 0.8, p.z)
   } else {
+    const chassisYaw = Math.atan2(fwd.x, fwd.z)
+    if (!camYawReady) { camYaw = chassisYaw; camYawReady = true }
+    let gap = chassisYaw - camYaw
+    while (gap > Math.PI) gap -= Math.PI * 2
+    while (gap < -Math.PI) gap += Math.PI * 2
+    const reversing = lastSpeed < -0.45
+    camYaw += gap * (1 - Math.exp(-dt * (reversing ? 1.35 : 2.6)))
+    const bx = Math.sin(camYaw)
+    const bz = Math.cos(camYaw)
     const back = 6.3
-    desired.set(p.x - fwd.x * back, p.y + 2.45, p.z - fwd.z * back)
+    desired.set(p.x - bx * back, p.y + 2.45, p.z - bz * back)
     if (save.settings.shake) desired.y += Math.sin(performance.now() * 0.02) * Math.min(0.08, Math.abs(lastSpeed) * 0.004)
-    lookAt.set(p.x + fwd.x * 4, p.y + 0.95, p.z + fwd.z * 4)
-    const k = 1 - Math.pow(0.001, dt)
+    lookAt.set(p.x + bx * 4, p.y + 0.95, p.z + bz * 4)
+    const k = 1 - Math.exp(-dt * 4)
     camera.position.lerp(desired, k)
     const gy = world.height(camera.position.x, camera.position.z) + 1.15
     if (camera.position.y < gy) camera.position.y = gy
@@ -1773,6 +1793,9 @@ function syncSettings() {
   $('gfx').value = save.settings.gfx
   $('cycle').value = String(save.settings.cycle)
   $('tilt').checked = !!save.settings.tilt
+  const hudBox = $('hud-compact')
+  if (hudBox) hudBox.checked = save.settings.hud !== 'full'
+  app.classList.toggle('hud-full', save.settings.hud === 'full')
   $('sound').checked = save.settings.sound !== false
   $('shake').checked = save.settings.shake !== false
 }
@@ -2002,40 +2025,49 @@ function tickRecovery(dt) {
 function refreshRecover() {
   const box = $('recover')
   if (!box) return
+  const counting = recovery && recovery.phase === 'drive'
   const need = !!(recovery || rolled() || hazard.stuck)
-  box.hidden = !need || mode === 'title'
+  box.hidden = !need || counting || mode === 'title'
   const title = $('recover-title')
   const sub = $('recover-sub')
-  const time = $('recover-time')
   const btn = $('btn-call')
   const reset = $('btn-reset')
   if (reset) reset.disabled = !!(rolled() || hazard.stuck || recovery)
-  if (!need) return
+  placeRecoverRing()
+  if (!need || counting) return
   if (!recovery) {
-    if (time) time.hidden = true
     const copy = recoveryCopy(sim.upright(), hazard.stuck) || { title: 'Call for recovery', reason: 'roll' }
     const flooded = copy.reason === 'water'
     const bogged = copy.reason === 'mud'
     if (title) title.textContent = copy.title
-    const winchHint = anchor ? ' A tree or rock is in winch range.' : ''
-    if (sub) sub.textContent = (flooded ? 'The intake is under. You will not restart it here.' : bogged ? 'You will not crawl out of this.' : 'You are on your side. A yard truck can roll you back.') + winchHint
+    if (sub) sub.textContent = flooded ? 'The intake is under.' : bogged ? 'You will not crawl out of this.' : 'You are on your side.'
     if (btn) { btn.hidden = false; btn.textContent = 'Call' }
-  } else if (recovery.phase === 'drive') {
-    if (time) { time.hidden = false; time.textContent = String(Math.max(0, Math.ceil(recovery.left))) }
-    if (title) title.textContent = 'Recovery on the way'
-    if (sub) sub.textContent = 'Keep the radio on. Cancel if you get out yourself.'
-    if (btn) { btn.hidden = false; btn.textContent = 'Cancel' }
   } else if (recovery.phase === 'hook' || recovery.phase === 'drag') {
-    if (time) time.hidden = true
     if (title) title.textContent = 'Hooked up'
-    if (sub) sub.textContent = recovery.reason === 'roll' ? 'Rolling you back onto the wheels.' : 'Dragging you to firm ground.'
+    if (sub) sub.textContent = recovery.reason === 'roll' ? 'Rolling you upright.' : 'Dragging you out.'
     if (btn) btn.hidden = true
   } else {
     if (btn) btn.hidden = true
-    if (time) time.hidden = true
     if (title) title.textContent = 'Recovery leaving'
     if (sub) sub.textContent = ''
   }
+}
+const hudPoint = new THREE.Vector3()
+function placeRecoverRing() {
+  const ring = $('recover-ring')
+  if (!ring) return
+  const show = !!(recovery && recovery.phase === 'drive' && sim.chassis && mode !== 'title')
+  ring.hidden = !show
+  if (!show) return
+  const c = sim.chassis.position
+  hudPoint.set(c.x, c.y + 1.8, c.z).project(camera)
+  ring.style.left = ((hudPoint.x * 0.5 + 0.5) * window.innerWidth) + 'px'
+  ring.style.top = ((-hudPoint.y * 0.5 + 0.5) * window.innerHeight) + 'px'
+  const left = Math.max(0, recovery.left)
+  const arc = $('recover-arc')
+  if (arc) arc.style.strokeDashoffset = String(201.06 * (1 - left / 20))
+  const count = $('recover-count')
+  if (count) count.textContent = String(Math.max(0, Math.ceil(left)))
 }
 function doReset() {
   if (rolled() || hazard.stuck) { startRecovery(rolled() ? 'roll' : hazard.stuck); return }
@@ -2130,8 +2162,9 @@ if (wheelEl) {
     let d = ang(e) - base
     while (d > Math.PI) d -= Math.PI * 2
     while (d < -Math.PI) d += Math.PI * 2
-    const max = 110 * Math.PI / 180
-    wheelSteer = Math.max(-1, Math.min(1, origin + d / max))
+    const max = 100 * Math.PI / 180
+    const mag = Math.max(0, Math.abs(d) - 0.045)
+    wheelSteer = Math.max(-1, Math.min(1, origin + Math.sign(d || 1) * mag / max))
     paintWheel()
   })
   const end = e => { if (e.pointerId === pid) { pid = null; wheelHold = false } }
@@ -2192,6 +2225,17 @@ $('gfx').onchange = () => {
 }
 $('cycle').onchange = () => { save.settings.cycle = Number($('cycle').value); persist() }
 $('tilt').onchange = () => { save.settings.tilt = $('tilt').checked; persist() }
+$('hud-compact').onchange = () => {
+  save.settings.hud = $('hud-compact').checked ? 'compact' : 'full'
+  app.classList.toggle('hud-full', save.settings.hud === 'full')
+  persist()
+}
+$('btn-tray').onclick = () => {
+  const row = $('toolrow')
+  row.classList.toggle('open')
+  $('btn-tray').textContent = row.classList.contains('open') ? 'LESS' : 'MORE'
+}
+$('recover-ring').onclick = () => cancelRecovery()
 $('sound').onchange = () => { save.settings.sound = $('sound').checked; persist() }
 $('shake').onchange = () => { save.settings.shake = $('shake').checked; persist() }
 $('btn-wipe').onclick = () => {
@@ -3054,6 +3098,8 @@ let acc = 0
 const errors = []
 window.addEventListener('error', e => errors.push(String(e.message || e.error || 'error')))
 let frameMs = 0
+let hudIdle = 0
+window.addEventListener('pointerdown', () => { hudIdle = 0; app.classList.remove('hud-idle') })
 function frame(now) {
   const frameStart = performance.now()
   frameN++
@@ -3144,6 +3190,10 @@ function frame(now) {
     }
   }
   frameMs = performance.now() - frameStart
+  if (mode === 'play') {
+    hudIdle += dt
+    app.classList.toggle('hud-idle', hudIdle > 2.6 && !wheelHold && !pad.gas && !pad.brake)
+  }
   requestAnimationFrame(frame)
 }
 requestAnimationFrame(frame)
@@ -3173,6 +3223,7 @@ window.OX = {
   OFFROAD_V10_20,
   OFFROAD_V10_21,
   OFFROAD_V10_22,
+  OFFROAD_V10_23,
   get mode() { return mode },
   get speed() { return lastSpeed },
   get pos() { const c = sim.chassis; return c ? { x: c.position.x, y: c.position.y, z: c.position.z } : null },
@@ -3443,6 +3494,7 @@ window.OX = {
     return best
   },
   call() { return startRecovery() },
+  forceRecovery() { hazard.stuck = 'roll'; return startRecovery('roll') },
   rush() { if (recovery && recovery.phase === 'drive') recovery.left = 0.2 },
   wreckerBox() {
     if (!recovery) return null

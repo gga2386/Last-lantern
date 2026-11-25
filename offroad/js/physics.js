@@ -190,7 +190,8 @@ export function createSim(world) {
       w.frictionSlip = grip
       surfSum += s
       dragSum += DRAG[s] + rut * 2.2
-      const steer = (i < 2 ? 1 : 0) * input.steer * spec.steer * (input.lock ? 0.65 : 1) * (low ? 0.82 : 1)
+      const speedCut = 1 / (1 + Math.abs(speed) * 0.22)
+      const steer = (i < 2 ? 1 : 0) * (input.steer || 0) * spec.steer * speedCut * (input.lock ? 0.65 : 1) * (low ? 0.82 : 1)
       vehicle.setSteeringValue(steer, i)
       let engine = 0
       let brake = 0

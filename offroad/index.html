@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
-<meta name="oxbow-build" content="OFFROAD_V10_22">
+<meta name="oxbow-build" content="OFFROAD_V10_23">
 <meta name="description" content="Adventure Starts Here">
 <meta name="theme-color" content="#0f2a26">
 <meta name="apple-mobile-web-app-title" content="Crawl Camp">
@@ -54,10 +54,16 @@
       <div class="radio">
         <b id="recover-title">Call for recovery</b>
         <span id="recover-sub">A yard truck can roll you back over.</span>
-        <em id="recover-time" hidden>20</em>
         <button type="button" id="btn-call">Call</button>
       </div>
     </div>
+    <button type="button" id="recover-ring" hidden aria-label="Cancel recovery">
+      <svg viewBox="0 0 80 80" aria-hidden="true">
+        <circle cx="40" cy="40" r="32" fill="rgba(12,10,8,0.42)" stroke="rgba(240,193,74,0.35)" stroke-width="4"/>
+        <circle id="recover-arc" cx="40" cy="40" r="32" fill="none" stroke="#f0c14a" stroke-width="4" stroke-linecap="round"/>
+        <text id="recover-count" x="40" y="46" text-anchor="middle" fill="#f4efe6" font-size="18" font-family="Impact, sans-serif">20</text>
+      </svg>
+    </button>
     <button type="button" id="btn-camp" hidden>CAMP</button>
     <button type="button" id="btn-store" hidden>STORE</button>
     <button type="button" id="btn-jerry" hidden>CAN 0</button>
@@ -112,7 +118,8 @@
         </div>
       </div>
       <div class="drive-side">
-        <div class="toolrow">
+        <div class="toolrow" id="toolrow">
+          <button type="button" id="btn-tray" title="More controls">MORE</button>
           <button type="button" id="btn-winch" title="Winch">WINCH</button>
           <button type="button" id="btn-lock" aria-pressed="false" title="Diff lock">LOCK</button>
           <button type="button" id="btn-low" aria-pressed="false" title="Low range">LOW</button>
@@ -283,6 +290,7 @@
         </select>
       </label>
       <label class="check"><input id="tilt" type="checkbox"> Tilt to steer</label>
+      <label class="check"><input id="hud-compact" type="checkbox" checked> Compact HUD</label>
       <label class="check"><input id="sound" type="checkbox" checked> Engine note</label>
       <label class="check"><input id="shake" type="checkbox" checked> Camera shake</label>
       <button type="button" id="btn-wipe" class="danger">Erase this run</button>

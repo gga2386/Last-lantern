@@ -1,13 +1,13 @@
 // OFFROAD_V2 — terrain, reputation, fuel, and solid trees. Run: node offroad/test/sim.js
 import { createWorld, SURF, FRICTION, DRAG, HALF } from '../js/world.js'
 import { CROSS, SIDES, bogMask, courseFeatures, creekDrop, digRut, duneAdd, nearSide, puddleAt, roadGroove, rutCount, rutDepth } from '../js/trail.js'
-import { OFFROAD_V2, OFFROAD_V3, OFFROAD_V4, OFFROAD_V4_1, OFFROAD_V5, OFFROAD_V5_1, OFFROAD_V6, OFFROAD_V7, OFFROAD_V7_1, OFFROAD_V7_2, OFFROAD_V7_3, OFFROAD_V8, OFFROAD_V9, OFFROAD_V10, OFFROAD_V10_1, OFFROAD_V10_2, OFFROAD_V10_3, OFFROAD_V10_4, OFFROAD_V10_5, OFFROAD_V10_6, OFFROAD_V10_7, OFFROAD_V10_8, OFFROAD_V10_9, OFFROAD_V10_10, OFFROAD_V10_11, OFFROAD_V10_12, OFFROAD_V10_13, OFFROAD_V10_14, OFFROAD_V10_15, OFFROAD_V10_16, OFFROAD_V10_17, OFFROAD_V10_18, OFFROAD_V10_19, OFFROAD_V10_20, OFFROAD_V10_21, OFFROAD_V10_22, VEHICLES, ADVENTURES, freshSave, buyUpgrade, buyVehicle, buyAux, buyJerry, useJerry, refuel, burnFuel, coerceSave, tickAdventure, tankCapacity, jerrySlots, isDark, TANK, specWithUpgrades, noteAssist, crawlAngles, regionUnlocked } from '../js/economy.js'
+import { OFFROAD_V2, OFFROAD_V3, OFFROAD_V4, OFFROAD_V4_1, OFFROAD_V5, OFFROAD_V5_1, OFFROAD_V6, OFFROAD_V7, OFFROAD_V7_1, OFFROAD_V7_2, OFFROAD_V7_3, OFFROAD_V8, OFFROAD_V9, OFFROAD_V10, OFFROAD_V10_1, OFFROAD_V10_2, OFFROAD_V10_3, OFFROAD_V10_4, OFFROAD_V10_5, OFFROAD_V10_6, OFFROAD_V10_7, OFFROAD_V10_8, OFFROAD_V10_9, OFFROAD_V10_10, OFFROAD_V10_11, OFFROAD_V10_12, OFFROAD_V10_13, OFFROAD_V10_14, OFFROAD_V10_15, OFFROAD_V10_16, OFFROAD_V10_17, OFFROAD_V10_18, OFFROAD_V10_19, OFFROAD_V10_20, OFFROAD_V10_21, OFFROAD_V10_22, OFFROAD_V10_23, VEHICLES, ADVENTURES, freshSave, buyUpgrade, buyVehicle, buyAux, buyJerry, useJerry, refuel, burnFuel, coerceSave, tickAdventure, tankCapacity, jerrySlots, isDark, TANK, specWithUpgrades, noteAssist, crawlAngles, regionUnlocked } from '../js/economy.js'
 import { canPitch, slopeAt, buyCamp, cookJudge, applyCook, rollFish, aimHit, RECIPES, activityState, nearWater, habitat, CAMP, spotVisual, roastGrade, roastStamp, applyRoast, campCosmetic } from '../js/camp.js'
 import { createSim, tractionTrial, ROLL_LIMIT, recoveryCopy } from '../js/physics.js'
 
 const fails = []
 const fail = m => fails.push(m)
-if (OFFROAD_V2 !== 1 || OFFROAD_V3 !== 1 || OFFROAD_V4 !== 1 || OFFROAD_V4_1 !== 1 || OFFROAD_V5 !== 1 || OFFROAD_V5_1 !== 1 || OFFROAD_V6 !== 1 || OFFROAD_V7 !== 1 || OFFROAD_V7_1 !== 1 || OFFROAD_V7_2 !== 1 || OFFROAD_V7_3 !== 1 || OFFROAD_V8 !== 1 || OFFROAD_V9 !== 1 || OFFROAD_V10 !== 1 || OFFROAD_V10_1 !== 1 || OFFROAD_V10_2 !== 1 || OFFROAD_V10_3 !== 1 || OFFROAD_V10_4 !== 1 || OFFROAD_V10_5 !== 1 || OFFROAD_V10_6 !== 1 || OFFROAD_V10_7 !== 1 || OFFROAD_V10_8 !== 1 || OFFROAD_V10_9 !== 1 || OFFROAD_V10_10 !== 1 || OFFROAD_V10_11 !== 1 || OFFROAD_V10_12 !== 1 || OFFROAD_V10_13 !== 1 || OFFROAD_V10_14 !== 1 || OFFROAD_V10_15 !== 1 || OFFROAD_V10_16 !== 1 || OFFROAD_V10_17 !== 1 || OFFROAD_V10_18 !== 1 || OFFROAD_V10_19 !== 1 || OFFROAD_V10_20 !== 1 || OFFROAD_V10_21 !== 1 || OFFROAD_V10_22 !== 1) fail('marker missing')
+if (OFFROAD_V2 !== 1 || OFFROAD_V3 !== 1 || OFFROAD_V4 !== 1 || OFFROAD_V4_1 !== 1 || OFFROAD_V5 !== 1 || OFFROAD_V5_1 !== 1 || OFFROAD_V6 !== 1 || OFFROAD_V7 !== 1 || OFFROAD_V7_1 !== 1 || OFFROAD_V7_2 !== 1 || OFFROAD_V7_3 !== 1 || OFFROAD_V8 !== 1 || OFFROAD_V9 !== 1 || OFFROAD_V10 !== 1 || OFFROAD_V10_1 !== 1 || OFFROAD_V10_2 !== 1 || OFFROAD_V10_3 !== 1 || OFFROAD_V10_4 !== 1 || OFFROAD_V10_5 !== 1 || OFFROAD_V10_6 !== 1 || OFFROAD_V10_7 !== 1 || OFFROAD_V10_8 !== 1 || OFFROAD_V10_9 !== 1 || OFFROAD_V10_10 !== 1 || OFFROAD_V10_11 !== 1 || OFFROAD_V10_12 !== 1 || OFFROAD_V10_13 !== 1 || OFFROAD_V10_14 !== 1 || OFFROAD_V10_15 !== 1 || OFFROAD_V10_16 !== 1 || OFFROAD_V10_17 !== 1 || OFFROAD_V10_18 !== 1 || OFFROAD_V10_19 !== 1 || OFFROAD_V10_20 !== 1 || OFFROAD_V10_21 !== 1 || OFFROAD_V10_22 !== 1 || OFFROAD_V10_23 !== 1) fail('marker missing')
 const ids = Object.keys(VEHICLES)
 if (ids.length < 6) fail('roster ' + ids.join(','))
 for (const id of ['mule', 'scout', 'runner', 'wagon', 'hauler', 'crawler', 'van']) if (!VEHICLES[id]) fail('missing ' + id)
@@ -490,4 +490,38 @@ if (fails.length) {
   fails.forEach(f => console.error(' -', f))
   process.exit(1)
 }
-console.log('OK OFFROAD_V10_22')
+function yawOf(q) {
+  return Math.atan2(2 * (q.w * q.y + q.x * q.z), 1 - 2 * (q.y * q.y + q.z * q.z))
+}
+function steerTrial(gear) {
+  const s = createSim(world)
+  const x = yard.x + 24
+  const z = yard.z + 4
+  s.spawn('mule', { x, z, y: world.height(x, z) + 2 })
+  const base = { steer: 1, handbrake: false, lock: false, winch: false, fuel: 18, engine: true, gear }
+  for (let i = 0; i < 20; i++) s.step(1 / 60, Object.assign({}, base, { throttle: 0, brake: 0 }))
+  const y0 = yawOf(s.chassis.quaternion)
+  const wheel = s.vehicle.wheelInfos[0].steering
+  const rear = s.vehicle.wheelInfos[2].steering
+  for (let i = 0; i < 140; i++) {
+    s.step(1 / 60, Object.assign({}, base, { throttle: gear === 'R' ? 0 : 1, brake: gear === 'R' ? 1 : 0 }))
+  }
+  let dy = yawOf(s.chassis.quaternion) - y0
+  while (dy > Math.PI) dy -= Math.PI * 2
+  while (dy < -Math.PI) dy += Math.PI * 2
+  return { dy, wheel, rear, dx: s.chassis.position.x - x }
+}
+const rightD = steerTrial('D')
+const rightR = steerTrial('R')
+console.log('steer D', rightD.dy.toFixed(3), 'dx', rightD.dx.toFixed(2), 'wheel', rightD.wheel.toFixed(3))
+console.log('steer R', rightR.dy.toFixed(3), 'dx', rightR.dx.toFixed(2), 'wheel', rightR.wheel.toFixed(3))
+if (!(rightD.wheel > 0.05 && rightR.wheel > 0.05)) fail('right input did not point the front wheels right')
+if (Math.abs(rightD.rear) > 0.001 || Math.abs(rightR.rear) > 0.001) fail('rear wheels are steering')
+if (!(rightD.dx > 0.2 && rightD.dy > 0.05)) fail('right input did not turn right in drive ' + JSON.stringify(rightD))
+if (!(rightR.dx > 0.2 && rightR.dy < -0.05)) fail('right input did not turn right in reverse ' + JSON.stringify(rightR))
+if (fails.length) {
+  console.error('FAIL')
+  fails.forEach(f => console.error(' -', f))
+  process.exit(1)
+}
+console.log('OK OFFROAD_V10_23')
