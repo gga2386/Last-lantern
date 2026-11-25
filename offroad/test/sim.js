@@ -490,4 +490,38 @@ if (fails.length) {
   fails.forEach(f => console.error(' -', f))
   process.exit(1)
 }
+function yawOf(q) {
+  return Math.atan2(2 * (q.w * q.y + q.x * q.z), 1 - 2 * (q.y * q.y + q.z * q.z))
+}
+function steerTrial(gear) {
+  const s = createSim(world)
+  const x = yard.x + 24
+  const z = yard.z + 4
+  s.spawn('mule', { x, z, y: world.height(x, z) + 2 })
+  const base = { steer: 1, handbrake: false, lock: false, winch: false, fuel: 18, engine: true, gear }
+  for (let i = 0; i < 20; i++) s.step(1 / 60, Object.assign({}, base, { throttle: 0, brake: 0 }))
+  const y0 = yawOf(s.chassis.quaternion)
+  const wheel = s.vehicle.wheelInfos[0].steering
+  const rear = s.vehicle.wheelInfos[2].steering
+  for (let i = 0; i < 140; i++) {
+    s.step(1 / 60, Object.assign({}, base, { throttle: gear === 'R' ? 0 : 1, brake: gear === 'R' ? 1 : 0 }))
+  }
+  let dy = yawOf(s.chassis.quaternion) - y0
+  while (dy > Math.PI) dy -= Math.PI * 2
+  while (dy < -Math.PI) dy += Math.PI * 2
+  return { dy, wheel, rear, dx: s.chassis.position.x - x }
+}
+const rightD = steerTrial('D')
+const rightR = steerTrial('R')
+console.log('steer D', rightD.dy.toFixed(3), 'dx', rightD.dx.toFixed(2), 'wheel', rightD.wheel.toFixed(3))
+console.log('steer R', rightR.dy.toFixed(3), 'dx', rightR.dx.toFixed(2), 'wheel', rightR.wheel.toFixed(3))
+if (!(rightD.wheel > 0.05 && rightR.wheel > 0.05)) fail('right input did not point the front wheels right')
+if (Math.abs(rightD.rear) > 0.001 || Math.abs(rightR.rear) > 0.001) fail('rear wheels are steering')
+if (!(rightD.dx > 0.2 && rightD.dy > 0.05)) fail('right input did not turn right in drive ' + JSON.stringify(rightD))
+if (!(rightR.dx > 0.2 && rightR.dy < -0.05)) fail('right input did not turn right in reverse ' + JSON.stringify(rightR))
+if (fails.length) {
+  console.error('FAIL')
+  fails.forEach(f => console.error(' -', f))
+  process.exit(1)
+}
 console.log('OK OFFROAD_V10_22')

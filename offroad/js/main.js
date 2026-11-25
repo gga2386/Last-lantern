@@ -54,6 +54,8 @@ let wheelSteer = 0
 let wheelHold = false
 let orbit = 0.8
 let orbitYaw = 0.4
+let camYaw = 0
+let camYawReady = false
 let orbitPitch = 0.35
 let orbitDist = 11
 let dprScale = 1
@@ -964,6 +966,7 @@ function startPlay(fromSave) {
   sim.spawn(specId, pose, save.upgrades)
   buildTruck(specWithUpgrades(specId, save.upgrades))
   mode = 'play'
+  camYawReady = false
   app.classList.remove('title')
   app.classList.add('playing')
   closePanels()
@@ -985,13 +988,21 @@ function readPad() {
   out.hand = btn(0) > 0.5 ? 1 : 0
   return out
 }
+function shapeSteer(v) {
+  const dead = 0.08
+  const a = Math.abs(v)
+  if (a <= dead) return 0
+  const t = Math.min(1, (a - dead) / (1 - dead))
+  return Math.sign(v) * t * t * (0.6 + 0.4 * t)
+}
 function sampleInput(dt) {
   const gp = readPad()
-  if (!wheelHold) wheelSteer += (0 - wheelSteer) * Math.min(1, dt * 7)
-  let target = wheelSteer + (keys.d - keys.a) + gp.steer
-  if (save.settings.tilt) target += tiltV
-  target = Math.max(-1, Math.min(1, target))
-  steerSm += (target - steerSm) * Math.min(1, dt * 8)
+  if (!wheelHold) wheelSteer += (0 - wheelSteer) * (1 - Math.exp(-dt * 8))
+  let raw = wheelSteer + (keys.d - keys.a) + gp.steer
+  if (save.settings.tilt) raw += tiltV
+  raw = Math.max(-1, Math.min(1, raw))
+  const target = shapeSteer(raw)
+  steerSm += (target - steerSm) * (1 - Math.exp(-dt * 10))
   const wheelEl = $('wheel')
   if (wheelEl) {
     const shown = wheelHold ? wheelSteer : steerSm
@@ -1116,11 +1127,20 @@ function updateCamera(dt) {
     )
     camera.lookAt(p.x, p.y + 0.8, p.z)
   } else {
+    const chassisYaw = Math.atan2(fwd.x, fwd.z)
+    if (!camYawReady) { camYaw = chassisYaw; camYawReady = true }
+    let gap = chassisYaw - camYaw
+    while (gap > Math.PI) gap -= Math.PI * 2
+    while (gap < -Math.PI) gap += Math.PI * 2
+    const reversing = lastSpeed < -0.45
+    camYaw += gap * (1 - Math.exp(-dt * (reversing ? 1.35 : 2.6)))
+    const bx = Math.sin(camYaw)
+    const bz = Math.cos(camYaw)
     const back = 6.3
-    desired.set(p.x - fwd.x * back, p.y + 2.45, p.z - fwd.z * back)
+    desired.set(p.x - bx * back, p.y + 2.45, p.z - bz * back)
     if (save.settings.shake) desired.y += Math.sin(performance.now() * 0.02) * Math.min(0.08, Math.abs(lastSpeed) * 0.004)
-    lookAt.set(p.x + fwd.x * 4, p.y + 0.95, p.z + fwd.z * 4)
-    const k = 1 - Math.pow(0.001, dt)
+    lookAt.set(p.x + bx * 4, p.y + 0.95, p.z + bz * 4)
+    const k = 1 - Math.exp(-dt * 4)
     camera.position.lerp(desired, k)
     const gy = world.height(camera.position.x, camera.position.z) + 1.15
     if (camera.position.y < gy) camera.position.y = gy
@@ -2130,8 +2150,9 @@ if (wheelEl) {
     let d = ang(e) - base
     while (d > Math.PI) d -= Math.PI * 2
     while (d < -Math.PI) d += Math.PI * 2
-    const max = 110 * Math.PI / 180
-    wheelSteer = Math.max(-1, Math.min(1, origin + d / max))
+    const max = 100 * Math.PI / 180
+    const mag = Math.max(0, Math.abs(d) - 0.045)
+    wheelSteer = Math.max(-1, Math.min(1, origin + Math.sign(d || 1) * mag / max))
     paintWheel()
   })
   const end = e => { if (e.pointerId === pid) { pid = null; wheelHold = false } }
