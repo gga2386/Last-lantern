@@ -35,6 +35,7 @@ export const OFFROAD_V10_19 = 1
 export const OFFROAD_V10_20 = 1
 export const OFFROAD_V10_21 = 1
 export const OFFROAD_V10_22 = 1
+export const OFFROAD_V10_23 = 1
 export const REGION_OPEN = { forest: 0, desert: 40, mountain: 120 }
 export function regionUnlocked(save, id) {
   return (save.rep || 0) >= (REGION_OPEN[id] || 0)
@@ -284,13 +285,13 @@ export function freshSave(partial) {
     respawn: null,
     buff: null,
     cosmetics: {},
-    settings: { gfx: 'medium', tilt: false, sound: true, shake: true, cycle: 8 },
+    settings: { gfx: 'medium', tilt: false, sound: true, shake: true, cycle: 8, hud: 'compact' },
     ...partial
   }
 }
 export function coerceSave(raw, gfx) {
   if (!raw || !raw.upgrades) return null
-  const base = freshSave({ settings: { gfx: gfx || 'medium', tilt: false, sound: true, shake: true, cycle: 8 } })
+  const base = freshSave({ settings: { gfx: gfx || 'medium', tilt: false, sound: true, shake: true, cycle: 8, hud: 'compact' } })
   if ((raw.v || 0) >= 2) {
     const s = Object.assign(base, raw)
     s.v = 10
@@ -322,6 +323,7 @@ export function coerceSave(raw, gfx) {
   if (raw.settings) {
     s.settings.gfx = raw.settings.gfx || s.settings.gfx
     s.settings.tilt = !!raw.settings.tilt
+    s.settings.hud = raw.settings.hud === 'full' ? 'full' : 'compact'
     s.settings.sound = raw.settings.sound !== false
     s.settings.shake = raw.settings.shake !== false
     if (typeof raw.settings.time === 'number') s.clock = raw.settings.time
